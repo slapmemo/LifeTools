@@ -1,6 +1,6 @@
 # LifeTools — v0.1 iskeleti
 
-Chrome (Manifest V3) eklentisi. Yalnızca Chrome hedeflenir. Ağ isteği, uzaktan kod veya analitik yoktur.
+Chrome (Manifest V3) eklentisi. Yalnızca Chrome hedeflenir. Seçilen medya indirmesi dışında ağ isteği, uzaktan kod veya analitik yoktur.
 
 ## İçerik
 
@@ -104,3 +104,7 @@ Popup düğmesi, Komut Merkezi veya Alt+Shift+P ile etkin sekmedeki görünür v
 ## Pano Yuvaları
 
 Popup'ta A–E yuvalarını düzenle ve kopyala. Seçimi sağ tıkla yuvaya kaydet veya düzenlenebilir alanda yuvadan yapıştır. Yuvalar yerel yedeğe dahildir.
+
+## X Video İndirici
+
+X veya Twitter’da zaten izleyebildiğin herkese açık video ve GIF’leri İndir düğmesiyle indirebilirsin. Popup’ta kalite, tek tıkla indirme ve kaydet penceresi ayarlanabilir. Yalnızca progressive MP4 desteklenir; HLS (m3u8) birleştirme, DRM ve korumaları aşma desteklenmez. MP4 olmayan içerikte “Bu video indirilemiyor (yalnızca akış)” gösterilir. Yalnızca seçtiğin medya dosyası indirilir. X sayfa yapısını değiştirdiğinde düğme çalışmayabilir.

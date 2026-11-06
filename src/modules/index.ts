@@ -1,3 +1,4 @@
+import { xVideoModule } from './x-video';
 import { watchlistModule } from './watchlist';
 import { pipModule } from './pip';
 import { clipSlotsModule } from './clip-slots';
@@ -20,4 +21,4 @@ import { shortcutsModule } from './shortcuts';
 import { siteToolbarModule } from './site-toolbar';
 
 /** Tüm araçların kaydı. Yeni araç buraya eklenir. */
-export const modules: readonly LifeModule[] = [watchlistModule, pipModule, clipSlotsModule, timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule, tabLabelsModule, tabNotesModule, tabSwitcherModule, titleCleanerModule, commandCenterModule, shortcutsModule, siteToolbarModule];
+export const modules: readonly LifeModule[] = [xVideoModule, watchlistModule, pipModule, clipSlotsModule, timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule, tabLabelsModule, tabNotesModule, tabSwitcherModule, titleCleanerModule, commandCenterModule, shortcutsModule, siteToolbarModule];

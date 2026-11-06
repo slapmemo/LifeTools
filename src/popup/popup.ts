@@ -1,3 +1,4 @@
+import { X_VIDEO_ID, SETTINGS_KEY as X_VIDEO_SETTINGS_KEY, defaults as xVideoDefaults } from '../modules/x-video/shared';
 import { WATCHLIST_ID } from '../modules/watchlist/background';
 import { initWatchlistPanel } from '../modules/watchlist/panel';
 import { PIP_ID } from '../modules/pip/background';
@@ -104,7 +105,16 @@ async function renderModules(): Promise<void> {
   }
 }
 
+const xVideoPanel = document.querySelector('#x-video-panel') as HTMLElement;
+const xQuality = document.querySelector('#x-video-quality') as HTMLSelectElement;
+const xOneClick = document.querySelector('#x-video-one-click') as HTMLInputElement;
+const xSaveAs = document.querySelector('#x-video-save-as') as HTMLInputElement;
+for (const control of [xQuality, xOneClick, xSaveAs]) control.addEventListener('change', () => { void chrome.storage.local.set({[X_VIDEO_SETTINGS_KEY]: {quality:xQuality.value, oneClick:xOneClick.checked, saveAs:xSaveAs.checked}}); });
 async function refresh(): Promise<void> {
+  xVideoPanel.hidden = !await isModuleEnabled(X_VIDEO_ID);
+  const xData = await chrome.storage.local.get({[X_VIDEO_SETTINGS_KEY]: xVideoDefaults});
+  const xSettings = {...xVideoDefaults, ...xData[X_VIDEO_SETTINGS_KEY]};
+  xQuality.value = xSettings.quality; xOneClick.checked = xSettings.oneClick; xSaveAs.checked = xSettings.saveAs;
   await renderModules();
   watchSection.hidden = !await isModuleEnabled(WATCHLIST_ID); if (!watchSection.hidden) await watch.render();
   clipSection.hidden = !await isModuleEnabled(CLIP_SLOTS_ID); if (!clipSection.hidden) await clip.render();

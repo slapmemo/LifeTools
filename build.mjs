@@ -10,6 +10,8 @@ mkdirSync(dist, { recursive: true });
 await build({
   entryPoints: {
     background: 'src/background.ts',
+    'x-video-hook': 'src/modules/x-video/x-video-hook.ts',
+    'x-video-ui': 'src/modules/x-video/x-video-ui.ts',
     'smart-replies-content': 'src/modules/smart-replies/content.ts',
     popup: 'src/popup/popup.ts',
     'site-toolbar-content': 'src/modules/site-toolbar/content.ts',

@@ -18,10 +18,16 @@
     "scripting",
     "tabGroups",
     "notifications",
-    "favicon"
+    "favicon",
+    "downloads"
   ],
   "commands": {
-    "toggle-pip": { "suggested_key": { "default": "Alt+Shift+P" }, "description": "Resim içinde resmi aç/kapat" },
+    "toggle-pip": {
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
+      "description": "Resim içinde resmi aç/kapat"
+    },
     "save-selection": {
       "suggested_key": {
         "default": "Alt+Shift+S"
@@ -86,5 +92,32 @@
   "optional_host_permissions": [
     "https://*/*",
     "http://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://x.com/*",
+        "*://www.x.com/*",
+        "*://twitter.com/*",
+        "*://www.twitter.com/*"
+      ],
+      "js": [
+        "x-video-hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "*://x.com/*",
+        "*://www.x.com/*",
+        "*://twitter.com/*",
+        "*://www.twitter.com/*"
+      ],
+      "js": [
+        "x-video-ui.js"
+      ],
+      "run_at": "document_start"
+    }
   ]
 }
