@@ -1,11 +1,11 @@
 import { MIGRATIONS, readVersion, type Executor } from '../db/migrations';
 import type { SqlParam, SqlStatement } from '../db/protocol';
-const columns = { notes: ['id','category','text','url','page_title','user_note','created_at','updated_at'], snippets: ['id','trigger','title','body','use_count','created_at','updated_at'], tasks: ['id','title','note','url','due_date','done_at','created_at','updated_at'], site_time: ['day','domain','seconds'] } as const;
+const columns = { notes: ['id','category','text','url','page_title','user_note','created_at','updated_at'], snippets: ['id','trigger','title','body','use_count','created_at','updated_at'], tasks: ['id','title','note','url','due_date','done_at','created_at','updated_at'], site_time: ['day','domain','seconds'], sessions: ['id','name','created_at'], session_tabs: ['id','session_id','position','url','title','pinned','group_title','group_color'] } as const;
 type Table = keyof typeof columns;
 type Row = Record<string, SqlParam>;
 export interface Backup { app: 'LifeTools'; format: 1; schema_version: number; exported_at: string; tables: Record<Table, Row[]>; settings: Record<string, unknown> }
 const names = Object.keys(columns) as Table[];
-const introduced: Record<Table, number> = { notes: 2, snippets: 3, tasks: 4, site_time: 5 };
+const introduced: Record<Table, number> = { notes: 2, snippets: 3, tasks: 4, site_time: 5, sessions: 6, session_tabs: 6 };
 const object = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 export async function exportData(ex: Executor, settings: Record<string, unknown>): Promise<Backup> {
   const tables = {} as Backup['tables'];
@@ -28,7 +28,8 @@ export function validateBackup(json: unknown): Backup {
   return { app: 'LifeTools', format: 1, schema_version: version, exported_at: json.exported_at, tables, settings: json.settings };
 }
 export async function restoreData(ex: Executor, backup: Backup): Promise<Record<Table, number>> {
-  const statements: SqlStatement[] = names.map(name => ({ sql: `DELETE FROM ${name}` }));
+  // Silme ters sırada (alt tablolar önce), ekleme sırayla (sessions, session_tabs'tan önce) yapılır.
+  const statements: SqlStatement[] = [...names].reverse().map(name => ({ sql: `DELETE FROM ${name}` }));
   for (const name of names) for (const row of backup.tables[name]) {
     const keys = columns[name].filter(key => Object.prototype.hasOwnProperty.call(row, key));
     if (!keys.length) throw new Error(`Geçersiz satır: ${name}`);

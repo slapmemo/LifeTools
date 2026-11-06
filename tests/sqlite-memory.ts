@@ -13,6 +13,7 @@ export async function createMemoryExecutor(): Promise<Executor> {
   const mod: any = await import(/* @vite-ignore */ NODE_BUILD);
   const sqlite3: any = await mod.default({ print: () => {}, printErr: () => {} });
   const db = new sqlite3.oo1.DB(':memory:', 'c');
+  db.exec({ sql: 'PRAGMA foreign_keys=ON' });
   return {
     async exec(sql, params) {
       db.exec({ sql, bind: params && params.length > 0 ? params : undefined });

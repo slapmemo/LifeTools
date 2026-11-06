@@ -15,7 +15,9 @@
     "offscreen",
     "contextMenus",
     "activeTab",
-    "scripting"
+    "scripting",
+    "tabGroups",
+    "notifications"
   ],
   "commands": {
     "save-selection": {

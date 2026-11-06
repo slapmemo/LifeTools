@@ -72,7 +72,16 @@ export const MIGRATIONS: readonly Migration[] = [
     )`,
     'CREATE INDEX idx_tasks_done_due ON tasks(done_at, due_date)'
   ] },
-  { version: 5, statements: [`CREATE TABLE site_time (day TEXT NOT NULL, domain TEXT NOT NULL, seconds INTEGER NOT NULL, PRIMARY KEY(day, domain))`] }
+  { version: 5, statements: [`CREATE TABLE site_time (day TEXT NOT NULL, domain TEXT NOT NULL, seconds INTEGER NOT NULL, PRIMARY KEY(day, domain))`] },
+  { version: 6, statements: [
+    'CREATE TABLE sessions (id INTEGER PRIMARY KEY, name TEXT NOT NULL, created_at INTEGER NOT NULL)',
+    `CREATE TABLE session_tabs (
+      id INTEGER PRIMARY KEY, session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL, url TEXT NOT NULL, title TEXT, pinned INTEGER NOT NULL DEFAULT 0,
+      group_title TEXT, group_color TEXT
+    )`,
+    'CREATE INDEX idx_session_tabs_session ON session_tabs(session_id, position)'
+  ] }
 ];
 
 export const SCHEMA_VERSION_KEY = 'schema_version';

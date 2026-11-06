@@ -5,6 +5,9 @@ import { linkCleanerModule } from './link-cleaner';
 import type { LifeModule } from '../core/module';
 import { siteBlockerModule } from './site-blocker';
 import { slapMemoModule } from './slapmemo';
+import { lifeBrowserModule } from './life-browser';
+import { zombieTabsModule } from './zombie-tabs';
+import { pinnedGuardModule } from './pinned-guard';
 
 /** Tüm araçların kaydı. Yeni araç buraya eklenir. */
-export const modules: readonly LifeModule[] = [timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule];
+export const modules: readonly LifeModule[] = [timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule];

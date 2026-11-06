@@ -136,6 +136,38 @@
       <ul id="time-exclusions"></ul><p id="time-feedback" class="feedback" aria-live="polite"></p>
       <button id="time-delete" type="button">T?m verileri sil</button>
     </section>
+    <section id="life-browser-panel" class="section" hidden aria-label="LifeBrowser">
+      <div class="section-heading"><h2>LifeBrowser</h2><span id="lb-count" class="count">0</span></div>
+      <form id="lb-save-form">
+        <div class="input-row"><input id="lb-name" placeholder="Oturum adı" maxlength="100" aria-label="Oturum adı" required /><button type="submit">Oturumu kaydet</button></div>
+        <label><input id="lb-close" type="checkbox" /> Kaydet ve kapat</label>
+      </form>
+      <button id="lb-group" type="button">Siteye göre grupla</button>
+      <p id="lb-feedback" class="feedback" aria-live="polite"></p>
+      <h3>Kayıtlı oturumlar</h3>
+      <ul id="lb-sessions" class="memo-list" aria-label="Kayıtlı oturumlar"></ul>
+      <h3>Kopya sekmeler</h3>
+      <ul id="lb-duplicates" class="memo-list" aria-label="Kopya sekmeler"></ul>
+      <button id="lb-dedupe" type="button" hidden>Kopyaları kapat</button>
+    </section>
+    <section id="zombie-tabs-panel" class="section" hidden aria-label="Zombi Sekme Temizleyici">
+      <div class="section-heading"><h2>Zombi Sekmeler</h2><span id="zombie-count" class="count">0</span></div>
+      <form id="zombie-form">
+        <label for="zombie-hours">Şu kadar saattir açılmayan sekmeler</label>
+        <div class="input-row"><input id="zombie-hours" type="number" min="1" step="1" required /><button type="submit">Kaydet</button></div>
+      </form>
+      <ul id="zombie-list" class="memo-list" aria-label="Zombi sekmeler"></ul>
+      <button id="zombie-close-all" type="button" hidden>Tümünü kapat</button>
+      <button id="zombie-move-all" type="button" hidden>Tümünü oturuma taşı</button>
+      <p id="zombie-feedback" class="feedback" aria-live="polite"></p>
+      <p class="hint">Sabit, ses çalan ve etkin sekmeler önerilmez.</p>
+    </section>
+    <section id="pinned-guard-panel" class="section" hidden aria-label="Sabit Sekme Koruyucu">
+      <div class="section-heading"><h2>Son kapanan sabit sekmeler</h2></div>
+      <ul id="pinned-closed" class="memo-list" aria-label="Son kapanan sabit sekmeler"></ul>
+      <p id="pinned-feedback" class="feedback" aria-live="polite"></p>
+      <p class="hint">Chrome kapatmayı engelleyemez; sabit sekme kapanınca bildirim gösterilir.</p>
+    </section>
     <section class="section" aria-label="Yedek">
       <div class="section-heading"><h2>Yedek</h2></div>
       <button id="backup-download" type="button">Yedeği indir</button>

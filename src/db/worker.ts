@@ -23,6 +23,8 @@ async function init(): Promise<Executor> {
 
   const poolUtil = await (sqlite3 as any).installOpfsSAHPoolVfs({ directory: '.lifetools-sqlite' });
   const db = new poolUtil.OpfsSAHPoolDb(DB_PATH) as WasmDb;
+  // session_tabs -> sessions için ON DELETE CASCADE çalışsın diye (bağlantı başına ayarlanır).
+  db.exec({ sql: 'PRAGMA foreign_keys=ON' });
 
   const executor: Executor = {
     async exec(sql: string, params?: SqlParam[]) {

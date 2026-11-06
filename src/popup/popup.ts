@@ -15,6 +15,19 @@ import { SITE_BLOCKER_ID } from '../modules/site-blocker/background';
 import { initBlockerPanel } from '../modules/site-blocker/panel';
 import { SLAPMEMO_ID } from '../modules/slapmemo/background';
 import { initSlapMemoPanel } from '../modules/slapmemo/panel';
+import { LIFE_BROWSER_ID } from '../modules/life-browser/background';
+import { initLifeBrowserPanel } from '../modules/life-browser/panel';
+import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
+import { initZombieTabsPanel } from '../modules/zombie-tabs/panel';
+import { PINNED_GUARD_ID } from '../modules/pinned-guard/background';
+import { initPinnedGuardPanel } from '../modules/pinned-guard/panel';
+
+const lifeBrowserSection = document.querySelector('#life-browser-panel') as HTMLElement;
+const lifeBrowser = initLifeBrowserPanel();
+const zombieSection = document.querySelector('#zombie-tabs-panel') as HTMLElement;
+const zombies = initZombieTabsPanel();
+const pinnedSection = document.querySelector('#pinned-guard-panel') as HTMLElement;
+const pinned = initPinnedGuardPanel();
 
 const timeSection = document.querySelector('#time-tracker-panel') as HTMLElement;
 const timeTracker = initTimeTrackerPanel();
@@ -82,6 +95,12 @@ async function refresh(): Promise<void> {
   if (!memoSection.hidden) await memo.render();
   cleanerSection.hidden = !(await isModuleEnabled(LINK_CLEANER_ID));
   if (!cleanerSection.hidden) await cleaner.render();
+  lifeBrowserSection.hidden = !(await isModuleEnabled(LIFE_BROWSER_ID));
+  if (!lifeBrowserSection.hidden) await lifeBrowser.render();
+  zombieSection.hidden = !(await isModuleEnabled(ZOMBIE_TABS_ID));
+  if (!zombieSection.hidden) await zombies.render();
+  pinnedSection.hidden = !(await isModuleEnabled(PINNED_GUARD_ID));
+  if (!pinnedSection.hidden) await pinned.render();
 }
 
 async function showDbStatus(): Promise<void> {
@@ -124,7 +143,7 @@ backupFile.addEventListener('change', () => { void (async () => {
   try {
     selectedBackup = validateBackup(JSON.parse(await backupFile.files[0].text()));
     const t = selectedBackup.tables;
-    backupPreview.textContent = `${t.notes.length} not, ${t.snippets.length} şablon, ${t.tasks.length} görev, ${t.site_time.length} site süresi kaydı. Mevcut veriler ve ayarlar değiştirilecek.`;
+    backupPreview.textContent = `${t.notes.length} not, ${t.snippets.length} şablon, ${t.tasks.length} görev, ${t.site_time.length} site süresi kaydı, ${t.sessions.length} oturum (${t.session_tabs.length} sekme). Mevcut veriler ve ayarlar değiştirilecek.`;
     backupRestore.hidden = false;
   } catch (err) { backupError(err); }
 })(); });

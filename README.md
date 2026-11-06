@@ -37,6 +37,18 @@ Popup'tan görev ve isteğe bağlı tarih ekle; açık görevleri tamamla, sil v
 
 Odakl? Chrome penceresinin etkin sekmesinde, kullan?c? aktifken ge?irilen s?reyi bug?n veya son yedi g?n i?in g?sterir. Siteleri hari? tutabilir ve verileri silebilirsin. Yaln?zca alan ad? ve s?re yerel olarak saklan?r; ziyaret edilen sayfalar?n adresleri kaydedilmez ve a? iste?i yap?lmaz.
 
+## LifeBrowser
+
+Popup'tan geçerli penceredeki tüm sekmeleri (adres, başlık, sabitlenme, sekme grubu adı/rengi) bir adla **Oturumu kaydet**; istersen **Kaydet ve kapat** ile pencereyi de kapat. Kayıtlı oturumu **Aç** ile yeni pencerede sekme gruplarıyla birlikte geri aç veya **Sil**. **Siteye göre grupla**, gruplanmamış sekmeleri sitesine göre (www yok sayılır, en az 2 sekme) Chrome sekme gruplarına toplar; sabit sekmelere dokunmaz. **Kopya sekmeler** listesi aynı adresli sekmeleri (# kısmı yok sayılır) gösterir; **Kopyaları kapat** ilkini tutar. Oturumlar yerel SQLite'ta saklanır ve yedeğe dahildir.
+
+## Zombi Sekme Temizleyici
+
+Her sekmenin en son ne zaman etkin olduğunu (oturum belleğinde, yoksa Chrome'un `lastAccessed` bilgisiyle) izler. Popup, belirlediğin saatten (varsayılan 24) uzun süredir açılmayan sekmeleri listeler: tek tek veya topluca **Kapat** ya da **Oturuma taşı** (LifeBrowser'da "Zombi sekmeler <tarih>" oturumuna kaydedip kapatır). Sabit, ses çalan ve etkin sekmeler asla önerilmez.
+
+## Sabit Sekme Koruyucu
+
+Chrome sekme kapatmayı engelleyemez; bu yüzden sabit sekmeleri hatırlar ve biri kapanınca (pencerenin tamamı kapanırken değil) "Sabit sekme kapandı" bildirimi gösterir. **Geri aç** sekmeyi aynı pencerede (yoksa son odaklı pencerede) en başa sabit olarak açar. Popup'ta son kapanan 10 sabit sekme listelenir.
+
 ## Yedekleme ve geri yükleme
 
 Popup'taki **Yedek** bölümünde **Yedeği indir** ile verilerini ve modül ayarlarını JSON dosyası olarak kaydet. Geri yüklemek için dosyayı seç, kayıt sayılarını incele ve **Evet, geri yükle** düğmesine bas. Mevcut veriler ve ayarlar değiştirilir; eklenti yeniden başlatılır. Site izinleri Chrome tarafından yönetilir ve gerekirse yeniden verilmelidir.
