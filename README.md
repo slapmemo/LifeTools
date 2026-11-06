@@ -37,6 +37,12 @@ Popup'tan görev ve isteğe bağlı tarih ekle; açık görevleri tamamla, sil v
 
 Odakl? Chrome penceresinin etkin sekmesinde, kullan?c? aktifken ge?irilen s?reyi bug?n veya son yedi g?n i?in g?sterir. Siteleri hari? tutabilir ve verileri silebilirsin. Yaln?zca alan ad? ve s?re yerel olarak saklan?r; ziyaret edilen sayfalar?n adresleri kaydedilmez ve a? iste?i yap?lmaz.
 
+## Yedekleme ve geri yükleme
+
+Popup'taki **Yedek** bölümünde **Yedeği indir** ile verilerini ve modül ayarlarını JSON dosyası olarak kaydet. Geri yüklemek için dosyayı seç, kayıt sayılarını incele ve **Evet, geri yükle** düğmesine bas. Mevcut veriler ve ayarlar değiştirilir; eklenti yeniden başlatılır. Site izinleri Chrome tarafından yönetilir ve gerekirse yeniden verilmelidir.
+
+Eklentiyi kaldırmak yerel verilerini siler. Verilerini korumak için kaldırmadan önce yedek indir.
+
 ## Kurulum ve derleme
 
 ```

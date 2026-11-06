@@ -17,6 +17,16 @@ export async function createMemoryExecutor(): Promise<Executor> {
     async exec(sql, params) {
       db.exec({ sql, bind: params && params.length > 0 ? params : undefined });
     },
+    async batch(statements) {
+      db.exec({ sql: 'BEGIN IMMEDIATE' });
+      try {
+        for (const { sql, params } of statements) db.exec({ sql, bind: params?.length ? params : undefined });
+        db.exec({ sql: 'COMMIT' });
+      } catch (err) {
+        try { db.exec({ sql: 'ROLLBACK' }); } catch { /* i?lem bitmi? olabilir */ }
+        throw err;
+      }
+    },
     async query<T>(sql: string, params?: any[]) {
       return db.exec({
         sql,

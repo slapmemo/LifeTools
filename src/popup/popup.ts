@@ -1,3 +1,5 @@
+import { exportData, restoreData, validateBackup, type Backup } from '../core/backup';
+import { backupSettingKeys } from '../core/backup-settings';
 import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
 import { initTimeTrackerPanel } from '../modules/time-tracker/panel';
 import { QUICK_TASKS_ID } from '../modules/quick-tasks/background';
@@ -101,3 +103,41 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 void refresh();
 void showDbStatus();
+
+const backupFile = document.querySelector('#backup-file') as HTMLInputElement;
+const backupPreview = document.querySelector('#backup-preview') as HTMLElement;
+const backupFeedback = document.querySelector('#backup-feedback') as HTMLElement;
+const backupRestore = document.querySelector('#backup-restore') as HTMLButtonElement;
+let selectedBackup: Backup | null = null;
+const backupError = (err: unknown): void => { backupFeedback.textContent = `Hata: ${err instanceof Error ? err.message : String(err)}`; };
+document.querySelector('#backup-download')!.addEventListener('click', () => { void (async () => {
+  try {
+    const data = await exportData(popupDb, await chrome.storage.local.get(backupSettingKeys()));
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    const link = document.createElement('a'); link.href = url; link.download = `lifetools-yedek-${data.exported_at.slice(0, 10)}.json`;
+    link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); backupFeedback.textContent = 'Yedek indirildi.';
+  } catch (err) { backupError(err); }
+})(); });
+backupFile.addEventListener('change', () => { void (async () => {
+  selectedBackup = null; backupRestore.hidden = true; backupPreview.textContent = ''; backupFeedback.textContent = '';
+  if (!backupFile.files?.[0]) return;
+  try {
+    selectedBackup = validateBackup(JSON.parse(await backupFile.files[0].text()));
+    const t = selectedBackup.tables;
+    backupPreview.textContent = `${t.notes.length} not, ${t.snippets.length} şablon, ${t.tasks.length} görev, ${t.site_time.length} site süresi kaydı. Mevcut veriler ve ayarlar değiştirilecek.`;
+    backupRestore.hidden = false;
+  } catch (err) { backupError(err); }
+})(); });
+backupRestore.addEventListener('click', () => { void (async () => {
+  if (!selectedBackup) return;
+  backupRestore.disabled = true; backupFile.disabled = true;
+  try {
+    const settings = selectedBackup.settings;
+    await restoreData(popupDb, selectedBackup);
+    const keys = backupSettingKeys();
+    await chrome.storage.local.remove(keys);
+    await chrome.storage.local.set(Object.fromEntries(keys.filter(key => Object.prototype.hasOwnProperty.call(settings, key)).map(key => [key, settings[key]])));
+    backupFeedback.textContent = 'Yedek geri yüklendi. Eklenti yeniden başlatılıyor…';
+    setTimeout(() => chrome.runtime.reload(), 1000);
+  } catch (err) { backupError(err); backupRestore.disabled = false; backupFile.disabled = false; }
+})(); });

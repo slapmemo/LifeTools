@@ -17,6 +17,9 @@ export function createDbClient(transport: Transport): DbApi {
     query<T = Record<string, unknown>>(sql: string, params?: SqlParam[]) {
       return call<T[]>({ op: 'query', sql, params });
     },
+    async batch(statements) {
+      await call<null>({ op: 'batch', statements });
+    },
     schemaVersion() {
       return call<number>({ op: 'version' });
     }

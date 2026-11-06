@@ -11,6 +11,7 @@ function fakeExecutor(initialVersion: number | null) {
   const log: string[] = [];
 
   const ex: Executor = {
+    async batch() { throw new Error("Not used"); },
     async exec(sql, params) {
       if (sql === 'BEGIN') { txSnapshot = { hasMeta, version }; return; }
       if (sql === 'COMMIT') { txSnapshot = null; return; }

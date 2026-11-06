@@ -28,6 +28,16 @@ async function init(): Promise<Executor> {
     async exec(sql: string, params?: SqlParam[]) {
       db.exec({ sql, bind: params && params.length > 0 ? params : undefined });
     },
+    async batch(statements) {
+      db.exec({ sql: 'BEGIN IMMEDIATE' });
+      try {
+        for (const { sql, params } of statements) db.exec({ sql, bind: params?.length ? params : undefined });
+        db.exec({ sql: 'COMMIT' });
+      } catch (err) {
+        try { db.exec({ sql: 'ROLLBACK' }); } catch { /* i?lem bitmi? olabilir */ }
+        throw err;
+      }
+    },
     async query<T>(sql: string, params?: SqlParam[]) {
       return db.exec({
         sql,
@@ -53,6 +63,9 @@ async function handle(req: DbRequest): Promise<DbResponse> {
         return { ok: true, data: null };
       case 'query':
         return { ok: true, data: await ex.query(req.sql, req.params) };
+      case 'batch':
+        await ex.batch(req.statements);
+        return { ok: true, data: null };
       case 'version':
         return { ok: true, data: await readVersion(ex) };
       default:

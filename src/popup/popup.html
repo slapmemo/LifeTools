@@ -136,6 +136,14 @@
       <ul id="time-exclusions"></ul><p id="time-feedback" class="feedback" aria-live="polite"></p>
       <button id="time-delete" type="button">T?m verileri sil</button>
     </section>
+    <section class="section" aria-label="Yedek">
+      <div class="section-heading"><h2>Yedek</h2></div>
+      <button id="backup-download" type="button">Yedeği indir</button>
+      <label for="backup-file">Yedekten geri yükle</label><input id="backup-file" type="file" accept="application/json,.json" />
+      <p id="backup-preview" class="hint"></p><button id="backup-restore" type="button" hidden>Evet, geri yükle</button>
+      <p id="backup-feedback" class="feedback" aria-live="polite"></p>
+      <p class="hint">Geri yükleme tamamlandığında eklenti ayarları uygulamak için yeniden başlatılır.</p>
+    </section>
     <footer>
       <span id="db-status" class="db-status">Veritabanı durumu: kontrol ediliyor…</span>
       <span>Veriler yalnızca bu tarayıcıda saklanır.</span>
