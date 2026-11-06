@@ -272,6 +272,8 @@ fn main() {
             commands::clipboard_pin,
             commands::clipboard_delete,
             commands::clipboard_clear,
+            commands::get_setting,
+            commands::set_setting,
             commands::settings_get,
             commands::settings_set,
             commands::autostart_get,

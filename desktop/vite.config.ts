@@ -3,5 +3,5 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   clearScreen: false,
   css: { postcss: {} },
-  server: { port: 1420, strictPort: true }
+  server: { port: 1420, strictPort: true, fs: { allow: ['..'] } }
 });

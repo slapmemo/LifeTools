@@ -48,6 +48,16 @@ pub fn settings_get(state: St) -> Result<Settings, String> {
 }
 
 #[tauri::command]
+pub fn get_setting(state: St, key: String) -> Result<Option<String>, String> {
+    db::get_setting(&state.db(), &key).map_err(err)
+}
+
+#[tauri::command]
+pub fn set_setting(state: St, key: String, value: String) -> Result<(), String> {
+    db::set_setting(&state.db(), &key, &value).map_err(err)
+}
+
+#[tauri::command]
 pub fn settings_set(state: St, settings: Settings) -> Result<Settings, String> {
     let db = state.db();
     let saved = db::save_settings(&db, settings).map_err(err)?;

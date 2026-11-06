@@ -22,7 +22,11 @@ Kullanıcı eklentiyi Chrome'da denedi: popup çok karışıktı → U1/U2 bu y�
 
 1. Kullanıcı U2'yi Chrome'da açık ve koyu temada dener; ekran görüntüsüyle geri bildirim verir.
 2. Geri bildirim düzeltmeleri.
-3. **U3** — masaüstü: `design/tokens.css` + `design/components.css` + `design/icons.ts` masaüstüne bağlanır, ikonlu kenar çubuğu ("Diğer" grubu: Pencereler, Piller, Elektrik), Ana sayfa kartları. **Küçük görevlere bölünerek** yapılacak (kullanıcı tek büyük görevin yavaşlığından rahatsız oldu).
+3. **U3** — masaüstü, küçük görevlere bölündü (kullanıcı tek büyük görevin yavaşlığından rahatsız oldu):
+   - **U3.1** Kabuk: tasarım dili bağlanır, ikonlu kenar çubuğu + katlanabilir "Diğer" (Pencereler, Piller, Elektrik), tema seçimi, `app.ts` → `desktop/src/views/*.ts`. ✅ bitti
+   - **U3.2** Pano + Şablonlar bölümleri ve Ctrl+Shift+V / Ctrl+Shift+Space seçicileri yeni bileşenlerle
+   - **U3.3** Ortam sesi (U5'e hazır kart düzeni), Piller, Pencereler, Elektrik, Ayarlar yeni bileşenlerle
+   - **U3.4** Ana sayfa kartları (Rust tarafında özet komutu)
 4. **U4**, **U5** (planın 5.3 ve 5.4 bölümleri).
 
 ## 3. Nasıl çalıştırılır
