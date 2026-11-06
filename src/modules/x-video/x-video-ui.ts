@@ -1,23 +1,129 @@
-import type { VideoMedia, Variant } from './extract';
+﻿import type { VideoMedia, Variant } from './extract';
 import { CHANNEL, X_VIDEO_ID, SETTINGS_KEY, defaults, label, sortVariants, selectVariant, validUrl, type Settings } from './shared';
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
-const media = new Map<string, VideoMedia[]>(); let enabled = true; let settings: Settings = defaults; let timer: ReturnType<typeof setTimeout> | undefined;
-async function refreshSettings(): Promise<void> { enabled = await isModuleEnabled(X_VIDEO_ID); const data = await chrome.storage.local.get({[SETTINGS_KEY]: defaults}); settings = {...defaults, ...data[SETTINGS_KEY]}; schedule(); }
-function schedule(): void { if (!timer) timer = setTimeout(() => { timer = undefined; render(); }, 150); }
-function download(m: VideoMedia, v: Variant): void { void chrome.runtime.sendMessage({channel:CHANNEL, action:'download', url:v.url, screenName:m.screenName, tweetId:m.tweetId, res:label(v)}).catch(() => {}); }
-function render(): void {
- document.querySelectorAll<HTMLElement>('[data-lifetools-x-video]').forEach(e => e.remove()); if (!enabled) return;
- for (const article of document.querySelectorAll<HTMLElement>('article[data-testid="tweet"]')) {
-  const link = article.querySelector<HTMLAnchorElement>('a[href*="/status/"]:has(time)'); const id = link?.getAttribute('href')?.match(/\/status\/(\d+)/)?.[1]; const items = id ? media.get(id) : undefined; const bar = article.querySelector<HTMLElement>('[role="group"]'); if (!items?.length || !bar) continue;
-  const wrap = document.createElement('span'); wrap.dataset.lifetoolsXVideo = 'true'; wrap.style.cssText = 'position:relative;display:inline-block';
-  const button = document.createElement('button'); button.type = 'button'; button.textContent = 'İndir'; button.style.cssText = 'background:transparent;color:inherit;border:0;cursor:pointer;padding:6px'; wrap.append(button); bar.append(wrap);
-  button.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); const variants = items.flatMap(m => sortVariants(m.variants).map(v => ({m,v}))); if (!variants.length) { button.textContent = 'Bu video indirilemiyor (yalnızca akış)'; return; }
-   if (settings.oneClick && items.length === 1) { const v = selectVariant(items[0].variants, settings.quality); if (v) download(items[0],v); return; }
-   const existing = wrap.querySelector('div'); if (existing) { existing.remove(); return; } const menu = document.createElement('div'); menu.style.cssText = 'position:absolute;z-index:9999;background:#15202b;color:white;padding:8px;min-width:120px;border-radius:8px;box-shadow:0 2px 8px #0008';
-   for (const {m,v} of variants) { const option = document.createElement('button'); option.type = 'button'; option.textContent = `${items.length > 1 ? (items.indexOf(m)+1) + '. video — ' : ''}${label(v)}`; option.style.cssText = 'display:block;color:inherit;background:transparent;border:0;padding:6px;cursor:pointer'; option.addEventListener('click', ev => { ev.stopPropagation(); download(m,v); menu.remove(); }); menu.append(option); } wrap.append(menu);
-  });
- }
+import { computeMenuPosition } from './menu-position';
+
+const media = new Map<string, VideoMedia[]>();
+let enabled = true;
+let settings: Settings = defaults;
+let frame = 0;
+let route = location.href;
+let openButton: HTMLButtonElement | undefined;
+let scrollX = 0, scrollY = 0, buttonTop = 0, buttonLeft = 0;
+const host = document.createElement('div');
+host.dataset.lifetoolsXVideo = 'menu';
+host.style.cssText = 'position:fixed;z-index:2147483647;top:0;left:0';
+const shadow = host.attachShadow({ mode: 'closed' });
+const style = document.createElement('style');
+style.textContent = `
+:host { font: 14px system-ui,sans-serif }
+.menu { box-sizing:border-box;min-width:180px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow-y:auto;border:1px solid rgba(128,128,128,.3);border-radius:12px;box-shadow:0 4px 18px #0006;padding:5px 0 }
+.title { padding:10px 14px;font-weight:700 }
+.row { display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;border:0;padding:10px 14px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer }
+.row:hover,.row:focus-visible { background:rgba(128,128,128,.18);outline:none }
+.hint { opacity:.65;font-size:12px;white-space:nowrap }`;
+shadow.append(style);
+document.documentElement.append(host);
+
+async function refreshSettings(): Promise<void> {
+  enabled = await isModuleEnabled(X_VIDEO_ID);
+  const data = await chrome.storage.local.get({ [SETTINGS_KEY]: defaults });
+  settings = { ...defaults, ...data[SETTINGS_KEY] };
+  if (!enabled) closeMenu();
+  schedule();
 }
-window.addEventListener('message', e => { if (e.source !== window || e.origin !== location.origin || e.data?.source !== CHANNEL) return; const m = e.data.media as VideoMedia; if (!m || !/^\d+$/.test(m.tweetId) || !Array.isArray(m.variants)) return; m.variants = m.variants.filter(v => v && v.contentType === 'video/mp4' && typeof v.url === 'string' && validUrl(v.url)); const list = media.get(m.tweetId) ?? []; const index = list.findIndex(x => x.mediaKey === m.mediaKey); if (index < 0) list.push(m); else list[index] = m; media.set(m.tweetId,list); schedule(); });
-new MutationObserver(records => { if (records.some(r => [...r.addedNodes, ...r.removedNodes].some(n => !(n instanceof Element) || !n.closest('[data-lifetools-x-video]') && !n.hasAttribute('data-lifetools-x-video')))) schedule(); }).observe(document, {childList:true,subtree:true});
-chrome.storage.onChanged.addListener((c, area) => { if (area === 'local' && (c[MODULE_FLAGS_KEY] || c[SETTINGS_KEY])) void refreshSettings(); }); void refreshSettings();
+function schedule(): void { if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); }); }
+function download(m: VideoMedia, v: Variant): void {
+  void chrome.runtime.sendMessage({ channel: CHANNEL, action: 'download', url: v.url, screenName: m.screenName, tweetId: m.tweetId, res: label(v) }).catch(() => {});
+}
+function closeMenu(restore = false): void {
+  shadow.querySelector('.menu')?.remove();
+  const button = openButton;
+  openButton = undefined;
+  if (restore && button?.isConnected) button.focus();
+}
+function openMenu(button: HTMLButtonElement, items: VideoMedia[]): void {
+  if (openButton === button) { closeMenu(true); return; }
+  closeMenu();
+  const variants = items.flatMap((m, index) => sortVariants(m.variants).map(v => ({ m, v, index })));
+  if (!variants.length) { button.title = 'Bu video indirilemiyor (yalnızca akış)'; return; }
+  const background = getComputedStyle(document.body).backgroundColor;
+  const rgb = background.match(/[\d.]+/g)?.map(Number);
+  const light = !!rgb && (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 > 160;
+  const menu = document.createElement('div');
+  menu.className = 'menu'; menu.setAttribute('role', 'menu');
+  menu.style.background = light ? '#fff' : (rgb && (rgb[3] === undefined || rgb[3] > 0) ? background : '#000');
+  menu.style.color = light ? '#0f1419' : '#e7e9ea';
+  const title = document.createElement('div'); title.className = 'title'; title.textContent = 'Kalite seç'; menu.append(title);
+  for (const { m, v, index } of variants) {
+    const row = document.createElement('button'); row.type = 'button'; row.className = 'row'; row.setAttribute('role', 'menuitem');
+    const name = document.createElement('span'); name.textContent = `${items.length > 1 ? `${index + 1}. video — ` : ''}${label(v)}`; row.append(name);
+    if (m.durationMs && v.bitrate) {
+      const hint = document.createElement('span'); hint.className = 'hint'; hint.textContent = `~${(m.durationMs * v.bitrate / 8000 / 1024 / 1024).toFixed(1)} MB`; row.append(hint);
+    }
+    row.addEventListener('click', () => { download(m, v); closeMenu(true); }); menu.append(row);
+  }
+  menu.addEventListener('keydown', event => {
+    const rows = Array.from(menu.querySelectorAll<HTMLButtonElement>('.row'));
+    const index = rows.indexOf(shadow.activeElement as HTMLButtonElement);
+    if (event.key === 'Escape') { event.preventDefault(); closeMenu(true); }
+    else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); rows[(index + (event.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length].focus(); }
+  });
+  shadow.append(menu); openButton = button; scrollX = window.scrollX; scrollY = window.scrollY; buttonTop = button.getBoundingClientRect().top; buttonLeft = button.getBoundingClientRect().left;
+  const pos = computeMenuPosition(button.getBoundingClientRect(), menu.getBoundingClientRect(), { width: innerWidth, height: innerHeight });
+  host.style.top = `${pos.top}px`; host.style.left = `${pos.left}px`;
+  menu.querySelector<HTMLButtonElement>('.row')?.focus();
+}
+function makeButton(bar: HTMLElement, id: string): void {
+  const wrap = document.createElement('div'); wrap.dataset.lifetoolsXVideo = id; wrap.style.cssText = 'display:flex;align-items:center';
+  const button = document.createElement('button'); button.type = 'button'; button.setAttribute('aria-label', 'Videoyu indir'); button.title = 'İndir';
+  const sibling = bar.querySelector('svg'); const color = sibling ? getComputedStyle(sibling).color : 'rgb(113, 118, 123)';
+  button.style.cssText = `display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:0;border-radius:50%;background:transparent;color:${color || 'rgb(113, 118, 123)'};cursor:pointer`;
+  button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18.75" height="18.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>';
+  button.addEventListener('mouseenter', () => { button.style.background = 'rgba(143,207,168,0.15)'; button.style.color = '#8FCFA8'; });
+  button.addEventListener('mouseleave', () => { button.style.background = 'transparent'; button.style.color = color; });
+  button.addEventListener('click', event => {
+    event.preventDefault(); event.stopPropagation(); const items = media.get(id) ?? [];
+    if (settings.oneClick && items.length === 1) {
+      const variant = selectVariant(items[0].variants, settings.quality);
+      if (variant) {
+        closeMenu(); download(items[0], variant);
+        const svg = button.querySelector('svg'); if (svg) { const old = svg.innerHTML; svg.innerHTML = '<path d="m5 12 4 4L19 6"/>'; setTimeout(() => { svg.innerHTML = old; }, 1200); }
+      } else button.title = 'Bu video indirilemiyor (yalnızca akış)';
+      return;
+    }
+    openMenu(button, items);
+  });
+  wrap.append(button); bar.append(wrap);
+}
+function render(): void {
+  if (route !== location.href) { route = location.href; closeMenu(); }
+  for (const article of document.querySelectorAll<HTMLElement>('article[data-testid="tweet"]')) {
+    const link = article.querySelector<HTMLAnchorElement>('a[href*="/status/"]:has(time)');
+    const id = link?.getAttribute('href')?.match(/\/status\/(\d+)/)?.[1];
+    const bar = article.querySelector<HTMLElement>('[role="group"]'); if (!bar) continue;
+    const existing = bar.querySelector<HTMLElement>(':scope > [data-lifetools-x-video]');
+    if (existing && (!enabled || !id || existing.dataset.lifetoolsXVideo !== id || !media.get(id)?.length)) { if (existing.contains(openButton ?? null)) closeMenu(); existing.remove(); }
+    if (enabled && id && media.get(id)?.length && !bar.querySelector(':scope > [data-lifetools-x-video]')) makeButton(bar, id);
+  }
+  if (openButton && !openButton.isConnected) closeMenu();
+}
+window.addEventListener('message', e => {
+  if (e.source !== window || e.origin !== location.origin || e.data?.source !== CHANNEL) return;
+  const m = e.data.media as VideoMedia; if (!m || !/^\d+$/.test(m.tweetId) || !Array.isArray(m.variants)) return;
+  m.variants = m.variants.filter(v => v && v.contentType === 'video/mp4' && typeof v.url === 'string' && validUrl(v.url));
+  const list = media.get(m.tweetId) ?? []; const index = list.findIndex(x => x.mediaKey === m.mediaKey);
+  if (index < 0) list.push(m); else list[index] = m; media.set(m.tweetId, list); schedule();
+});
+new MutationObserver(records => {
+  if (records.some(r => [...r.addedNodes, ...r.removedNodes].some(n => !(n instanceof Element) || !n.closest('[data-lifetools-x-video]') && !n.hasAttribute('data-lifetools-x-video')))) schedule();
+}).observe(document, { childList: true, subtree: true });
+document.addEventListener('click', e => { if (openButton && !e.composedPath().includes(host) && !e.composedPath().includes(openButton)) closeMenu(); }, true);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && openButton) { e.preventDefault(); closeMenu(true); } }, true);
+window.addEventListener('scroll', () => { if (openButton) { const rect = openButton.getBoundingClientRect(); if (Math.abs(window.scrollX - scrollX) > 40 || Math.abs(window.scrollY - scrollY) > 40 || Math.abs(rect.top - buttonTop) > 40 || Math.abs(rect.left - buttonLeft) > 40) closeMenu(); } }, true);
+window.addEventListener('resize', () => closeMenu());
+window.addEventListener('popstate', () => { closeMenu(); schedule(); });
+setInterval(() => { if (location.href !== route) { closeMenu(); schedule(); } }, 500);
+chrome.storage.onChanged.addListener((c, area) => { if (area === 'local' && (c[MODULE_FLAGS_KEY] || c[SETTINGS_KEY])) void refreshSettings(); });
+void refreshSettings();
+
