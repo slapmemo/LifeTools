@@ -1,11 +1,11 @@
 import { MIGRATIONS, readVersion, type Executor } from '../db/migrations';
 import type { SqlParam, SqlStatement } from '../db/protocol';
-const columns = { notes: ['id','category','text','url','page_title','user_note','created_at','updated_at'], snippets: ['id','trigger','title','body','use_count','created_at','updated_at'], tasks: ['id','title','note','url','due_date','done_at','created_at','updated_at'], site_time: ['day','domain','seconds'], sessions: ['id','name','created_at'], session_tabs: ['id','session_id','position','url','title','pinned','group_title','group_color'], tab_labels: ['url','label','updated_at'], tab_notes: ['url','note','created_at','updated_at'] } as const;
+const columns = { notes: ['id','category','text','url','page_title','user_note','created_at','updated_at'], snippets: ['id','trigger','title','body','use_count','created_at','updated_at'], tasks: ['id','title','note','url','due_date','done_at','created_at','updated_at'], site_time: ['day','domain','seconds'], sessions: ['id','name','created_at'], session_tabs: ['id','session_id','position','url','title','pinned','group_title','group_color'], tab_labels: ['url','label','updated_at'], tab_notes: ['url','note','created_at','updated_at'], watch_items: ['id','title','kind','status','url','note','created_at','updated_at'] } as const;
 type Table = keyof typeof columns;
 type Row = Record<string, SqlParam>;
 export interface Backup { app: 'LifeTools'; format: 1; schema_version: number; exported_at: string; tables: Record<Table, Row[]>; settings: Record<string, unknown> }
 const names = Object.keys(columns) as Table[];
-const introduced: Record<Table, number> = { notes: 2, snippets: 3, tasks: 4, site_time: 5, sessions: 6, session_tabs: 6, tab_labels: 7, tab_notes: 7 };
+const introduced: Record<Table, number> = { notes: 2, snippets: 3, tasks: 4, site_time: 5, sessions: 6, session_tabs: 6, tab_labels: 7, tab_notes: 7, watch_items: 8 };
 const object = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 export async function exportData(ex: Executor, settings: Record<string, unknown>): Promise<Backup> {
   const tables = {} as Backup['tables'];

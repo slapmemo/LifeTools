@@ -11,7 +11,7 @@ test('yedek Türkçe verilerle geri yüklenir ve FTS korunur', async () => {
   await ex.exec("INSERT INTO site_time VALUES ('2026-01-01','örnek.com',42)");
   const backup = await exportData(ex, { enabled: true });
   await ex.exec('DELETE FROM notes'); await ex.exec('DELETE FROM snippets'); await ex.exec('DELETE FROM tasks'); await ex.exec('DELETE FROM site_time');
-  expect(await restoreData(ex, validateBackup(JSON.parse(JSON.stringify(backup))))).toEqual({ notes: 1, snippets: 1, tasks: 1, site_time: 1, sessions: 0, session_tabs: 0, tab_labels: 0, tab_notes: 0 });
+  expect(await restoreData(ex, validateBackup(JSON.parse(JSON.stringify(backup))))).toEqual({ notes: 1, snippets: 1, tasks: 1, site_time: 1, sessions: 0, session_tabs: 0, tab_labels: 0, tab_notes: 0, watch_items: 0 });
   expect((await exportData(ex, backup.settings)).tables).toEqual(backup.tables);
   expect(await ex.query("SELECT rowid FROM notes_fts WHERE notes_fts MATCH 'calisma' ")).toHaveLength(1);
 });

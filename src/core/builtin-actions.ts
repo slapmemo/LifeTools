@@ -1,3 +1,8 @@
+import { WATCHLIST_ID } from '../modules/watchlist/background';
+import { createWatchRepo, guessKind } from '../modules/watchlist/repo';
+import { PIP_ID, togglePip } from '../modules/pip/background';
+import { CLIP_SLOTS_ID } from '../modules/clip-slots/background';
+import { getSlots, SLOT_IDS } from '../modules/clip-slots/slots';
 import { registerAction } from './actions';
 import { backgroundDb, copyOffscreen } from '../db/host';
 import { SLAPMEMO_ID } from '../modules/slapmemo/background';
@@ -121,3 +126,7 @@ registerAction({
   id: 'backup.download', title: 'Yedeği indir', keywords: ['yedek', 'indir', 'dışa aktar'], moduleId: 'core',
   async run() { await openPopupSection('backup-download'); }
 });
+
+registerAction({ id:'watch.addPage', title:'İzleme listesine ekle (sayfa)', keywords:['izleme','video','sayfa'], moduleId:WATCHLIST_ID, toolbar:true, async run({tab}) { const t=needTab(tab); const url=t.url ?? ''; await createWatchRepo(backgroundDb).add({title:(t.title || url || 'Sayfa').slice(0,300),kind:guessKind(url),url}); return 'İzleme listesine eklendi.'; } });
+registerAction({ id:'pip.toggle', title:'Resim içinde resim', keywords:['video','pip'], moduleId:PIP_ID, toolbar:true, async run({tab}) { return togglePip(needTab(tab).id); } });
+SLOT_IDS.forEach((slot,i)=>registerAction({id:'clip.copy'+slot,title:`Yuva ${slot}'yı kopyala`,keywords:['pano','yuva','kopyala',slot],moduleId:CLIP_SLOTS_ID,toolbar:true,async run(){const text=(await getSlots())[i].text; if(!text) throw new Error('Yuva boş.'); if(!await copyOffscreen(text)) throw new Error('Panoya kopyalanamadı.'); return `Yuva ${slot} kopyalandı.`;}}));

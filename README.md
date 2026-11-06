@@ -92,3 +92,15 @@ Popup'ta bir site ekleyip izin ver (Akıllı Yanıtlar ile aynı isteğe bağlı
 Görsel sekme değiştiriciyi popup'tan veya Alt+Shift+Space ile aç. Başlık, adres, etiket ve notlarda ara; yön tuşları ve Enter ile geç, Delete ile seçili sekmeyi kapat.
 
 Popup'tan sekmeye etiket veya kısa not ekle; sağ tık menüsünden hazır etiketleri seç. Adresin # bölümü yok sayılır. İstersen sekme kapanınca notu SlapMemo'ya aktar. Başlık temizleyicinin siteye özel kurallarını popup'ta her satıra bir metin olarak düzenle. Bu veriler ve ayarlar yerel yedeğe dahildir.
+
+## İzleme Listesi
+
+Sayfaları veya bağlantıları sağ tıkla kaydet; popup'ta türünü ve başlığını düzenle, durumunu değiştir veya sil. Kayıtlar yedeğe dahildir.
+
+## Resim içinde resim
+
+Popup düğmesi, Komut Merkezi veya Alt+Shift+P ile etkin sekmedeki görünür videoyu açıp kapat. Chrome ve video sitesinin izinleri geçerlidir.
+
+## Pano Yuvaları
+
+Popup'ta A–E yuvalarını düzenle ve kopyala. Seçimi sağ tıkla yuvaya kaydet veya düzenlenebilir alanda yuvadan yapıştır. Yuvalar yerel yedeğe dahildir.

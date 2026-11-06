@@ -172,7 +172,7 @@
       <div class="section-heading"><h2>Bu sekme</h2></div>
       <div id="tab-labels-controls"><label for="tab-label">Etiket</label><input id="tab-label" list="tab-label-options" maxlength="100" placeholder="Etiket seç veya yaz"><datalist id="tab-label-options"><option value="Önemli"><option value="Sonra Bak"><option value="Araştırma"></datalist><button id="tab-label-save" type="button">Etiketi kaydet</button></div>
       <div id="tab-notes-controls"><label for="tab-note">Bu sekmeye not</label><textarea id="tab-note" maxlength="1000" rows="3"></textarea><button id="tab-note-save" type="button">Notu kaydet</button><label><input id="tab-note-transfer" type="checkbox"> Sekme kapanınca SlapMemo'ya aktar</label></div>
-      <div id="title-cleaner-controls"><label for="title-rule">Bu site i?in ba?l?ktan kaldır?lacak metin</label><textarea id="title-rule" rows="3" placeholder="Her satıra bir kural"></textarea><button id="title-rule-save" type="button">Kuralları kaydet</button></div>
+      <div id="title-cleaner-controls"><label for="title-rule">Bu site i?in başlıktan kaldır?lacak metin</label><textarea id="title-rule" rows="3" placeholder="Her satıra bir kural"></textarea><button id="title-rule-save" type="button">Kuralları kaydet</button></div>
       <button id="open-switcher" type="button">Sekme değiştiriciyi aç</button><p id="tab-tools-feedback" class="feedback" aria-live="polite"></p>
     </section>
     <section id="shortcuts-panel" class="section" hidden aria-label="Kısayollar">
@@ -189,6 +189,9 @@
       <p id="toolbar-feedback" class="feedback" aria-live="polite"></p>
       <p class="hint">Site izninden sonra o sitede küçük, sürüklenebilir bir LT düğmesi çıkar; hiçbir eylem kendiliğinden çalışmaz.</p>
     </section>
+    <section id="watchlist-panel" class="section" hidden><h2>İzleme Listesi</h2><form><input id="watch-title" maxlength="300" required placeholder="Başlık" aria-label="Başlık"><select id="watch-kind" aria-label="Tür"><option value="film">Film</option><option value="dizi">Dizi</option><option value="video">Video</option><option value="diger">Diğer</option></select><button>Ekle</button></form><div><button type="button" data-watch-status="izlenecek">İzlenecek</button><button type="button" data-watch-status="izleniyor">İzleniyor</button><button type="button" data-watch-status="bitti">Bitti</button></div><p id="watch-feedback" class="feedback" aria-live="polite"></p><ul id="watch-list" class="memo-list"></ul></section>
+    <section id="pip-panel" class="section" hidden><h2>Resim içinde resim</h2><button id="pip-toggle" type="button">Resim içinde resim</button><p id="pip-feedback" class="feedback" aria-live="polite"></p></section>
+    <section id="clip-slots-panel" class="section" hidden><h2>Pano Yuvaları</h2><div id="clip-list"></div><p id="clip-feedback" class="feedback" aria-live="polite"></p></section>
     <section id="backup-section" class="section" aria-label="Yedek">
       <div class="section-heading"><h2>Yedek</h2></div>
       <button id="backup-download" type="button">Yedeği indir</button>

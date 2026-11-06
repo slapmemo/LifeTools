@@ -1,0 +1,15 @@
+import { expect, test } from 'vitest';
+import { createMemoryExecutor } from './sqlite-memory';
+import { MIGRATIONS, runMigrations } from '../src/db/migrations';
+import { createWatchRepo, guessKind } from '../src/modules/watchlist/repo';
+import { selectVideo } from '../src/modules/pip/scoring';
+import { CLIP_SLOTS_KEY, normalizeSlots } from '../src/modules/clip-slots/slots';
+import { backupSettingKeys } from '../src/core/backup-settings';
+import { exportData, restoreData, validateBackup } from '../src/core/backup';
+
+test('real SQLite upgrades version 7 to 8', async () => { const ex=await createMemoryExecutor(); await runMigrations(ex,MIGRATIONS.filter(m=>m.version<=7)); expect(await runMigrations(ex)).toEqual({from:7,to:8,applied:[8]}); });
+test('watchlist CRUD, filters and constraints', async () => { const ex=await createMemoryExecutor(); await runMigrations(ex); const repo=createWatchRepo(ex,()=>100); const a=await repo.add({title:'Film',kind:'film',note:'ara'}); const b=await repo.add({title:'Video',kind:'video'}); await repo.setStatus(b.id,'bitti'); expect((await repo.list('bitti','video','Video')).map(x=>x.id)).toEqual([b.id]); expect((await repo.list(undefined,undefined,'ara')).map(x=>x.id)).toEqual([a.id]); await repo.update(a.id,{title:'Dizi',kind:'dizi'}); expect((await repo.list('izlenecek','dizi'))[0].title).toBe('Dizi'); await expect(ex.exec("INSERT INTO watch_items (title,kind,status,created_at,updated_at) VALUES ('x','bad','bitti',1,1)")).rejects.toThrow(); await expect(ex.exec("UPDATE watch_items SET status='bad'")).rejects.toThrow(); await repo.delete(a.id); expect(await repo.list()).toHaveLength(1); });
+test('kind detection uses hostname',()=>{ expect(guessKind('https://www.youtube.com/watch?v=1')).toBe('video'); expect(guessKind('https://youtu.be/a')).toBe('video'); expect(guessKind('https://vimeo.com/1')).toBe('video'); expect(guessKind('https://youtube.com.evil.test')).toBe('diger'); });
+test('video selection favors playing then area',()=>{ const v=[{width:100,height:100,playing:false,visible:true},{width:5,height:5,playing:true,visible:true},{width:1000,height:1000,playing:true,visible:false}]; expect(selectVideo(v)).toBe(v[1]); expect(selectVideo([v[0],v[2]])).toBe(v[0]); });
+test('slots normalize to five and cap text',()=>{const slots=normalizeSlots([{label:'A',text:'x'.repeat(10001)},null]); expect(slots).toHaveLength(5); expect(slots[0].text).toHaveLength(10000); expect(slots[1]).toEqual({label:'',text:''});});
+test('backup includes watch items and slots',async()=>{const ex=await createMemoryExecutor(); await runMigrations(ex); await createWatchRepo(ex).add({title:'Film',kind:'film'}); const slots=normalizeSlots([{label:'İş',text:'Merhaba'}]); expect(backupSettingKeys()).toContain(CLIP_SLOTS_KEY); const backup=validateBackup(JSON.parse(JSON.stringify(await exportData(ex,{[CLIP_SLOTS_KEY]:slots})))); await ex.exec('DELETE FROM watch_items'); await restoreData(ex,backup); expect((await exportData(ex,backup.settings)).tables.watch_items).toEqual(backup.tables.watch_items); expect(backup.settings[CLIP_SLOTS_KEY]).toEqual(slots); });

@@ -1,3 +1,9 @@
+import { WATCHLIST_ID } from '../modules/watchlist/background';
+import { initWatchlistPanel } from '../modules/watchlist/panel';
+import { PIP_ID } from '../modules/pip/background';
+import { CLIP_SLOTS_ID } from '../modules/clip-slots/background';
+import { initClipSlotsPanel } from '../modules/clip-slots/panel';
+import { requestRunAction } from '../core/actions';
 import { initTabToolsPanel } from '../modules/tab-notes/panel';
 import { exportData, restoreData, validateBackup, type Backup } from '../core/backup';
 import { backupSettingKeys } from '../core/backup-settings';
@@ -28,6 +34,12 @@ import { initShortcutsPanel } from '../modules/shortcuts/panel';
 import { SITE_TOOLBAR_ID } from '../modules/site-toolbar/background';
 import { initSiteToolbarPanel } from '../modules/site-toolbar/panel';
 
+const watchSection = document.querySelector('#watchlist-panel') as HTMLElement;
+const watch = initWatchlistPanel();
+const clipSection = document.querySelector('#clip-slots-panel') as HTMLElement;
+const clip = initClipSlotsPanel();
+const pipSection = document.querySelector('#pip-panel') as HTMLElement;
+document.querySelector('#pip-toggle')!.addEventListener('click', () => { void (async () => { const tab = (await chrome.tabs.query({active:true,currentWindow:true}))[0]; const result = await requestRunAction('pip.toggle', undefined, tab?.id); (document.querySelector('#pip-feedback') as HTMLElement).textContent = result.message ?? (result.ok ? 'İşlem tamamland?.' : 'İşlem başarısız.'); })(); });
 const shortcutsSection = document.querySelector('#shortcuts-panel') as HTMLElement;
 const shortcuts = initShortcutsPanel();
 const toolbarSection = document.querySelector('#site-toolbar-panel') as HTMLElement;
@@ -94,6 +106,9 @@ async function renderModules(): Promise<void> {
 
 async function refresh(): Promise<void> {
   await renderModules();
+  watchSection.hidden = !await isModuleEnabled(WATCHLIST_ID); if (!watchSection.hidden) await watch.render();
+  clipSection.hidden = !await isModuleEnabled(CLIP_SLOTS_ID); if (!clipSection.hidden) await clip.render();
+  pipSection.hidden = !await isModuleEnabled(PIP_ID);
   await tabTools.render();
   timeSection.hidden = !(await isModuleEnabled(TIME_TRACKER_ID));
   if (!timeSection.hidden) await timeTracker.render();

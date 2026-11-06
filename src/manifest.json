@@ -21,6 +21,7 @@
     "favicon"
   ],
   "commands": {
+    "toggle-pip": { "suggested_key": { "default": "Alt+Shift+P" }, "description": "Resim içinde resmi aç/kapat" },
     "save-selection": {
       "suggested_key": {
         "default": "Alt+Shift+S"
