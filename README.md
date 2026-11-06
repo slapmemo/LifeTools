@@ -55,6 +55,17 @@ Popup'taki **Yedek** bölümünde **Yedeği indir** ile verilerini ve modül aya
 
 Eklentiyi kaldırmak yerel verilerini siler. Verilerini korumak için kaldırmadan önce yedek indir.
 
+## Masaüstü ile ortak veritabanı (Native Messaging)
+
+Eklenti verileri, masaüstü uygulamasının `%APPDATA%\LifeTools\lifetools.db` dosyasında da tutulabilir; böylece eklentide oluşturulan şablonlar masaüstündeki Ctrl+Shift+Space seçicide görünür. Windows ve Chrome gerekir.
+
+1. Eklentiyi `dist/` klasöründen yükle (`npm run build`). `src/manifest.key.txt` herkese açık anahtar olduğundan eklenti kimliği sabittir: `laejkffjeefcodgkhkgppbfimbkoppih`. Dosya yoksa derleme uyarı verir ve anahtarsız (kimliği değişen) bir eklenti üretir; köprü çalışmaz.
+2. Masaüstü uygulamasında **Ayarlar → Chrome eklentisini bağla → Bağla** (ayrıntı: `desktop/README.md`).
+3. Eklenti popup'ında **Depolama → Verileri masaüstüne taşı**. Sırayla: köprü yoklanır, masaüstü DB'sinde eklenti migrasyonları çalışır, tarayıcı verileri okunur, masaüstünde eklenti verisi varsa "Masaüstündeki verilerin üzerine yaz" için ikinci tıklama istenir, veriler tek işlemde yazılır, tablo satır sayıları doğrulanır ve `db_backend` `desktop` olur. Tarayıcıdaki (OPFS) veriler silinmez.
+4. Geri dönmek için **Tarayıcı depolamasına geri dön** (isteğe bağlı olarak masaüstü verilerini doğrulamalı biçimde tarayıcıya kopyalar).
+
+Masaüstü seçiliyken uygulamaya ulaşılamazsa işlemler hata verir ve popup'ta kırmızı "Masaüstü uygulamasına ulaşılamıyor" şeridi çıkar; veri bölünmesin diye sessizce tarayıcı depolamasına geçilmez. Sınırlar: tek istek ~3,5 MB (çok büyük veri taşınamaz), köprü yanıtı 1 MB (taşıma okumaları sayfa sayfa yapılır). Eklenti `schema_version`, masaüstü `desktop_schema_version` anahtarını kullanır.
+
 ## Kurulum ve derleme
 
 ```

@@ -6,7 +6,9 @@ export type DbRequest =
   | { op: 'exec'; sql: string; params?: SqlParam[] }
   | { op: 'query'; sql: string; params?: SqlParam[] }
   | { op: 'batch'; statements: SqlStatement[] }
-  | { op: 'version' };
+  | { op: 'version' }
+  /** Her zaman masaüstü köprüsüne gider (depolama arka ucundan bağımsız). */
+  | { op: 'ping' };
 
 export type DbResponse<T = unknown> = { ok: true; data: T } | { ok: false; error: string };
 

@@ -2,7 +2,7 @@ use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-pub const SCHEMA_VERSION_KEY: &str = "schema_version";
+pub const SCHEMA_VERSION_KEY: &str = "desktop_schema_version";
 pub const MAX_TEXT_CHARS: usize = 10_000;
 const PREVIEW_CHARS: usize = 300;
 
@@ -36,7 +36,7 @@ pub const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 4,
         statements: &[
-            "CREATE TABLE snippets (id INTEGER PRIMARY KEY, trigger TEXT NOT NULL UNIQUE, title TEXT NOT NULL, body TEXT NOT NULL, use_count INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS snippets (id INTEGER PRIMARY KEY, trigger TEXT NOT NULL UNIQUE, title TEXT NOT NULL, body TEXT NOT NULL, use_count INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
             "CREATE TABLE ambient_presets (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, config_json TEXT NOT NULL, updated_at INTEGER NOT NULL)",
         ],
     },
@@ -71,8 +71,40 @@ pub fn read_version(db: &Connection) -> Result<i64> {
     Ok(v.and_then(|s| s.parse::<i64>().ok()).filter(|n| *n >= 0).unwrap_or(0))
 }
 
+/// Paylaşılan veritabanını açar: WAL, busy_timeout=5000, foreign_keys=ON.
+pub fn open(path: &std::path::Path) -> Result<Connection> {
+    let conn = Connection::open(path)?;
+    configure(&conn)?;
+    Ok(conn)
+}
+
+pub fn configure(conn: &Connection) -> Result<()> {
+    conn.busy_timeout(std::time::Duration::from_millis(5000))?;
+    conn.pragma_update(None, "journal_mode", "WAL")?;
+    conn.pragma_update(None, "foreign_keys", true)?;
+    Ok(())
+}
+
+/// Eski masaüstü sürümleri eklentiyle aynı `schema_version` anahtarını kullanıyordu.
+/// Yalnızca masaüstü tablosu (`clipboard_items`) varsa değeri `desktop_schema_version`
+/// anahtarına taşır; eklentinin sürüm anahtarına dokunmaz.
+pub fn upgrade_version_key(db: &mut Connection) -> Result<()> {
+    let tx = db.transaction()?;
+    let has_meta: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='meta')", [], |r| r.get(0))?;
+    if has_meta {
+        let desktop: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM meta WHERE key='desktop_schema_version')", [], |r| r.get(0))?;
+        let clipboard: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='clipboard_items')", [], |r| r.get(0))?;
+        if !desktop && clipboard {
+            tx.execute("INSERT INTO meta(key,value) SELECT 'desktop_schema_version',value FROM meta WHERE key='schema_version'", [])?;
+            tx.execute("DELETE FROM meta WHERE key='schema_version' AND EXISTS(SELECT 1 FROM meta WHERE key='desktop_schema_version')", [])?;
+        }
+    }
+    tx.commit()
+}
+
 /// Uygulanan sürümleri döndürür. Her migrasyon kendi işleminde çalışır; hata olursa geri alınır.
 pub fn migrate_with(db: &mut Connection, migrations: &[Migration]) -> Result<Vec<i64>> {
+    upgrade_version_key(db)?;
     let mut ordered: Vec<&Migration> = migrations.iter().collect();
     ordered.sort_by_key(|m| m.version);
     let mut current = read_version(db)?;
@@ -480,9 +512,99 @@ mod tests {
         assert_eq!(read_version(&d).unwrap(), 4);
         assert!(migrate(&mut d).unwrap().is_empty());
         let v: String = d
-            .query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| r.get(0))
+            .query_row("SELECT value FROM meta WHERE key='desktop_schema_version'", [], |r| r.get(0))
             .unwrap();
         assert_eq!(v, "4");
+    }
+
+    #[test]
+    fn upgrades_legacy_desktop_version_key() {
+        let mut d = db();
+        d.execute("UPDATE meta SET key='schema_version' WHERE key='desktop_schema_version'", []).unwrap();
+        assert!(migrate(&mut d).unwrap().is_empty());
+        assert_eq!(read_version(&d).unwrap(), 4);
+        let old: i64 = d.query_row("SELECT COUNT(*) FROM meta WHERE key='schema_version'", [], |r| r.get(0)).unwrap();
+        assert_eq!(old, 0);
+    }
+
+    #[test]
+    fn existing_extension_snippets_are_preserved() {
+        let mut d = Connection::open_in_memory().unwrap();
+        d.execute_batch("CREATE TABLE snippets (id INTEGER PRIMARY KEY, trigger TEXT NOT NULL UNIQUE, title TEXT NOT NULL, body TEXT NOT NULL, use_count INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL); INSERT INTO snippets VALUES(1,'/a','a','b',0,1,1);").unwrap();
+        migrate(&mut d).unwrap();
+        assert_eq!(list_snippets(&d, "").unwrap().len(), 1);
+    }
+
+    const EXT_SNIPPETS: &str = "CREATE TABLE IF NOT EXISTS snippets (id INTEGER PRIMARY KEY, trigger TEXT NOT NULL UNIQUE, title TEXT NOT NULL, body TEXT NOT NULL, use_count INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)";
+
+    fn meta_value(d: &Connection, key: &str) -> Option<String> {
+        d.query_row("SELECT value FROM meta WHERE key=?1", [key], |r| r.get(0)).optional().unwrap()
+    }
+
+    #[test]
+    fn legacy_upgrade_keeps_data_and_moves_version() {
+        let mut d = db();
+        insert_clip(&d, "eski", 1, 100).unwrap();
+        d.execute("UPDATE meta SET key='schema_version' WHERE key='desktop_schema_version'", []).unwrap();
+        upgrade_version_key(&mut d).unwrap();
+        assert_eq!(meta_value(&d, "desktop_schema_version").as_deref(), Some("4"));
+        assert_eq!(meta_value(&d, "schema_version"), None);
+        assert_eq!(count(&d), 1);
+        // İkinci çalıştırma değişiklik yapmaz.
+        upgrade_version_key(&mut d).unwrap();
+        assert_eq!(meta_value(&d, "desktop_schema_version").as_deref(), Some("4"));
+    }
+
+    #[test]
+    fn upgrade_leaves_extension_version_alone_without_desktop_tables() {
+        let mut d = Connection::open_in_memory().unwrap();
+        d.execute_batch("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL); INSERT INTO meta VALUES('schema_version','8');").unwrap();
+        upgrade_version_key(&mut d).unwrap();
+        assert_eq!(meta_value(&d, "schema_version").as_deref(), Some("8"));
+        assert_eq!(meta_value(&d, "desktop_schema_version"), None);
+    }
+
+    #[test]
+    fn shared_db_desktop_first_then_extension() {
+        let mut d = Connection::open_in_memory().unwrap();
+        migrate(&mut d).unwrap();
+        save_snippet(&d, None, "/a", "A", "içerik").unwrap();
+        // Eklenti migrasyonları aynı dosyada: snippets IF NOT EXISTS, kendi sürüm anahtarı.
+        d.execute_batch(EXT_SNIPPETS).unwrap();
+        d.execute("INSERT INTO meta(key,value) VALUES('schema_version','8')", []).unwrap();
+        assert_eq!(list_snippets(&d, "").unwrap().len(), 1);
+        assert!(migrate(&mut d).unwrap().is_empty());
+        assert_eq!(read_version(&d).unwrap(), 4);
+        assert_eq!(meta_value(&d, "schema_version").as_deref(), Some("8"));
+    }
+
+    #[test]
+    fn shared_db_extension_first_then_desktop() {
+        let mut d = Connection::open_in_memory().unwrap();
+        d.execute_batch(&format!(
+            "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL); {EXT_SNIPPETS}; \
+             INSERT INTO snippets VALUES(1,'/e','E','b',0,1,1); INSERT INTO meta VALUES('schema_version','3');"
+        ))
+        .unwrap();
+        assert_eq!(migrate(&mut d).unwrap(), vec![1, 2, 3, 4]);
+        assert_eq!(list_snippets(&d, "").unwrap().len(), 1);
+        assert_eq!(meta_value(&d, "schema_version").as_deref(), Some("3"));
+        assert_eq!(meta_value(&d, "desktop_schema_version").as_deref(), Some("4"));
+    }
+
+    #[test]
+    fn configure_sets_wal_busy_timeout_and_foreign_keys() {
+        let path = std::env::temp_dir().join(format!("lifetools-test-{}-{}.db", std::process::id(), now_secs()));
+        {
+            let d = open(&path).unwrap();
+            let mode: String = d.query_row("PRAGMA journal_mode", [], |r| r.get(0)).unwrap();
+            let busy: i64 = d.query_row("PRAGMA busy_timeout", [], |r| r.get(0)).unwrap();
+            let fk: i64 = d.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
+            assert_eq!((mode.as_str(), busy, fk), ("wal", 5000, 1));
+        }
+        for suffix in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{}", path.display(), suffix));
+        }
     }
 
     #[test]

@@ -18,6 +18,7 @@ import { LINK_CLEANER_ID } from '../modules/link-cleaner/background';
 import { initLinkCleanerPanel } from '../modules/link-cleaner/panel';
 import { isModuleEnabled, MODULE_FLAGS_KEY, setModuleEnabled } from '../core/module-state';
 import { popupDb } from '../db/client';
+import { initStoragePanel } from './storage-panel';
 import { modules } from '../modules';
 import { SITE_BLOCKER_ID } from '../modules/site-blocker/background';
 import { initBlockerPanel } from '../modules/site-blocker/panel';
@@ -168,6 +169,7 @@ void refresh().then(() => {
   else if (hash) document.getElementById(hash)?.scrollIntoView();
 });
 void showDbStatus();
+void initStoragePanel().render();
 
 const backupFile = document.querySelector('#backup-file') as HTMLInputElement;
 const backupPreview = document.querySelector('#backup-preview') as HTMLElement;

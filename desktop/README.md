@@ -28,10 +28,20 @@ Uygulama **gizli başlar**: pencere açılmaz, yalnızca bildirim alanında (tep
 - **Elektrik tahmini:** Bileşen başına tahmini watt, günlük saat ve birim fiyat (TL/kWh) girilir; günlük/aylık(30 gün)/yıllık(365 gün) kWh ve TL gösterilir. Birim fiyat girilmeden TL hesaplanmaz. Sonuçlar yalnızca tahmindir; kesin değer için prize takılan watt ölçer gerekir.
 - **Şablonlar (Ctrl+Shift+Space):** "Şablonlar" bölümünde tetikleyici (`/` veya `;` ile başlar, 1–31 harf/rakam/_/-), başlık ve metin tanımlanır; aranabilir (Türkçe duyarsız). Kısayol, imlecin yanında küçük bir seçici açar; Enter şablonu en son etkin olan pencereye yapıştırır: pano geçici olarak şablon metniyle değiştirilir, odak önceki pencereye döner, Ctrl+V gönderilir, ~400 ms sonra önceki pano metni geri konur. Enter/gönder tuşu **asla** gönderilmez. Bu geçici pano yazımları pano geçmişine kaydedilmez ve Windows pano geçmişi/bulutundan hariç işaretlenir. Yapıştırma sorunlu uygulamalar için Ayarlar'da **"Şablonu yalnızca panoya kopyala"** seçeneği vardır. Önceki pano yalnızca metinse geri yüklenir (resim/dosya panosu korunmaz). Yönetici yetkisinde çalışan pencerelere yapıştırılamaz (şablon panoda kalır).
   - **Gizlilik:** Genel klavye dinleyicisi (hook) yoktur; yazarken tetikleyiciyle otomatik metin genişletme **yapılmaz**. Şablonlar yalnızca kısayolla seçilir.
-  - Tablo (`snippets`) uzantıdaki şemayla aynıdır; ileride eşitlenecek.
+  - Tablo (`snippets`) uzantıdaki şemayla aynıdır; eklenti verileri masaüstüne taşındığında (aşağıya bak) ortak kullanılır.
 - **Piller:** Sistem pili (varsa, `GetSystemPowerStatus`) ve Bluetooth aygıtlarının Windows'un bildirdiği pil düzeyi (`{104EA319-6EE2-4701-BD47-8DDBF425BBE5},2` özelliği) listelenir. Yalnızca Windows'un verdiği değerler gösterilir, tahmin yapılmaz. Açılışta, bölüm açılınca ve 5 dakikada bir yenilenir; tepsi ipucunda da görünür. Bir aygıt %20 altına düştüğünde (düşüş başına bir kez; şarjdaki sistem pili hariç) küçük bir bildirim gösterilir — Ayarlar'dan kapatılabilir.
 - **Ortam sesi:** Beyaz/pembe/kahverengi gürültü, yağmur, fan ve dalga sesleri Web Audio ile cihazda sentezlenir (ses dosyası yok). Kanal başına aç/kapa + ses, ana ses ve "x dk sonra kapat" zamanlayıcısı. Ön ayarlar kaydedilir/yüklenir/silinir. Tepsi menüsündeki **"Ortam sesi: Oynat/Durdur"** son kullanılan ayarı çalar/durdurur. Pencere tepsiye gizlense de ses sürer.
 - **Ayarlar:** "Windows açılışında başlat" (varsayılan kapalı), saklama süresi, en fazla kayıt, hariç tutulan uygulamalar, şablon yapıştırma modu, düşük pil bildirimi.
+
+## Chrome eklentisiyle ortak veritabanı
+
+Aynı exe, Chrome tarafından Native Messaging ana bilgisayarı olarak da başlatılır (`chrome-extension://…` argümanı varsa Tauri açılmadan köprü çalışır; stdin/stdout üzerinden 4 bayt uzunluk + JSON). Yalnızca `chrome-extension://laejkffjeefcodgkhkgppbfimbkoppih/` kaynağı kabul edilir. Veritabanı WAL, `busy_timeout=5000`, `foreign_keys=ON` ile açılır; uygulama ve köprü aynı dosyayı aynı anda kullanabilir.
+
+Kurulum:
+1. **Ayarlar → Chrome eklentisini bağla → Bağla**: `%APPDATA%\LifeTools\com.mehmet.lifetools.json` manifestini yazar ve `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.mehmet.lifetools` anahtarını bu dosyaya yönlendirir. Durum satırı "bağlı" ve kayıtlı exe yolunun bu exe ile eşleşip eşleşmediğini gösterir. Exe'yi başka klasöre taşırsan yeniden bağla. **Bağlantıyı kaldır** ikisini de siler.
+2. Eklentide popup → **Depolama → Verileri masaüstüne taşı** (kök README'ye bak).
+
+Sürüm anahtarı: masaüstü `meta.desktop_schema_version`, eklenti `meta.schema_version` kullanır. Eski bir masaüstü veritabanında `schema_version` bulunursa açılışta otomatik `desktop_schema_version`'a taşınır. `snippets` tablosu iki tarafta da `CREATE TABLE IF NOT EXISTS` ile oluşturulur; hangisi önce çalışırsa çalışsın uyumludur.
 
 ## Gizlilik notları
 

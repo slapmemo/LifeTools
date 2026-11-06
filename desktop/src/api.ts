@@ -64,6 +64,14 @@ export interface DeviceBattery {
   charging: boolean | null;
 }
 
+export interface NativeStatus {
+  registered: boolean;
+  path_matches: boolean;
+  manifest_path: string;
+  exe_path: string;
+  registered_exe: string | null;
+}
+
 export interface AmbientPreset {
   id: number;
   name: string;
@@ -87,6 +95,9 @@ export const api = {
   presetDelete: (id: number) => invoke<void>('ambient_preset_delete', { id }),
   ambientLastGet: () => invoke<string | null>('ambient_last_get'),
   ambientLastSet: (configJson: string) => invoke<void>('ambient_last_set', { configJson }),
+  nativeStatus: () => invoke<NativeStatus>('native_status'),
+  nativeRegister: () => invoke<NativeStatus>('native_register'),
+  nativeUnregister: () => invoke<NativeStatus>('native_unregister'),
   toast: (message: string) => invoke<void>('toast_show', { message }),
   clipList: (query: string) => invoke<ClipItem[]>('clipboard_list', { query }),
   clipCopy: (id: number) => invoke<void>('clipboard_copy', { id }),

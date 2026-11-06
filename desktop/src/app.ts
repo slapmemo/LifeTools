@@ -1,5 +1,5 @@
 import { listen } from '@tauri-apps/api/event';
-import { api, errText, type Electricity, type Estimate, type PinnedWindow } from './api';
+import { api, errText, type Electricity, type Estimate, type NativeStatus, type PinnedWindow } from './api';
 import { debounce, fmtTime, h, parseNum, type View } from './dom';
 import { ambientView, toggleFromTray } from './ambient_view';
 import { batteriesView } from './batteries';
@@ -369,6 +369,9 @@ function settingsView(): View {
   const excl = h('textarea', { rows: 6, class: 'grow' });
   const msg = h('div', { class: 'muted' });
   const saveBtn = h('button', {}, 'Kaydet');
+  const nativeStatus = h('div', { class: 'muted' });
+  const nativeConnect = h('button', {}, 'Bağla');
+  const nativeRemove = h('button', { class: 'danger' }, 'Bağlantıyı kaldır');
 
   const el = h(
     'section',
@@ -384,6 +387,14 @@ function settingsView(): View {
     h('label', {}, 'Kaydedilmeyecek uygulamalar (her satıra bir exe adı):'),
     excl,
     h('div', { class: 'toolbar' }, saveBtn, msg),
+    h('h3', {}, 'Chrome eklentisini bağla'),
+    h(
+      'p',
+      { class: 'muted' },
+      'Eklentinin verileri bu uygulamanın veritabanında (%APPDATA%\\LifeTools\\lifetools.db) saklanabilir. Önce burada bağla, sonra eklentide "Verileri masaüstüne taşı" düğmesine bas. Bağlantıdan sonra Chrome\'u yeniden başlatmak gerekmez.'
+    ),
+    h('div', { class: 'toolbar' }, nativeConnect, nativeRemove),
+    nativeStatus,
     h('h3', {}, 'Kısayollar'),
     h('ul', {}, h('li', {}, 'Ctrl+Shift+V — pano seçici'), h('li', {}, 'Ctrl+Alt+T — etkin pencereyi üstte tut / bırak'),
       h('li', {}, 'Ctrl+Shift+Space — şablon seçici')
@@ -423,6 +434,31 @@ function settingsView(): View {
     }
   });
 
+  function showNative(s: NativeStatus): void {
+    nativeStatus.textContent = !s.registered
+      ? 'Durum: bağlı değil.'
+      : s.path_matches
+        ? 'Durum: bağlı (kayıt bu uygulamayı gösteriyor).'
+        : `Durum: kayıtlı, ancak başka bir exe'yi gösteriyor (${s.registered_exe ?? '?'}). Yeniden bağla.`;
+    nativeConnect.textContent = s.registered ? 'Yeniden bağla' : 'Bağla';
+    nativeRemove.disabled = !s.registered;
+  }
+
+  nativeConnect.addEventListener('click', async () => {
+    try {
+      showNative(await api.nativeRegister());
+    } catch (e) {
+      nativeStatus.textContent = `Hata: ${errText(e)}`;
+    }
+  });
+  nativeRemove.addEventListener('click', async () => {
+    try {
+      showNative(await api.nativeUnregister());
+    } catch (e) {
+      nativeStatus.textContent = `Hata: ${errText(e)}`;
+    }
+  });
+
   function fill(days: number, maxItems: number, exclusions: string[]): void {
     expire.value = String(days);
     max.value = String(maxItems);
@@ -442,6 +478,11 @@ function settingsView(): View {
         autostart.checked = await api.autostartGet();
       } catch {
         autostart.checked = false;
+      }
+      try {
+        showNative(await api.nativeStatus());
+      } catch (e) {
+        nativeStatus.textContent = `Hata: ${errText(e)}`;
       }
     }
   };

@@ -182,6 +182,21 @@ pub fn toast_show(app: AppHandle, message: String) {
 }
 
 #[tauri::command]
+pub fn native_status() -> Result<crate::native_reg::Status, String> {
+    crate::native_reg::status()
+}
+
+#[tauri::command]
+pub fn native_register() -> Result<crate::native_reg::Status, String> {
+    crate::native_reg::register()
+}
+
+#[tauri::command]
+pub fn native_unregister() -> Result<crate::native_reg::Status, String> {
+    crate::native_reg::unregister()
+}
+
+#[tauri::command]
 pub fn electricity_get(state: St) -> Result<Electricity, String> {
     let raw = db::get_setting(&state.db(), "electricity").map_err(err)?;
     Ok(raw.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default())

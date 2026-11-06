@@ -55,6 +55,9 @@ input[type=text]::placeholder { color: #697382; }
 .empty-state strong { font-size: 12px; font-weight: 650; }
 .empty-state p { color: #858e9b; font-size: 11px; margin-top: 5px; }
 footer { border-top: 1px solid #252a33; margin-top: 19px; padding-top: 14px; color: #788390; font-size: 10.5px; display: flex; flex-direction: column; gap: 6px; }
+.desktop-banner { background: #3a1417; border: 1px solid #ff8588; border-radius: 8px; color: #ffb3b5; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; padding: 10px 12px; font-size: 11px; }
+.desktop-banner[hidden] { display: none; }
+.desktop-banner strong { color: #ff8588; font-size: 12px; }
 .db-status.ok { color: #61c79f; }
 .db-status.error { color: #ff8588; }
 textarea, select { font: inherit; }

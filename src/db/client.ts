@@ -1,3 +1,6 @@
+import type { DbBackend } from './backend';
+import type { PingInfo } from './native';
+import { DESKTOP_UNREACHABLE } from './native';
 import type { DbApi, DbRequest, DbResponse, SqlParam } from './protocol';
 import { BG_CHANNEL } from './protocol';
 
@@ -26,7 +29,24 @@ export function createDbClient(transport: Transport): DbApi {
   };
 }
 
-/** Popup gibi sayfalar için: istek service worker üzerinden offscreen belgeye gider. */
-export const popupDb: DbApi = createDbClient(
-  req => chrome.runtime.sendMessage({ channel: BG_CHANNEL, req }) as Promise<DbResponse>
-);
+/**
+ * Popup gibi sayfalar için: istek service worker üzerinden gider.
+ * `backend` verilirse ayardaki arka uç yerine o kullanılır (taşıma için).
+ */
+export function popupDbFor(backend?: DbBackend): DbApi {
+  return createDbClient(
+    req => chrome.runtime.sendMessage({ channel: BG_CHANNEL, req, backend }) as Promise<DbResponse>
+  );
+}
+
+/** Ayardaki (db_backend) arka uca bağlı API. */
+export const popupDb: DbApi = popupDbFor();
+
+/** Masaüstü köprüsünü yoklar; ulaşılamazsa Türkçe hata fırlatır. */
+export async function pingDesktop(): Promise<PingInfo> {
+  const res = (await chrome.runtime.sendMessage({ channel: BG_CHANNEL, req: { op: 'ping' } })) as
+    | DbResponse<PingInfo>
+    | undefined;
+  if (!res || !res.ok) throw new Error(res && !res.ok ? res.error : DESKTOP_UNREACHABLE);
+  return res.data;
+}

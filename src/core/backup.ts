@@ -7,9 +7,19 @@ export interface Backup { app: 'LifeTools'; format: 1; schema_version: number; e
 const names = Object.keys(columns) as Table[];
 const introduced: Record<Table, number> = { notes: 2, snippets: 3, tasks: 4, site_time: 5, sessions: 6, session_tabs: 6, tab_labels: 7, tab_notes: 7, watch_items: 8 };
 const object = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
-export async function exportData(ex: Executor, settings: Record<string, unknown>): Promise<Backup> {
+export const BACKUP_TABLES: readonly string[] = names;
+async function readPaged(ex: Executor, name: Table, size: number): Promise<Row[]> {
+  const out: Row[] = [];
+  for (;;) {
+    const page = await ex.query<Row>(`SELECT * FROM ${name} ORDER BY rowid LIMIT ${size} OFFSET ${out.length}`);
+    out.push(...page);
+    if (page.length < size) return out;
+  }
+}
+/** `pageSize > 0`: tabloları sayfa sayfa okur (masaüstü köprüsünün 1 MB yanıt sınırı için). */
+export async function exportData(ex: Executor, settings: Record<string, unknown>, pageSize = 0): Promise<Backup> {
   const tables = {} as Backup['tables'];
-  for (const name of names) tables[name] = await ex.query<Row>(`SELECT * FROM ${name}`);
+  for (const name of names) tables[name] = pageSize > 0 ? await readPaged(ex, name, pageSize) : await ex.query<Row>(`SELECT * FROM ${name}`);
   return { app: 'LifeTools', format: 1, schema_version: await readVersion(ex), exported_at: new Date().toISOString(), tables, settings };
 }
 export function validateBackup(json: unknown): Backup {

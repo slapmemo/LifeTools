@@ -8,6 +8,11 @@
 </head>
 <body>
   <main class="app">
+    <div id="desktop-banner" class="desktop-banner" role="alert" hidden>
+      <strong>Masaüstü uygulamasına ulaşılamıyor</strong>
+      <span>Veriler masaüstü veritabanında; uygulama çalışmıyor veya bağlantı kurulmamış. Veri bölünmesin diye tarayıcı depolamasına otomatik geçilmez.</span>
+      <button id="desktop-banner-switch" type="button">Tarayıcı depolamasına geç</button>
+    </div>
     <header class="topbar">
       <h1>LifeTools</h1>
       <div class="version">v0.1</div>
@@ -197,6 +202,15 @@
     <section id="watchlist-panel" class="section" hidden><h2>İzleme Listesi</h2><form><input id="watch-title" maxlength="300" required placeholder="Başlık" aria-label="Başlık"><select id="watch-kind" aria-label="Tür"><option value="film">Film</option><option value="dizi">Dizi</option><option value="video">Video</option><option value="diger">Diğer</option></select><button>Ekle</button></form><div><button type="button" data-watch-status="izlenecek">İzlenecek</button><button type="button" data-watch-status="izleniyor">İzleniyor</button><button type="button" data-watch-status="bitti">Bitti</button></div><p id="watch-feedback" class="feedback" aria-live="polite"></p><ul id="watch-list" class="memo-list"></ul></section>
     <section id="pip-panel" class="section" hidden><h2>Resim içinde resim</h2><button id="pip-toggle" type="button">Resim içinde resim</button><p id="pip-feedback" class="feedback" aria-live="polite"></p></section>
     <section id="clip-slots-panel" class="section" hidden><h2>Pano Yuvaları</h2><div id="clip-list"></div><p id="clip-feedback" class="feedback" aria-live="polite"></p></section>
+    <section id="storage-section" class="section" aria-label="Depolama">
+      <div class="section-heading"><h2>Depolama</h2></div>
+      <p id="storage-status" class="hint">Kontrol ediliyor…</p>
+      <button id="storage-move" type="button">Verileri masaüstüne taşı</button>
+      <button id="storage-back" type="button" hidden>Tarayıcı depolamasına geri dön</button>
+      <label id="storage-copyback-label" hidden><input id="storage-copyback" type="checkbox"> Masaüstündeki verileri tarayıcıya da kopyala (tarayıcıdaki mevcut veriler değiştirilir)</label>
+      <p id="storage-feedback" class="feedback" aria-live="polite"></p>
+      <p class="hint">Önce masaüstü uygulamasında Ayarlar → "Chrome eklentisini bağla" adımını yap. Taşıma tarayıcıdaki verileri silmez.</p>
+    </section>
     <section id="backup-section" class="section" aria-label="Yedek">
       <div class="section-heading"><h2>Yedek</h2></div>
       <button id="backup-download" type="button">Yedeği indir</button>

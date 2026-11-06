@@ -19,7 +19,8 @@
     "tabGroups",
     "notifications",
     "favicon",
-    "downloads"
+    "downloads",
+    "nativeMessaging"
   ],
   "commands": {
     "toggle-pip": {

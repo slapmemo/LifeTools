@@ -7,6 +7,8 @@ mod clipboard;
 mod commands;
 mod db;
 mod electricity;
+mod native_host;
+mod native_reg;
 mod paste;
 mod privacy;
 mod state;
@@ -223,6 +225,12 @@ fn run_maintenance(state: &AppState) {
 }
 
 fn main() {
+    // Chrome Native Messaging ana bilgisayarı olarak başlatıldıysa: Tauri/tek örnek öncesinde köprüyü çalıştır.
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.iter().any(|a| a.starts_with("chrome-extension://")) {
+        std::process::exit(native_host::run(&args));
+    }
+
     let picker_sc = picker_shortcut();
     let topmost_sc = topmost_shortcut();
     let snippets_sc = snippets_shortcut();
@@ -289,10 +297,13 @@ fn main() {
             commands::ambient_last_get,
             commands::ambient_last_set,
             commands::toast_show,
+            commands::native_status,
+            commands::native_register,
+            commands::native_unregister,
         ])
         .setup(|app| {
             let path = db::default_path()?;
-            let mut conn = rusqlite::Connection::open(path)?;
+            let mut conn = db::open(&path)?;
             db::migrate(&mut conn)?;
             let state = Arc::new(AppState::new(conn));
             app.manage(state.clone());

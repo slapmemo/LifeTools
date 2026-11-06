@@ -1,6 +1,6 @@
 // esbuild ile src/ -> dist/ (yüklenebilir, paketlenmemiş eklenti).
 import { build } from 'esbuild';
-import { cpSync, copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { cpSync, copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const dist = 'dist';
@@ -30,7 +30,10 @@ await build({
   external: ['node:*', 'fs', 'path', 'module', 'url', 'os', 'crypto', 'util', 'worker_threads', 'child_process']
 });
 
-copyFileSync('src/manifest.json', join(dist, 'manifest.json'));
+const manifest = JSON.parse(readFileSync('src/manifest.json', 'utf8'));
+if (existsSync('src/manifest.key.txt')) manifest.key = readFileSync('src/manifest.key.txt', 'utf8').trim();
+else console.warn('src/manifest.key.txt bulunamadı; eklenti sabit kimlik olmadan derleniyor.');
+writeFileSync(join(dist, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 copyFileSync('src/modules/tab-switcher/switcher.html', join(dist, 'switcher.html'));
 copyFileSync('src/modules/tab-switcher/switcher.css', join(dist, 'switcher.css'));
 copyFileSync('src/modules/command-center/command-center.html', join(dist, 'command-center.html'));
