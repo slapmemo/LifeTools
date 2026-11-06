@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "description": "Günlük küçük araçlar: site engelleyici ve daha fazlası. Veriler yalnızca bu tarayıcıda.",
   "minimum_chrome_version": "116",
-  "permissions": ["storage", "webNavigation", "offscreen", "contextMenus", "activeTab", "scripting"],
+  "permissions": ["storage", "clipboardWrite", "webNavigation", "offscreen", "contextMenus", "activeTab", "scripting"],
   "commands": {
     "save-selection": {
       "suggested_key": { "default": "Alt+Shift+S" },

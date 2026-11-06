@@ -1,3 +1,5 @@
+import { LINK_CLEANER_ID } from '../modules/link-cleaner/background';
+import { initLinkCleanerPanel } from '../modules/link-cleaner/panel';
 import { isModuleEnabled, MODULE_FLAGS_KEY, setModuleEnabled } from '../core/module-state';
 import { popupDb } from '../db/client';
 import { modules } from '../modules';
@@ -12,6 +14,8 @@ const dbStatus = document.querySelector('#db-status') as HTMLElement;
 
 const memoSection = document.querySelector('#slapmemo-panel') as HTMLElement;
 
+const cleanerSection = document.querySelector('#link-cleaner-panel') as HTMLElement;
+const cleaner = initLinkCleanerPanel();
 const blocker = initBlockerPanel();
 const memo = initSlapMemoPanel();
 
@@ -55,6 +59,8 @@ async function refresh(): Promise<void> {
   if (!blockerSection.hidden) await blocker.render();
   memoSection.hidden = !(await isModuleEnabled(SLAPMEMO_ID));
   if (!memoSection.hidden) await memo.render();
+  cleanerSection.hidden = !(await isModuleEnabled(LINK_CLEANER_ID));
+  if (!cleanerSection.hidden) await cleaner.render();
 }
 
 async function showDbStatus(): Promise<void> {

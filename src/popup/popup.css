@@ -80,3 +80,8 @@ textarea, select { font: inherit; }
 .memo-source:hover { text-decoration: underline; }
 .memo-mine { width: 100%; height: 28px; padding: 0 9px; border-radius: 7px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+.cleaner-url { margin-top: 8px; overflow-wrap: anywhere; color: #cbd3df; line-height: 1.45; }
+.cleaner-label { display: block; margin: 14px 0 8px; font-weight: 650; }
+.cleaner-copy { margin-top: 8px; padding: 7px 12px; border: 0; border-radius: 8px; background: #f0f2f5; color: #11141a; font-weight: 700; }
+.cleaner-copy:disabled { opacity: .45; cursor: default; }

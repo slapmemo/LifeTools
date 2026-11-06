@@ -20,6 +20,11 @@ Seçili metni, bağlantıyı veya sayfayı kategorili not olarak kaydeder (Notla
 
 Kayıt sonrası eklenti simgesinde kısa süre `✓` (kaydedildi), `=` (zaten kayıtlı) veya `!` (hata/boş seçim) görünür.
 
+## Link Temizleyici
+
+Sağ tık menüsünden bağlantının veya sayfanın temiz linkini kopyala.
+Popup'ta etkin sayfanın ya da yapıştırdığın linkin temiz sürümünü gör ve kopyala.
+
 ## Kurulum ve derleme
 
 ```

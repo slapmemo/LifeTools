@@ -14,8 +14,8 @@ export function ensureOffscreen(): Promise<void> {
     if (existing.length > 0) return;
     await chrome.offscreen.createDocument({
       url: 'offscreen.html',
-      reasons: ['WORKERS' as chrome.offscreen.Reason],
-      justification: 'SQLite (wasm) veritabanını OPFS üzerinde bir Worker içinde çalıştırmak için.'
+      reasons: ['WORKERS' as chrome.offscreen.Reason, 'CLIPBOARD' as chrome.offscreen.Reason],
+      justification: 'SQLite veritabanını çalıştırmak ve temiz linkleri panoya kopyalamak için.'
     });
   })().finally(() => { inflight = null; });
   return inflight;
@@ -42,4 +42,10 @@ export function registerDbBridge(): void {
     void dbRequest(msg.req as DbRequest).then(sendResponse);
     return true;
   });
+}
+
+/** Aynı offscreen belge üzerinden panoya metin kopyalar. */
+export async function copyOffscreen(text: string): Promise<boolean> {
+  await ensureOffscreen();
+  return (await chrome.runtime.sendMessage({ channel: 'lifetools:clipboard', text })) === true;
 }

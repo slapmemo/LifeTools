@@ -25,3 +25,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   worker.postMessage({ id, req: msg.req as DbRequest });
   return true;
 });
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (!msg || msg.channel !== 'lifetools:clipboard' || typeof msg.text !== 'string') return false;
+  const textarea = document.createElement('textarea');
+  textarea.value = msg.text;
+  document.body.append(textarea);
+  textarea.select();
+  try { sendResponse(document.execCommand('copy')); }
+  catch { sendResponse(false); }
+  finally { textarea.remove(); }
+  return false;
+});
