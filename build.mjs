@@ -12,7 +12,9 @@ await build({
     background: 'src/background.ts',
     'smart-replies-content': 'src/modules/smart-replies/content.ts',
     popup: 'src/popup/popup.ts',
+    'site-toolbar-content': 'src/modules/site-toolbar/content.ts',
     switcher: 'src/modules/tab-switcher/switcher.ts',
+    'command-center': 'src/modules/command-center/command-center.ts',
     offscreen: 'src/db/offscreen.ts',
     'db-worker': 'src/db/worker.ts'
   },
@@ -29,6 +31,8 @@ await build({
 copyFileSync('src/manifest.json', join(dist, 'manifest.json'));
 copyFileSync('src/modules/tab-switcher/switcher.html', join(dist, 'switcher.html'));
 copyFileSync('src/modules/tab-switcher/switcher.css', join(dist, 'switcher.css'));
+copyFileSync('src/modules/command-center/command-center.html', join(dist, 'command-center.html'));
+copyFileSync('src/modules/command-center/command-center.css', join(dist, 'command-center.css'));
 copyFileSync('src/popup/popup.html', join(dist, 'popup.html'));
 copyFileSync('src/popup/popup.css', join(dist, 'popup.css'));
 copyFileSync('src/db/offscreen.html', join(dist, 'offscreen.html'));

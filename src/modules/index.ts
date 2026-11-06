@@ -12,6 +12,9 @@ import { slapMemoModule } from './slapmemo';
 import { lifeBrowserModule } from './life-browser';
 import { zombieTabsModule } from './zombie-tabs';
 import { pinnedGuardModule } from './pinned-guard';
+import { commandCenterModule } from './command-center';
+import { shortcutsModule } from './shortcuts';
+import { siteToolbarModule } from './site-toolbar';
 
 /** Tüm araçların kaydı. Yeni araç buraya eklenir. */
-export const modules: readonly LifeModule[] = [timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule, tabLabelsModule, tabNotesModule, tabSwitcherModule, titleCleanerModule];
+export const modules: readonly LifeModule[] = [timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule, tabLabelsModule, tabNotesModule, tabSwitcherModule, titleCleanerModule, commandCenterModule, shortcutsModule, siteToolbarModule];

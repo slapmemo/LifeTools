@@ -32,6 +32,27 @@
         "default": "Alt+Shift+Space"
       },
       "description": "Görsel sekme değiştiriciyi aç"
+    },
+    "open-command-center": {
+      "suggested_key": {
+        "default": "Alt+Shift+K"
+      },
+      "description": "Komut merkezini aç"
+    },
+    "action-link-copy": {
+      "description": "Sayfanın temiz linkini kopyala"
+    },
+    "action-task-page": {
+      "description": "Bu sayfayı göreve ekle"
+    },
+    "action-session-save": {
+      "description": "Oturumu kaydet"
+    },
+    "action-blocker-toggle": {
+      "description": "Engelleyiciyi aç/kapat"
+    },
+    "action-group-site": {
+      "description": "Sekmeleri siteye göre grupla"
     }
   },
   "host_permissions": [

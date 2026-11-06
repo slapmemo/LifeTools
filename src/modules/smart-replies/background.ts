@@ -1,12 +1,13 @@
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { flashBadge } from '../../core/badge';
+import { replaceSiteScript } from '../../core/site-scripts';
 import { backgroundDb } from '../../db/host';
 import { createSnippetsRepo } from './repo';
 export const SMART_REPLIES_ID = 'smart-replies';
 export const SITES_KEY = 'smartReplySites';
 export const CHANGE_KEY = 'smartReplyChanged';
 const ROOT = 'smart-replies-root', PREFIX = 'smart-replies:';
-const SCRIPT = 'smart-replies-expander';
+const SCRIPT = 'smart-replies-expander', SCRIPT_FILE = 'smart-replies-content.js';
 const repo = createSnippetsRepo(backgroundDb);
 function removeMenu(id: string): Promise<void> { return new Promise(resolve => chrome.contextMenus.remove(id, () => { void chrome.runtime.lastError; resolve(); })); }
 function createMenu(props: chrome.contextMenus.CreateProperties): Promise<void> { return new Promise(resolve => { chrome.contextMenus.create(props, () => { void chrome.runtime.lastError; resolve(); }); }); }
@@ -14,17 +15,12 @@ let sync = Promise.resolve();
 function refresh(): void {
   sync = sync.then(async () => {
     await removeMenu(ROOT);
-    const registered = await chrome.scripting.getRegisteredContentScripts({ ids: [SCRIPT] });
-    if (registered.length) await chrome.scripting.unregisterContentScripts({ ids: [SCRIPT] });
-    if (!await isModuleEnabled(SMART_REPLIES_ID)) return;
+    if (!await isModuleEnabled(SMART_REPLIES_ID)) { await replaceSiteScript(SCRIPT, [], SCRIPT_FILE, true); return; }
     const snippets = await repo.list();
     await createMenu({ id: ROOT, title: 'Şablon ekle', contexts: ['editable'] });
     for (const snippet of snippets.slice(0,10)) await createMenu({ id: PREFIX + snippet.id, parentId: ROOT, title: `${snippet.trigger} — ${snippet.title}`, contexts: ['editable'] });
     const data = await chrome.storage.local.get({ [SITES_KEY]: [] });
-    const sites = data[SITES_KEY] as string[];
-    const matches: string[] = [];
-    for (const origin of sites) if (await chrome.permissions.contains({ origins: [origin] })) matches.push(origin);
-    if (matches.length) await chrome.scripting.registerContentScripts([{ id: SCRIPT, matches, js: ['smart-replies-content.js'], persistAcrossSessions: true, allFrames: true }]);
+    await replaceSiteScript(SCRIPT, data[SITES_KEY] as string[], SCRIPT_FILE, true);
   }).catch(err => { console.debug('[Akıllı Yanıtlar]', err); });
 }
 export function initSmartRepliesBackground(): void {

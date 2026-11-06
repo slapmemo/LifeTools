@@ -1,4 +1,5 @@
 import { popupDb } from '../../db/client';
+import { originFromInput } from '../../core/site-scripts';
 import { createSnippetsRepo, type Snippet } from './repo';
 import { CHANGE_KEY, SITES_KEY } from './background';
 function $<T extends HTMLElement>(id: string): T { return document.getElementById(id) as T; }
@@ -43,9 +44,8 @@ export function initSmartRepliesPanel() {
   search.oninput = () => { void render(); };
   $<HTMLFormElement>('snippet-site-form').onsubmit = event => {
     event.preventDefault();
-    let origin: string;
-    try { const raw = site.value.trim(); const url = new URL(raw.includes('://') ? raw : `https://${raw}`); if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.port || url.pathname !== '/' || url.search || url.hash) throw new Error(); origin = `${url.protocol}//${url.hostname}/*`; }
-    catch { message('Geçerli bir site adresi gir.'); return; }
+    const origin = originFromInput(site.value);
+    if (!origin) { message('Geçerli bir site adresi gir.'); return; }
     void chrome.permissions.request({ origins: [origin] }).then(async granted => {
       if (!granted) { message('Site izni verilmedi.'); return; }
       const data = await chrome.storage.local.get({ [SITES_KEY]: [] }); await chrome.storage.local.set({ [SITES_KEY]: [...new Set([...(data[SITES_KEY] as string[]), origin])] }); site.value = ''; await render(); message('Site eklendi.');

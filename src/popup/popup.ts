@@ -23,6 +23,15 @@ import { initZombieTabsPanel } from '../modules/zombie-tabs/panel';
 import { PINNED_GUARD_ID } from '../modules/pinned-guard/background';
 import { initPinnedGuardPanel } from '../modules/pinned-guard/panel';
 
+import { SHORTCUTS_ID } from '../modules/shortcuts/background';
+import { initShortcutsPanel } from '../modules/shortcuts/panel';
+import { SITE_TOOLBAR_ID } from '../modules/site-toolbar/background';
+import { initSiteToolbarPanel } from '../modules/site-toolbar/panel';
+
+const shortcutsSection = document.querySelector('#shortcuts-panel') as HTMLElement;
+const shortcuts = initShortcutsPanel();
+const toolbarSection = document.querySelector('#site-toolbar-panel') as HTMLElement;
+const siteToolbar = initSiteToolbarPanel();
 const tabTools = initTabToolsPanel();
 const lifeBrowserSection = document.querySelector('#life-browser-panel') as HTMLElement;
 const lifeBrowser = initLifeBrowserPanel();
@@ -104,6 +113,10 @@ async function refresh(): Promise<void> {
   if (!zombieSection.hidden) await zombies.render();
   pinnedSection.hidden = !(await isModuleEnabled(PINNED_GUARD_ID));
   if (!pinnedSection.hidden) await pinned.render();
+  shortcutsSection.hidden = !(await isModuleEnabled(SHORTCUTS_ID));
+  if (!shortcutsSection.hidden) await shortcuts.render();
+  toolbarSection.hidden = !(await isModuleEnabled(SITE_TOOLBAR_ID));
+  if (!toolbarSection.hidden) await siteToolbar.render();
 }
 
 async function showDbStatus(): Promise<void> {
@@ -123,7 +136,12 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-void refresh();
+// Eylemler popup'ı sekme olarak açıp bir bölüme yönlendirebilir: popup.html#<bölüm-kimliği>
+void refresh().then(() => {
+  const hash = decodeURIComponent(location.hash.slice(1));
+  if (hash === 'backup-download') { (document.getElementById('backup-section') ?? document.body).scrollIntoView(); (document.getElementById('backup-download') as HTMLButtonElement | null)?.click(); }
+  else if (hash) document.getElementById(hash)?.scrollIntoView();
+});
 void showDbStatus();
 
 const backupFile = document.querySelector('#backup-file') as HTMLInputElement;

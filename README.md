@@ -75,6 +75,18 @@ npm test          # birim testleri (vitest)
 npm run typecheck # tür denetimi
 ```
 
+## Komut Merkezi
+
+`Alt+Shift+K` küçük bir pencere açar. Tek kutuya yaz: **Eylemler** (başlık ve anahtar kelimelerde, Türkçe harflere duyarsız arama), **Sekmeler**, **Notlar** (SlapMemo, ilk 5), **Görevler** (açık olanlar) ve **Şablonlar** (Enter gövdeyi panoya kopyalar). `not <metin>` hızlı not, `görev <metin>` (veya `gorev`) hızlı görev ekler. Yön tuşları, Enter ve Esc kullanılır. Eylemler, pencere açılmadan önceki etkin sekmeye uygulanır. Eylemler `src/core/actions.ts` kaydından gelir; kapalı modüllerin eylemleri gizlenir.
+
+## Kısayol Oluşturucu
+
+Chrome yalnızca manifestte tanımlı komutlara tuş atamaya izin verir. LifeTools; temiz link kopyala, sayfayı göreve ekle, oturumu kaydet, engelleyiciyi aç/kapat ve siteye göre grupla komutlarını tuşsuz tanımlar. Popup'taki **Kısayollar** bölümü tüm komutları ve mevcut atamaları listeler, atanmamışları ve LifeTools içinde çakışanları işaretler; **Kısayolları Chrome'da düzenle** düğmesi `chrome://extensions/shortcuts` sayfasını açar (tuşları orada Chrome yönetir). Önerilen tuşlu komut sayısı 4'ü aşmaz (şu an 3).
+
+## Site Araç Çubuğu
+
+Popup'ta bir site ekleyip izin ver (Akıllı Yanıtlar ile aynı isteğe bağlı izin ve kayıtlı içerik betiği yöntemi); site başına hangi eylemlerin görüneceğini seç. O sitede, kapalı Shadow DOM içinde küçük bir **LT** düğmesi çıkar: tıkla ve eylemleri aç, sürükleyerek yerini değiştir (konum site başına saklanır), tekrar tıklayarak veya Esc ile küçült. Hiçbir eylem kendiliğinden çalışmaz.
+
 ## Sekme araçları
 
 Görsel sekme değiştiriciyi popup'tan veya Alt+Shift+Space ile aç. Başlık, adres, etiket ve notlarda ara; yön tuşları ve Enter ile geç, Delete ile seçili sekmeyi kapat.

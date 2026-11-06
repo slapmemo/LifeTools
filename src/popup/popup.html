@@ -175,7 +175,21 @@
       <div id="title-cleaner-controls"><label for="title-rule">Bu site i?in ba?l?ktan kaldır?lacak metin</label><textarea id="title-rule" rows="3" placeholder="Her satıra bir kural"></textarea><button id="title-rule-save" type="button">Kuralları kaydet</button></div>
       <button id="open-switcher" type="button">Sekme değiştiriciyi aç</button><p id="tab-tools-feedback" class="feedback" aria-live="polite"></p>
     </section>
-    <section class="section" aria-label="Yedek">
+    <section id="shortcuts-panel" class="section" hidden aria-label="Kısayollar">
+      <div class="section-heading"><h2>Kısayollar</h2></div>
+      <ul id="shortcuts-list" class="memo-list" aria-label="LifeTools komutları"></ul>
+      <p id="shortcuts-warning" class="feedback" aria-live="polite" hidden></p>
+      <button id="shortcuts-open" type="button">Kısayolları Chrome'da düzenle</button>
+      <p class="hint">Gerçek tuş atamalarını Chrome yönetir: chrome://extensions/shortcuts sayfasında her komuta bir tuş verebilirsin. Burada yalnızca mevcut atamalar gösterilir.</p>
+    </section>
+    <section id="site-toolbar-panel" class="section" hidden aria-label="Site Araç Çubuğu">
+      <div class="section-heading"><h2>Site Araç Çubuğu</h2></div>
+      <form id="toolbar-site-form"><div class="input-row"><input id="toolbar-site" placeholder="ornek.com" aria-label="Araç çubuğu gösterilecek site" required /><button type="submit">Site ekle</button></div></form>
+      <ul id="toolbar-sites" aria-label="Araç çubuğu siteleri"></ul>
+      <p id="toolbar-feedback" class="feedback" aria-live="polite"></p>
+      <p class="hint">Site izninden sonra o sitede küçük, sürüklenebilir bir LT düğmesi çıkar; hiçbir eylem kendiliğinden çalışmaz.</p>
+    </section>
+    <section id="backup-section" class="section" aria-label="Yedek">
       <div class="section-heading"><h2>Yedek</h2></div>
       <button id="backup-download" type="button">Yedeği indir</button>
       <label for="backup-file">Yedekten geri yükle</label><input id="backup-file" type="file" accept="application/json,.json" />
