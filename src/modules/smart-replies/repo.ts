@@ -2,7 +2,7 @@ import type { Executor } from '../../db/migrations';
 export interface Snippet { id: number; trigger: string; title: string; body: string; use_count: number; created_at: number; updated_at: number }
 export interface SnippetInput { trigger: string; title: string; body: string }
 export function validateTrigger(value: string): string {
-  const trigger = value.trim().toLocaleLowerCase('tr-TR');
+  const trigger = value.trim().toLowerCase();
   if (!/^[/;][a-z0-9_\u00e7\u011f\u0131\u00f6\u015f\u00fc-]{1,31}$/u.test(trigger)) throw new Error('Tetikleyici / veya ; ile başlamalı ve 1–31 harf, rakam, _ veya - içermeli.');
   return trigger;
 }

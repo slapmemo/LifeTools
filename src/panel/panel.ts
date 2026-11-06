@@ -1,47 +1,56 @@
-import { X_VIDEO_ID, SETTINGS_KEY as X_VIDEO_SETTINGS_KEY, defaults as xVideoDefaults } from '../modules/x-video/shared';
-import { WATCHLIST_ID } from '../modules/watchlist/background';
-import { initWatchlistPanel } from '../modules/watchlist/panel';
-import { PIP_ID } from '../modules/pip/background';
-import { CLIP_SLOTS_ID } from '../modules/clip-slots/background';
-import { initClipSlotsPanel } from '../modules/clip-slots/panel';
+import { icon, type IconName } from '../../design/icons';
 import { requestRunAction } from '../core/actions';
-import { initTabToolsPanel } from '../modules/tab-notes/panel';
 import { exportData, restoreData, validateBackup, type Backup } from '../core/backup';
 import { backupSettingKeys } from '../core/backup-settings';
-import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
-import { initTimeTrackerPanel } from '../modules/time-tracker/panel';
-import { QUICK_TASKS_ID } from '../modules/quick-tasks/background';
-import { initQuickTasksPanel } from '../modules/quick-tasks/panel';
-import { SMART_REPLIES_ID } from '../modules/smart-replies/background';
-import { initSmartRepliesPanel } from '../modules/smart-replies/panel';
-import { LINK_CLEANER_ID } from '../modules/link-cleaner/background';
-import { initLinkCleanerPanel } from '../modules/link-cleaner/panel';
 import { isModuleEnabled, MODULE_FLAGS_KEY, setModuleEnabled } from '../core/module-state';
+import { applyTheme } from '../core/theme';
+import { categories, routeCategory } from '../core/ui-visibility';
 import { popupDb } from '../db/client';
-import { initStoragePanel } from '../popup/storage-panel';
 import { modules } from '../modules';
-import { SITE_BLOCKER_ID } from '../modules/site-blocker/background';
-import { initBlockerPanel } from '../modules/site-blocker/panel';
-import { SLAPMEMO_ID } from '../modules/slapmemo/background';
-import { initSlapMemoPanel } from '../modules/slapmemo/panel';
+import { CLIP_SLOTS_ID } from '../modules/clip-slots/background';
+import { initClipSlotsPanel } from '../modules/clip-slots/panel';
 import { LIFE_BROWSER_ID } from '../modules/life-browser/background';
 import { initLifeBrowserPanel } from '../modules/life-browser/panel';
-import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
-import { initZombieTabsPanel } from '../modules/zombie-tabs/panel';
+import { LINK_CLEANER_ID } from '../modules/link-cleaner/background';
+import { initLinkCleanerPanel } from '../modules/link-cleaner/panel';
 import { PINNED_GUARD_ID } from '../modules/pinned-guard/background';
 import { initPinnedGuardPanel } from '../modules/pinned-guard/panel';
-
+import { PIP_ID } from '../modules/pip/background';
+import { QUICK_TASKS_ID } from '../modules/quick-tasks/background';
+import { initQuickTasksPanel } from '../modules/quick-tasks/panel';
 import { SHORTCUTS_ID } from '../modules/shortcuts/background';
 import { initShortcutsPanel } from '../modules/shortcuts/panel';
+import { SITE_BLOCKER_ID } from '../modules/site-blocker/background';
+import { initBlockerPanel } from '../modules/site-blocker/panel';
 import { SITE_TOOLBAR_ID } from '../modules/site-toolbar/background';
 import { initSiteToolbarPanel } from '../modules/site-toolbar/panel';
+import { SLAPMEMO_ID } from '../modules/slapmemo/background';
+import { initSlapMemoPanel } from '../modules/slapmemo/panel';
+import { SMART_REPLIES_ID } from '../modules/smart-replies/background';
+import { initSmartRepliesPanel } from '../modules/smart-replies/panel';
+import { initTabToolsPanel } from '../modules/tab-notes/panel';
+import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
+import { initTimeTrackerPanel } from '../modules/time-tracker/panel';
+import { WATCHLIST_ID } from '../modules/watchlist/background';
+import { initWatchlistPanel } from '../modules/watchlist/panel';
+import { defaults as xVideoDefaults, SETTINGS_KEY as X_VIDEO_SETTINGS_KEY, X_VIDEO_ID } from '../modules/x-video/shared';
+import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
+import { initZombieTabsPanel } from '../modules/zombie-tabs/panel';
+import { initStoragePanel } from '../popup/storage-panel';
 
 const watchSection = document.querySelector('#watchlist-panel') as HTMLElement;
 const watch = initWatchlistPanel();
 const clipSection = document.querySelector('#clip-slots-panel') as HTMLElement;
 const clip = initClipSlotsPanel();
 const pipSection = document.querySelector('#pip-panel') as HTMLElement;
-document.querySelector('#pip-toggle')!.addEventListener('click', () => { void (async () => { const tab = (await chrome.tabs.query({active:true,currentWindow:true}))[0]; const result = await requestRunAction('pip.toggle', undefined, tab?.id); (document.querySelector('#pip-feedback') as HTMLElement).textContent = result.message ?? (result.ok ? 'İşlem tamamlandı.' : 'İşlem başarısız.'); })(); });
+document.querySelector('#pip-toggle')!.addEventListener('click', () => {
+  void (async () => {
+    const tab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
+    const result = await requestRunAction('pip.toggle', undefined, tab?.id);
+    (document.querySelector('#pip-feedback') as HTMLElement).textContent =
+      result.message ?? (result.ok ? 'İşlem tamamlandı.' : 'İşlem başarısız.');
+  })();
+});
 const shortcutsSection = document.querySelector('#shortcuts-panel') as HTMLElement;
 const shortcuts = initShortcutsPanel();
 const toolbarSection = document.querySelector('#site-toolbar-panel') as HTMLElement;
@@ -64,13 +73,80 @@ const blockerSection = document.querySelector('#blocker-panel') as HTMLElement;
 const dbStatus = document.querySelector('#db-status') as HTMLElement;
 
 const memoSection = document.querySelector('#slapmemo-panel') as HTMLElement;
-
 const cleanerSection = document.querySelector('#link-cleaner-panel') as HTMLElement;
 const smartSection = document.querySelector('#smart-replies-panel') as HTMLElement;
 const smart = initSmartRepliesPanel();
 const cleaner = initLinkCleanerPanel();
 const blocker = initBlockerPanel();
 const memo = initSlapMemoPanel();
+
+let notlarTab: 'slapmemo' | 'watchlist' = 'slapmemo';
+let metinTab: 'smart-replies' | 'clip-slots' | 'link-cleaner' = 'smart-replies';
+let activeCategory = 'notlar';
+
+const notlarTabsWrap = document.getElementById('notlar-tabs')!;
+const memoNewBtn = document.getElementById('memo-new-btn') as HTMLButtonElement;
+const watchNewBtn = document.getElementById('watch-new-btn') as HTMLButtonElement;
+const metinTabsWrap = document.getElementById('metin-tabs')!;
+
+notlarTabsWrap.querySelectorAll<HTMLButtonElement>('[data-notlar-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    notlarTab = btn.dataset.notlarTab as 'slapmemo' | 'watchlist';
+    void updateSubTabs();
+  });
+});
+
+metinTabsWrap.querySelectorAll<HTMLButtonElement>('[data-metin-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    metinTab = btn.dataset.metinTab as 'smart-replies' | 'clip-slots' | 'link-cleaner';
+    void updateSubTabs();
+  });
+});
+
+async function updateSubTabs(): Promise<void> {
+  const [memoOn, watchOn, smartOn, clipOn, cleanerOn] = await Promise.all([
+    isModuleEnabled(SLAPMEMO_ID),
+    isModuleEnabled(WATCHLIST_ID),
+    isModuleEnabled(SMART_REPLIES_ID),
+    isModuleEnabled(CLIP_SLOTS_ID),
+    isModuleEnabled(LINK_CLEANER_ID)
+  ]);
+
+  if (notlarTab === 'slapmemo' && !memoOn && watchOn) notlarTab = 'watchlist';
+  if (notlarTab === 'watchlist' && !watchOn && memoOn) notlarTab = 'slapmemo';
+  notlarTabsWrap.hidden = !(memoOn && watchOn);
+  notlarTabsWrap.querySelectorAll<HTMLButtonElement>('[data-notlar-tab]').forEach(btn => {
+    const active = btn.dataset.notlarTab === notlarTab;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', String(active));
+  });
+  const showMemo = memoOn && notlarTab === 'slapmemo';
+  const showWatch = watchOn && notlarTab === 'watchlist';
+  memoSection.hidden = !showMemo;
+  watchSection.hidden = !showWatch;
+  memoNewBtn.hidden = !showMemo;
+  watchNewBtn.hidden = !showWatch;
+
+  const enabledMetin: Array<'smart-replies' | 'clip-slots' | 'link-cleaner'> = [];
+  if (smartOn) enabledMetin.push('smart-replies');
+  if (clipOn) enabledMetin.push('clip-slots');
+  if (cleanerOn) enabledMetin.push('link-cleaner');
+  if (enabledMetin.length > 0 && !enabledMetin.includes(metinTab)) {
+    metinTab = enabledMetin[0];
+  }
+  metinTabsWrap.hidden = enabledMetin.length <= 1;
+  metinTabsWrap.querySelectorAll<HTMLButtonElement>('[data-metin-tab]').forEach(btn => {
+    const key = btn.dataset.metinTab as 'smart-replies' | 'clip-slots' | 'link-cleaner';
+    btn.hidden = !enabledMetin.includes(key);
+    const active = key === metinTab;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', String(active));
+  });
+
+  smartSection.hidden = !(smartOn && metinTab === 'smart-replies');
+  clipSection.hidden = !(clipOn && metinTab === 'clip-slots');
+  cleanerSection.hidden = !(cleanerOn && metinTab === 'link-cleaner');
+}
 
 async function renderModules(): Promise<void> {
   modulesList.replaceChildren();
@@ -110,29 +186,37 @@ const xVideoPanel = document.querySelector('#x-video-panel') as HTMLElement;
 const xQuality = document.querySelector('#x-video-quality') as HTMLSelectElement;
 const xOneClick = document.querySelector('#x-video-one-click') as HTMLInputElement;
 const xSaveAs = document.querySelector('#x-video-save-as') as HTMLInputElement;
-for (const control of [xQuality, xOneClick, xSaveAs]) control.addEventListener('change', () => { void chrome.storage.local.set({[X_VIDEO_SETTINGS_KEY]: {quality:xQuality.value, oneClick:xOneClick.checked, saveAs:xSaveAs.checked}}); });
+for (const control of [xQuality, xOneClick, xSaveAs]) {
+  control.addEventListener('change', () => {
+    void chrome.storage.local.set({
+      [X_VIDEO_SETTINGS_KEY]: { quality: xQuality.value, oneClick: xOneClick.checked, saveAs: xSaveAs.checked }
+    });
+  });
+}
+
 async function refresh(): Promise<void> {
-  xVideoPanel.hidden = !await isModuleEnabled(X_VIDEO_ID);
-  const xData = await chrome.storage.local.get({[X_VIDEO_SETTINGS_KEY]: xVideoDefaults});
-  const xSettings = {...xVideoDefaults, ...xData[X_VIDEO_SETTINGS_KEY]};
-  xQuality.value = xSettings.quality; xOneClick.checked = xSettings.oneClick; xSaveAs.checked = xSettings.saveAs;
+  xVideoPanel.hidden = !(await isModuleEnabled(X_VIDEO_ID));
+  const xData = await chrome.storage.local.get({ [X_VIDEO_SETTINGS_KEY]: xVideoDefaults });
+  const xSettings = { ...xVideoDefaults, ...xData[X_VIDEO_SETTINGS_KEY] };
+  xQuality.value = xSettings.quality;
+  xOneClick.checked = xSettings.oneClick;
+  xSaveAs.checked = xSettings.saveAs;
   await renderModules();
-  watchSection.hidden = !await isModuleEnabled(WATCHLIST_ID); if (!watchSection.hidden) await watch.render();
-  clipSection.hidden = !await isModuleEnabled(CLIP_SLOTS_ID); if (!clipSection.hidden) await clip.render();
-  pipSection.hidden = !await isModuleEnabled(PIP_ID);
+  await updateSubTabs();
+
+  if (await isModuleEnabled(WATCHLIST_ID)) await watch.render();
+  if (await isModuleEnabled(CLIP_SLOTS_ID)) await clip.render();
+  pipSection.hidden = !(await isModuleEnabled(PIP_ID));
   await tabTools.render();
   timeSection.hidden = !(await isModuleEnabled(TIME_TRACKER_ID));
   if (!timeSection.hidden) await timeTracker.render();
   tasksSection.hidden = !(await isModuleEnabled(QUICK_TASKS_ID));
   if (!tasksSection.hidden) await tasks.render();
-  smartSection.hidden = !(await isModuleEnabled(SMART_REPLIES_ID));
-  if (!smartSection.hidden) await smart.render();
+  if (await isModuleEnabled(SMART_REPLIES_ID)) await smart.render();
   blockerSection.hidden = !(await isModuleEnabled(SITE_BLOCKER_ID));
   if (!blockerSection.hidden) await blocker.render();
-  memoSection.hidden = !(await isModuleEnabled(SLAPMEMO_ID));
-  if (!memoSection.hidden) await memo.render();
-  cleanerSection.hidden = !(await isModuleEnabled(LINK_CLEANER_ID));
-  if (!cleanerSection.hidden) await cleaner.render();
+  if (await isModuleEnabled(SLAPMEMO_ID)) await memo.render();
+  if (await isModuleEnabled(LINK_CLEANER_ID)) await cleaner.render();
   lifeBrowserSection.hidden = !(await isModuleEnabled(LIFE_BROWSER_ID));
   if (!lifeBrowserSection.hidden) await lifeBrowser.render();
   zombieSection.hidden = !(await isModuleEnabled(ZOMBIE_TABS_ID));
@@ -162,11 +246,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-// Eylemler popup'ı sekme olarak açıp bir bölüme yönlendirebilir: popup.html#<bölüm-kimliği>
 void refresh().then(() => {
   const hash = decodeURIComponent(location.hash.slice(1));
-  if (hash === 'backup-download') { (document.getElementById('backup-section') ?? document.body).scrollIntoView(); (document.getElementById('backup-download') as HTMLButtonElement | null)?.click(); }
-  else if (hash) document.getElementById(hash)?.scrollIntoView();
+  if (hash === 'backup-download') {
+    (document.getElementById('backup-section') ?? document.body).scrollIntoView();
+    (document.getElementById('backup-download') as HTMLButtonElement | null)?.click();
+  } else if (hash) {
+    document.getElementById(hash)?.scrollIntoView();
+  }
 });
 void showDbStatus();
 void initStoragePanel().render();
@@ -176,69 +263,174 @@ const backupPreview = document.querySelector('#backup-preview') as HTMLElement;
 const backupFeedback = document.querySelector('#backup-feedback') as HTMLElement;
 const backupRestore = document.querySelector('#backup-restore') as HTMLButtonElement;
 let selectedBackup: Backup | null = null;
-const backupError = (err: unknown): void => { backupFeedback.textContent = `Hata: ${err instanceof Error ? err.message : String(err)}`; };
-document.querySelector('#backup-download')!.addEventListener('click', () => { void (async () => {
-  try {
-    const data = await exportData(popupDb, await chrome.storage.local.get(backupSettingKeys()));
-    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-    const link = document.createElement('a'); link.href = url; link.download = `lifetools-yedek-${data.exported_at.slice(0, 10)}.json`;
-    link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); backupFeedback.textContent = 'Yedek indirildi.';
-  } catch (err) { backupError(err); }
-})(); });
-backupFile.addEventListener('change', () => { void (async () => {
-  selectedBackup = null; backupRestore.hidden = true; backupPreview.textContent = ''; backupFeedback.textContent = '';
-  if (!backupFile.files?.[0]) return;
-  try {
-    selectedBackup = validateBackup(JSON.parse(await backupFile.files[0].text()));
-    const t = selectedBackup.tables;
-    backupPreview.textContent = `${t.notes.length} not, ${t.snippets.length} şablon, ${t.tasks.length} görev, ${t.site_time.length} site süresi kaydı, ${t.sessions.length} oturum (${t.session_tabs.length} sekme). Mevcut veriler ve ayarlar değiştirilecek.`;
-    backupRestore.hidden = false;
-  } catch (err) { backupError(err); }
-})(); });
-backupRestore.addEventListener('click', () => { void (async () => {
-  if (!selectedBackup) return;
-  backupRestore.disabled = true; backupFile.disabled = true;
-  try {
-    const settings = selectedBackup.settings;
-    await restoreData(popupDb, selectedBackup);
-    const keys = backupSettingKeys();
-    await chrome.storage.local.remove(keys);
-    await chrome.storage.local.set(Object.fromEntries(keys.filter(key => Object.prototype.hasOwnProperty.call(settings, key)).map(key => [key, settings[key]])));
-    backupFeedback.textContent = 'Yedek geri yüklendi. Eklenti yeniden başlatılıyor…';
-    setTimeout(() => chrome.runtime.reload(), 1000);
-  } catch (err) { backupError(err); backupRestore.disabled = false; backupFile.disabled = false; }
-})(); });
+const backupError = (err: unknown): void => {
+  backupFeedback.textContent = `Hata: ${err instanceof Error ? err.message : String(err)}`;
+};
+document.querySelector('#backup-download')!.addEventListener('click', () => {
+  void (async () => {
+    try {
+      const data = await exportData(popupDb, await chrome.storage.local.get(backupSettingKeys()));
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `lifetools-yedek-${data.exported_at.slice(0, 10)}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      backupFeedback.textContent = 'Yedek indirildi.';
+    } catch (err) {
+      backupError(err);
+    }
+  })();
+});
+backupFile.addEventListener('change', () => {
+  void (async () => {
+    selectedBackup = null;
+    backupRestore.hidden = true;
+    backupPreview.textContent = '';
+    backupFeedback.textContent = '';
+    if (!backupFile.files?.[0]) return;
+    try {
+      selectedBackup = validateBackup(JSON.parse(await backupFile.files[0].text()));
+      const t = selectedBackup.tables;
+      backupPreview.textContent = `${t.notes.length} not, ${t.snippets.length} şablon, ${t.tasks.length} görev, ${t.site_time.length} site süresi kaydı, ${t.sessions.length} oturum (${t.session_tabs.length} sekme). Mevcut veriler ve ayarlar değiştirilecek.`;
+      backupRestore.hidden = false;
+    } catch (err) {
+      backupError(err);
+    }
+  })();
+});
+backupRestore.addEventListener('click', () => {
+  void (async () => {
+    if (!selectedBackup) return;
+    backupRestore.disabled = true;
+    backupFile.disabled = true;
+    try {
+      const settings = selectedBackup.settings;
+      await restoreData(popupDb, selectedBackup);
+      const keys = backupSettingKeys();
+      await chrome.storage.local.remove(keys);
+      await chrome.storage.local.set(
+        Object.fromEntries(
+          keys.filter(key => Object.prototype.hasOwnProperty.call(settings, key)).map(key => [key, settings[key]])
+        )
+      );
+      backupFeedback.textContent = 'Yedek geri yüklendi. Eklenti yeniden başlatılıyor…';
+      setTimeout(() => chrome.runtime.reload(), 1000);
+    } catch (err) {
+      backupError(err);
+      backupRestore.disabled = false;
+      backupFile.disabled = false;
+    }
+  })();
+});
 
+const pageHeadingIcons: Record<string, IconName> = {
+  'notlar-heading': 'notebook-pen',
+  'gorevler-heading': 'list-checks',
+  'metin-heading': 'text-cursor-input'
+};
+for (const [id, name] of Object.entries(pageHeadingIcons)) {
+  const h = document.getElementById(id);
+  if (h) h.prepend(icon(name, 20), ' ');
+}
 
-import { applyTheme } from '../core/theme';
-import { categories, routeCategory } from '../core/ui-visibility';
-import { icon, type IconName } from '../../design/icons';
 const headingIcons: Record<string, IconName> = {
- 'slapmemo-panel':'notebook-pen','watchlist-panel':'clapperboard','quick-tasks-panel':'list-checks','smart-replies-panel':'text-cursor-input','clip-slots-panel':'text-cursor-input','link-cleaner-panel':'link',
- 'life-browser-panel':'layout-grid','zombie-tabs-panel':'layout-grid','pinned-guard-panel':'layout-grid','tab-tools':'layout-grid','site-toolbar-panel':'layout-grid','blocker-panel':'timer','time-tracker-panel':'timer',
- 'x-video-panel':'clapperboard','pip-panel':'clapperboard','modules-section':'settings','shortcuts-panel':'settings','theme-section':'settings','storage-section':'settings','backup-section':'settings'
+  'life-browser-panel': 'layout-grid',
+  'zombie-tabs-panel': 'layout-grid',
+  'pinned-guard-panel': 'layout-grid',
+  'tab-tools': 'layout-grid',
+  'site-toolbar-panel': 'layout-grid',
+  'blocker-panel': 'timer',
+  'time-tracker-panel': 'timer',
+  'x-video-panel': 'clapperboard',
+  'pip-panel': 'clapperboard',
+  'modules-section': 'settings',
+  'shortcuts-panel': 'settings',
+  'theme-section': 'settings',
+  'storage-section': 'settings',
+  'backup-section': 'settings'
 };
-for (const [id, name] of Object.entries(headingIcons)) { const card = document.getElementById(id); card?.classList.add('card'); const h = card?.querySelector('h2'); if (h) h.prepend(icon(name, 18), ' '); }
+for (const [id, name] of Object.entries(headingIcons)) {
+  const card = document.getElementById(id);
+  card?.classList.add('card');
+  const h = card?.querySelector('h2');
+  if (h) h.prepend(icon(name, 18), ' ');
+}
+
 const mapping: Record<string, string[]> = {
- notlar: ['slapmemo-panel','watchlist-panel'], gorevler: ['quick-tasks-panel'], metin: ['smart-replies-panel','clip-slots-panel','link-cleaner-panel'],
- sekmeler: ['life-browser-panel','zombie-tabs-panel','pinned-guard-panel','tab-tools','site-toolbar-panel'], odak: ['blocker-panel','time-tracker-panel'], medya: ['x-video-panel','pip-panel'], ayarlar: ['modules-section','shortcuts-panel','theme-section','storage-section','backup-section','db-footer']
+  notlar: ['notlar'],
+  gorevler: ['gorevler'],
+  metin: ['metin'],
+  sekmeler: ['life-browser-panel', 'zombie-tabs-panel', 'pinned-guard-panel', 'tab-tools', 'site-toolbar-panel'],
+  odak: ['blocker-panel', 'time-tracker-panel'],
+  medya: ['x-video-panel', 'pip-panel'],
+  ayarlar: ['modules-section', 'shortcuts-panel', 'theme-section', 'storage-section', 'backup-section', 'db-footer']
 };
+
 const nav = document.getElementById('navigation')!;
 async function route(): Promise<void> {
- const flags = (await chrome.storage.local.get({[MODULE_FLAGS_KEY]: {}}))[MODULE_FLAGS_KEY];
- const visible = categories(flags); const active = routeCategory(location.hash === '#backup-download' ? '#ayarlar' : location.hash, visible);
- nav.replaceChildren();
- for (const category of visible) {
-  if (category.id === 'ayarlar') { const hr = document.createElement('hr'); nav.append(hr); }
-  const a = document.createElement('a'); a.href = `#${category.id}`; a.title = category.label; a.className = (category.id === active ? 'active' : '') + (category.star ? ' star' : '');
-  const label = document.createElement('span'); label.textContent = category.label;
-  a.append(icon(category.icon, 18), label); nav.append(a);
- }
- for (const [category, ids] of Object.entries(mapping)) for (const id of ids) { const el = document.getElementById(id); if (el) el.style.display = category === active ? '' : 'none'; }
+  const flags = (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
+  const visible = categories(flags);
+  const active = routeCategory(location.hash === '#backup-download' ? '#ayarlar' : location.hash, visible);
+  activeCategory = active;
+  nav.replaceChildren();
+  for (const category of visible) {
+    if (category.id === 'ayarlar') {
+      const hr = document.createElement('hr');
+      nav.append(hr);
+    }
+    const a = document.createElement('a');
+    a.href = `#${category.id}`;
+    a.title = category.label;
+    a.className = (category.id === active ? 'active' : '') + (category.star ? ' star' : '');
+    const label = document.createElement('span');
+    label.textContent = category.label;
+    a.append(icon(category.icon, 18), label);
+    nav.append(a);
+  }
+  for (const [category, ids] of Object.entries(mapping)) {
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      if (category === 'notlar' || category === 'gorevler' || category === 'metin') {
+        el.hidden = category !== active;
+      }
+      el.style.display = category === active ? '' : 'none';
+    }
+  }
 }
+
+document.addEventListener('keydown', event => {
+  if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return;
+  const target = event.target as HTMLElement | null;
+  if (target && (target.matches('input, textarea, select') || target.isContentEditable)) return;
+  if (activeCategory === 'notlar' && !memoSection.hidden) {
+    const search = document.querySelector<HTMLInputElement>('#memo-search');
+    if (search) {
+      event.preventDefault();
+      search.focus();
+      search.select();
+    }
+  } else if (activeCategory === 'metin' && !smartSection.hidden) {
+    const search = document.querySelector<HTMLInputElement>('#snippet-search');
+    if (search) {
+      event.preventDefault();
+      search.focus();
+      search.select();
+    }
+  }
+});
+
 window.addEventListener('hashchange', () => void route());
-chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && changes[MODULE_FLAGS_KEY]) void route(); });
-void route(); void applyTheme();
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes[MODULE_FLAGS_KEY]) void route();
+});
+void route();
+void applyTheme();
 const theme = document.querySelector('#theme-select') as HTMLSelectElement;
-void chrome.storage.local.get({ui_theme:'system'}).then(data => { theme.value = data.ui_theme; });
-theme.addEventListener('change', () => { void chrome.storage.local.set({ui_theme: theme.value}).then(applyTheme); });
+void chrome.storage.local.get({ ui_theme: 'system' }).then(data => {
+  theme.value = data.ui_theme;
+});
+theme.addEventListener('change', () => {
+  void chrome.storage.local.set({ ui_theme: theme.value }).then(applyTheme);
+});

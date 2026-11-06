@@ -18,6 +18,193 @@
       <div class="version">v0.1</div>
     </header>
 
+    <section id="notlar" class="category-view" aria-label="Notlar ve İzleme Listesi">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2 id="notlar-heading">Notlar</h2>
+          <div id="notlar-tabs" class="segmented" role="tablist" aria-label="Notlar bölümleri">
+            <button type="button" class="seg-btn active" data-notlar-tab="slapmemo" role="tab" aria-selected="true">Notlar</button>
+            <button type="button" class="seg-btn" data-notlar-tab="watchlist" role="tab" aria-selected="false">İzleme listesi</button>
+          </div>
+        </div>
+        <div class="page-header-actions">
+          <button id="memo-new-btn" type="button" class="primary">＋ Yeni not</button>
+          <button id="watch-new-btn" type="button" class="primary" hidden>＋ Ekle</button>
+        </div>
+      </div>
+
+      <div id="slapmemo-panel">
+        <form id="memo-form" class="card inline-form-card" novalidate hidden>
+          <label class="sr-only" for="memo-text">Not metni</label>
+          <textarea id="memo-text" rows="3" maxlength="5000" placeholder="Hızlı not yaz… (Enter ile kaydet, Shift+Enter yeni satır)"></textarea>
+          <div class="form-footer">
+            <label class="sr-only" for="memo-category">Kategori</label>
+            <select id="memo-category"></select>
+            <div class="form-actions">
+              <button id="memo-save" type="submit" class="primary">Kaydet</button>
+              <button id="memo-cancel" type="button">Vazgeç</button>
+            </div>
+          </div>
+        </form>
+
+        <div class="panel-toolbar">
+          <div class="search-box">
+            <label class="sr-only" for="memo-search">Notlarda ara</label>
+            <input id="memo-search" class="memo-search" type="search" autocomplete="off" placeholder="Notlarda ara… (/)" />
+          </div>
+          <div id="memo-tabs" class="segmented" role="tablist" aria-label="Kategori filtresi"></div>
+        </div>
+
+        <p id="memo-feedback" class="feedback" aria-live="polite" hidden></p>
+        <div id="memo-empty" hidden></div>
+        <ul id="memo-list" class="card list-card" aria-label="Notlar"></ul>
+      </div>
+
+      <div id="watchlist-panel" hidden>
+        <form id="watch-form" class="card inline-form-card" hidden>
+          <div class="inline-editor-row">
+            <input id="watch-title" maxlength="300" required placeholder="Başlık (film, dizi, video…)" aria-label="Başlık" />
+            <select id="watch-kind" aria-label="Tür">
+              <option value="film">Film</option>
+              <option value="dizi">Dizi</option>
+              <option value="video">Video</option>
+              <option value="diger">Diğer</option>
+            </select>
+            <input id="watch-url" type="url" placeholder="Bağlantı (isteğe bağlı)" aria-label="Bağlantı" />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="primary">Kaydet</button>
+            <button id="watch-cancel" type="button">Vazgeç</button>
+          </div>
+        </form>
+
+        <div class="panel-toolbar">
+          <div class="segmented" role="tablist" aria-label="İzleme durumu">
+            <button type="button" class="seg-btn active" data-watch-status="izlenecek" aria-pressed="true">İzlenecek</button>
+            <button type="button" class="seg-btn" data-watch-status="izleniyor" aria-pressed="false">İzleniyor</button>
+            <button type="button" class="seg-btn" data-watch-status="bitti" aria-pressed="false">Bitti</button>
+          </div>
+        </div>
+
+        <p id="watch-feedback" class="feedback" aria-live="polite" hidden></p>
+        <div id="watch-empty" hidden></div>
+        <ul id="watch-list" class="card list-card" aria-label="İzleme listesi"></ul>
+      </div>
+    </section>
+
+    <section id="gorevler" class="category-view" hidden aria-label="Görevler">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2 id="gorevler-heading">Görevler</h2>
+          <span id="task-count" class="chip">0</span>
+        </div>
+      </div>
+
+      <div id="quick-tasks-panel">
+        <form id="task-form" class="card task-add-bar">
+          <input id="task-title" placeholder="Görev ekle…" maxlength="300" aria-label="Görev başlığı" required />
+          <input id="task-date" type="date" aria-label="Tarih (isteğe bağlı)" />
+          <button type="submit" class="primary">＋ Ekle</button>
+        </form>
+        <p id="task-feedback" class="feedback" aria-live="polite" hidden></p>
+        <div id="task-empty" hidden></div>
+        <div id="task-open" class="task-groups" aria-label="Açık görevler"></div>
+        <details id="task-done-details" class="card task-done-card" hidden>
+          <summary class="task-done-summary">
+            <span id="task-done-label">Tamamlananlar (0)</span>
+            <button id="task-clear" type="button" class="danger">Temizle</button>
+          </summary>
+          <ul id="task-done" class="task-list" aria-label="Tamamlanan görevler"></ul>
+        </details>
+      </div>
+    </section>
+
+    <section id="metin" class="category-view" hidden aria-label="Metin araçları">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2 id="metin-heading">Metin</h2>
+          <div id="metin-tabs" class="segmented" role="tablist" aria-label="Metin bölümleri">
+            <button type="button" class="seg-btn active" data-metin-tab="smart-replies" role="tab" aria-selected="true">Şablonlar</button>
+            <button type="button" class="seg-btn" data-metin-tab="clip-slots" role="tab" aria-selected="false">Pano yuvaları</button>
+            <button type="button" class="seg-btn" data-metin-tab="link-cleaner" role="tab" aria-selected="false">Link temizle</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="smart-replies-panel">
+        <div class="panel-toolbar">
+          <div class="search-box">
+            <input id="snippet-search" type="search" placeholder="Şablonlarda ara… (/)" aria-label="Şablonlarda ara" />
+          </div>
+          <button id="snippet-new-btn" type="button" class="primary">＋ Yeni şablon</button>
+        </div>
+
+        <div id="snippet-form-anchor">
+          <form id="snippet-form" class="card inline-form-card" hidden>
+            <h3 id="snippet-form-title">Yeni şablon</h3>
+            <div class="inline-editor-row">
+              <input id="snippet-trigger" placeholder="/iade veya ;adres" aria-label="Tetikleyici" required />
+              <input id="snippet-title" placeholder="Başlık" aria-label="Başlık" required />
+            </div>
+            <textarea id="snippet-body" rows="3" placeholder="Genişletilecek metin…" aria-label="Metin" required></textarea>
+            <div class="form-actions">
+              <button type="submit" class="primary">Kaydet</button>
+              <button id="snippet-cancel" type="button">Vazgeç</button>
+            </div>
+          </form>
+        </div>
+
+        <p id="snippet-feedback" class="feedback" aria-live="polite" hidden></p>
+        <div id="snippet-empty" hidden></div>
+        <ul id="snippet-list" class="card list-card" aria-label="Şablonlar"></ul>
+
+        <div class="card snippet-sites-card">
+          <h3>Yazarken genişletme siteleri</h3>
+          <p class="hint">Site izninden sonra yeni açılan sayfalarda Space veya Tab ile genişletilir.</p>
+          <form id="snippet-site-form" class="inline-editor-row">
+            <input id="snippet-site" placeholder="example.com" aria-label="Site adresi" required />
+            <button type="submit">＋ Site ekle</button>
+          </form>
+          <ul id="snippet-sites" class="chip-list" aria-label="Genişletme siteleri"></ul>
+        </div>
+      </div>
+
+      <div id="clip-slots-panel" hidden>
+        <p id="clip-feedback" class="feedback" aria-live="polite" hidden></p>
+        <div id="clip-list" class="clip-grid"></div>
+      </div>
+
+      <div id="link-cleaner-panel" hidden aria-label="Link Temizleyici">
+        <div class="card cleaner-card">
+          <h3>Link yapıştır</h3>
+          <div class="input-wrap">
+            <input id="cleaner-input" type="text" placeholder="Link yapıştır…" autocomplete="off" aria-label="Link yapıştır" />
+          </div>
+          <div class="cleaner-result">
+            <p id="cleaner-input-output" class="cleaner-url muted">Temiz link burada görünür.</p>
+            <div class="cleaner-meta">
+              <span id="cleaner-input-count" class="hint"></span>
+              <div id="cleaner-input-chips" class="chip-list" hidden></div>
+            </div>
+            <button id="cleaner-input-copy" class="primary cleaner-copy" type="button" disabled>Kopyala</button>
+          </div>
+        </div>
+
+        <div class="card cleaner-card">
+          <h3>Aktif sekme</h3>
+          <div class="cleaner-result">
+            <p id="cleaner-active-output" class="cleaner-url muted"></p>
+            <div class="cleaner-meta">
+              <span id="cleaner-active-count" class="hint"></span>
+              <div id="cleaner-active-chips" class="chip-list" hidden></div>
+            </div>
+            <button id="cleaner-active-copy" class="cleaner-copy" type="button" disabled>Kopyala</button>
+          </div>
+          <p id="cleaner-feedback" class="feedback" aria-live="polite" hidden></p>
+        </div>
+      </div>
+    </section>
+
     <section id="modules-section" class="section">
       <div class="section-heading"><h2>Araçlar</h2></div>
       <ul id="modules-list" class="modules-list" aria-label="Araçlar"></ul>
@@ -71,74 +258,6 @@
       </section>
     </div>
 
-    <div id="slapmemo-panel" hidden>
-      <section class="section" aria-label="SlapMemo hızlı not">
-        <div class="section-heading"><h2>SlapMemo</h2></div>
-        <form id="memo-form" novalidate>
-          <label class="sr-only" for="memo-text">Not metni</label>
-          <textarea id="memo-text" rows="3" maxlength="5000" placeholder="Hızlı not yaz…"></textarea>
-          <div class="memo-row">
-            <label class="sr-only" for="memo-category">Kategori</label>
-            <select id="memo-category"></select>
-            <button id="memo-save" type="submit">Kaydet</button>
-          </div>
-        </form>
-        <p class="hint">Sağ tık → SlapMemo'ya kaydet veya Alt+Shift+S (seçili metin).</p>
-        <p id="memo-feedback" class="feedback" aria-live="polite"></p>
-      </section>
-
-      <section class="section" aria-label="SlapMemo notları">
-        <div id="memo-tabs" class="memo-tabs"></div>
-        <label class="sr-only" for="memo-search">Notlarda ara</label>
-        <input id="memo-search" class="memo-search" type="search" autocomplete="off" placeholder="Notlarda ara…" />
-        <div id="memo-empty" class="empty-state">
-          <p id="memo-empty-text">Henüz not yok.</p>
-        </div>
-        <ul id="memo-list" class="memo-list" aria-label="Notlar"></ul>
-      </section>
-    </div>
-
-    <section id="link-cleaner-panel" class="section" hidden aria-label="Link Temizleyici">
-      <div class="section-heading"><h2>Link Temizleyici</h2></div>
-      <strong>Bu sayfa</strong>
-      <p id="cleaner-active-output" class="cleaner-url"></p>
-      <p id="cleaner-active-count" class="hint"></p>
-      <button id="cleaner-active-copy" class="cleaner-copy" type="button" disabled>Kopyala</button>
-      <label for="cleaner-input" class="cleaner-label">Başka bir link</label>
-      <div class="input-wrap"><input id="cleaner-input" type="text" placeholder="Link yapıştır…" autocomplete="off" /></div>
-      <p id="cleaner-input-output" class="cleaner-url">Temiz link burada görünür.</p>
-      <p id="cleaner-input-count" class="hint"></p>
-      <button id="cleaner-input-copy" class="cleaner-copy" type="button" disabled>Kopyala</button>
-      <p id="cleaner-feedback" class="feedback" aria-live="polite"></p>
-    </section>
-
-    <section id="smart-replies-panel" class="section" hidden>
-      <div class="section-heading"><h2>Akıllı Yanıtlar</h2></div>
-      <form id="snippet-form">
-        <label for="snippet-trigger">Tetikleyici</label><input id="snippet-trigger" placeholder="/iade veya ;adres" required />
-        <label for="snippet-title">Başlık</label><input id="snippet-title" required />
-        <label for="snippet-body">Metin</label><textarea id="snippet-body" rows="3" required></textarea>
-        <button type="submit">Kaydet</button><button id="snippet-cancel" type="button">Vazgeç</button>
-      </form>
-      <p id="snippet-feedback" class="feedback" aria-live="polite"></p>
-      <input id="snippet-search" type="search" placeholder="Şablonlarda ara…" aria-label="Şablonlarda ara" />
-      <ul id="snippet-list" class="memo-list"></ul>
-      <h3>Yazarken genişletme siteleri</h3>
-      <form id="snippet-site-form"><input id="snippet-site" placeholder="example.com" aria-label="Site adresi" required /><button type="submit">Site ekle</button></form>
-      <ul id="snippet-sites"></ul>
-      <p class="hint">Site izninden sonra yeni açılan sayfalarda Space veya Tab ile genişletilir.</p>
-    </section>
-    <section id="quick-tasks-panel" class="section" hidden aria-label="Hızlı Görevler">
-      <div class="section-heading"><h2>Hızlı Görevler</h2><span id="task-count" class="count">0</span></div>
-      <form id="task-form">
-        <div class="input-row"><input id="task-title" placeholder="Görev ekle…" maxlength="300" aria-label="Görev başlığı" required /><button type="submit">Ekle</button></div>
-        <label for="task-date">Tarih</label> <input id="task-date" type="date" />
-        <label><input id="task-attach" type="checkbox" /> Bu sayfayı ekle</label>
-      </form>
-      <p id="task-feedback" class="feedback" aria-live="polite"></p>
-      <ul id="task-open" class="task-list" aria-label="Açık görevler"></ul>
-      <details><summary>Tamamlananlar</summary><button id="task-clear" type="button">Temizle</button><ul id="task-done" class="task-list" aria-label="Tamamlanan görevler"></ul></details>
-    </section>
     <section id="time-tracker-panel" class="section" hidden aria-label="Web Süre Takibi">
       <div class="section-heading"><h2>Web Süre Takibi · <span id="time-heading">Bugün</span></h2><button id="time-toggle" type="button">Son 7 gün</button></div>
       <p id="time-total"></p><ul id="time-list" class="time-list"></ul>
@@ -199,9 +318,7 @@
       <p id="toolbar-feedback" class="feedback" aria-live="polite"></p>
       <p class="hint">Site izninden sonra o sitede küçük, sürüklenebilir bir LT düğmesi çıkar; hiçbir eylem kendiliğinden çalışmaz.</p>
     </section>
-    <section id="watchlist-panel" class="section" hidden><h2>İzleme Listesi</h2><form><input id="watch-title" maxlength="300" required placeholder="Başlık" aria-label="Başlık"><select id="watch-kind" aria-label="Tür"><option value="film">Film</option><option value="dizi">Dizi</option><option value="video">Video</option><option value="diger">Diğer</option></select><button>Ekle</button></form><div><button type="button" data-watch-status="izlenecek">İzlenecek</button><button type="button" data-watch-status="izleniyor">İzleniyor</button><button type="button" data-watch-status="bitti">Bitti</button></div><p id="watch-feedback" class="feedback" aria-live="polite"></p><ul id="watch-list" class="memo-list"></ul></section>
     <section id="pip-panel" class="section" hidden><h2>Resim içinde resim</h2><button id="pip-toggle" type="button">Resim içinde resim</button><p id="pip-feedback" class="feedback" aria-live="polite"></p></section>
-    <section id="clip-slots-panel" class="section" hidden><h2>Pano Yuvaları</h2><div id="clip-list"></div><p id="clip-feedback" class="feedback" aria-live="polite"></p></section>
     <section id="theme-section" class="section"><h2>Görünüm</h2><label for="theme-select">Tema</label><select id="theme-select"><option value="system">Sistem</option><option value="light">Açık</option><option value="dark">Koyu</option></select></section>
     <section id="storage-section" class="section" aria-label="Depolama">
       <div class="section-heading"><h2>Depolama</h2></div>

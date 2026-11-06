@@ -5,14 +5,15 @@ import { createSnippetsRepo, validateTrigger } from '../src/modules/smart-replie
 import { findTriggerAtCaret } from '../src/modules/smart-replies/trigger';
 import { createMemoryExecutor } from './sqlite-memory';
 test('trigger validation', () => {
-  assert.equal(validateTrigger('/ABC'), '/abc'); assert.equal(validateTrigger(';ADRESIM'), ';adres\u0131m');
+  assert.equal(validateTrigger('/ABC'), '/abc'); assert.equal(validateTrigger(';ADRESIM'), ';adresim'); assert.equal(validateTrigger('/LIST'), '/list');
   for (const value of ['abc', '/', '/a b', '/'+ 'a'.repeat(32)]) assert.throws(() => validateTrigger(value));
 });
 test('finds longest trigger at word boundary', () => {
-  const triggers = ['/r', '/refund', ';adres\u0131m'];
+  const triggers = ['/r', '/refund', ';adresim', '/list'];
   assert.equal(findTriggerAtCaret('hello /refund', triggers), '/refund');
   assert.equal(findTriggerAtCaret('abc/refund', triggers), null);
-  assert.equal(findTriggerAtCaret('hello ;adres\u0131m', triggers), ';adres\u0131m');
+  assert.equal(findTriggerAtCaret('hello ;ADRESIM', triggers), ';adresim');
+  assert.equal(findTriggerAtCaret('hello /LIST', triggers), '/list');
 });
 test('snippet CRUD, search, uniqueness and use count', async () => {
   const ex = await createMemoryExecutor(); await runMigrations(ex); const repo = createSnippetsRepo(ex, () => 100);

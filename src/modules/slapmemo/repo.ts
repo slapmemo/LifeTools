@@ -107,6 +107,15 @@ export function createNotesRepo(ex: Executor, now: () => number = Date.now) {
       return getById(id);
     },
 
+    /** Not metnini ve "notum" açıklamasını birlikte günceller. */
+    async updateNote(id: number, text: string, userNote: string): Promise<Note | null> {
+      const trimmed = text.trim();
+      if (!trimmed) throw new Error('Not metni boş olamaz');
+      const noteValue = userNote.trim() || null;
+      await ex.exec('UPDATE notes SET text = ?, user_note = ?, updated_at = ? WHERE id = ?', [trimmed, noteValue, now(), id]);
+      return getById(id);
+    },
+
     async deleteNote(id: number): Promise<void> {
       await ex.exec('DELETE FROM notes WHERE id = ?', [id]);
     }
