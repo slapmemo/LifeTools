@@ -1,8 +1,104 @@
-import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
-import { insertText } from '../../core/insert-text';
 import { flashBadge } from '../../core/badge';
-import { CLIP_SLOTS_KEY, SLOT_IDS, getSlots } from './slots';
+import {
+  registerContextMenuLoader,
+  scheduleContextMenuRebuild,
+  setContextMenuContributions,
+  type ContextMenuContribution
+} from '../../core/context-menu';
+import { insertText } from '../../core/insert-text';
+import { isModuleEnabled, resolveEnabled } from '../../core/module-state';
+import { CLIP_SLOTS_KEY, getSlots, normalizeSlots, SLOT_IDS, type Slot } from './slots';
+
 export const CLIP_SLOTS_ID = 'clip-slots';
-const paste='clip:paste', save='clip:save'; let sync = Promise.resolve();
-function refresh() { sync=sync.then(async()=>{ for(const id of [paste,save]) await new Promise<void>(r=>chrome.contextMenus.remove(id,()=>{void chrome.runtime.lastError;r();})); if (!await isModuleEnabled(CLIP_SLOTS_ID)) return; const slots=await getSlots(); const create=(p: chrome.contextMenus.CreateProperties)=>new Promise<void>(r=>{chrome.contextMenus.create(p,()=>{void chrome.runtime.lastError;r();});}); if(slots.some(s=>s.text)) { await create({id:paste,title:'Yuvadan yapıştır',contexts:['editable']}); for(let i=0;i<5;i++) if(slots[i].text) await create({id:paste+':'+i,parentId:paste,title:SLOT_IDS[i]+(slots[i].label?' — '+slots[i].label:''),contexts:['editable']}); } await create({id:save,title:'Yuvaya kaydet',contexts:['selection']}); for(let i=0;i<5;i++) await create({id:save+':'+i,parentId:save,title:SLOT_IDS[i],contexts:['selection']}); }).catch(console.debug); }
-export function initClipSlotsBackground() { chrome.contextMenus.onClicked.addListener((info,tab)=>{const id=String(info.menuItemId); if(!id.startsWith(paste+':')&&!id.startsWith(save+':')) return; void (async()=>{ if(!await isModuleEnabled(CLIP_SLOTS_ID)) return; const slots=await getSlots(); const i=Number(id.slice(id.lastIndexOf(':')+1)); if(!Number.isInteger(i)||i<0||i>4) return; try { if(id.startsWith(save+':')) { slots[i].text=(info.selectionText ?? '').slice(0,10000); await chrome.storage.local.set({[CLIP_SLOTS_KEY]:slots}); } else { if(tab?.id===undefined || !slots[i].text) return; const result=await chrome.scripting.executeScript({target:{tabId:tab.id,frameIds:[info.frameId ?? 0]},func:insertText,args:[slots[i].text]}); if(!result[0]?.result) throw new Error(); } flashBadge('✓'); } catch { flashBadge('!'); } })(); }); chrome.storage.onChanged.addListener((c,a)=>{if(a==='local'&&(c[MODULE_FLAGS_KEY]||c[CLIP_SLOTS_KEY])) refresh();}); chrome.runtime.onInstalled.addListener(refresh); chrome.runtime.onStartup.addListener(refresh); refresh(); }
+const PASTE_MENU = 'clip:paste';
+const SAVE_MENU = 'clip:save';
+
+export function clipSlotsMenuContributions(slots: readonly Slot[]): ContextMenuContribution[] {
+  const normalized = normalizeSlots(slots);
+  const items: ContextMenuContribution[] = [
+    {
+      id: SAVE_MENU,
+      title: 'Yuvaya kaydet',
+      contexts: ['selection'],
+      moduleId: CLIP_SLOTS_ID,
+      enabled: flags => resolveEnabled(flags, CLIP_SLOTS_ID)
+    }
+  ];
+
+  for (let i = 0; i < SLOT_IDS.length; i++) {
+    const slotIndex = i;
+    items.push({
+      id: `${SAVE_MENU}:${slotIndex}`,
+      parent: SAVE_MENU,
+      title: SLOT_IDS[slotIndex],
+      contexts: ['selection'],
+      moduleId: CLIP_SLOTS_ID,
+      enabled: flags => resolveEnabled(flags, CLIP_SLOTS_ID),
+      onClick: async info => {
+        if (!(await isModuleEnabled(CLIP_SLOTS_ID))) return;
+        try {
+          const current = await getSlots();
+          current[slotIndex].text = (info.selectionText ?? '').slice(0, 10_000);
+          await chrome.storage.local.set({ [CLIP_SLOTS_KEY]: current });
+          flashBadge('✓');
+        } catch {
+          flashBadge('!');
+        }
+      }
+    });
+  }
+
+  items.push({
+    id: PASTE_MENU,
+    title: 'Yuvadan yapıştır',
+    contexts: ['editable'],
+    moduleId: CLIP_SLOTS_ID,
+    enabled: flags => resolveEnabled(flags, CLIP_SLOTS_ID) && normalized.some(s => Boolean(s.text))
+  });
+
+  for (let i = 0; i < SLOT_IDS.length; i++) {
+    const slotIndex = i;
+    const slot = normalized[slotIndex];
+    items.push({
+      id: `${PASTE_MENU}:${slotIndex}`,
+      parent: PASTE_MENU,
+      title: SLOT_IDS[slotIndex] + (slot?.label ? ` — ${slot.label}` : ''),
+      contexts: ['editable'],
+      moduleId: CLIP_SLOTS_ID,
+      enabled: flags => resolveEnabled(flags, CLIP_SLOTS_ID) && Boolean(slot?.text),
+      onClick: async (info, tab) => {
+        if (!(await isModuleEnabled(CLIP_SLOTS_ID))) return;
+        try {
+          const current = await getSlots();
+          const text = current[slotIndex]?.text;
+          if (tab?.id === undefined || !text) return;
+          const result = await chrome.scripting.executeScript({
+            target: { tabId: tab.id, frameIds: [info.frameId ?? 0] },
+            func: insertText,
+            args: [text]
+          });
+          if (!result[0]?.result) throw new Error('Yapıştırılamadı.');
+          flashBadge('✓');
+        } catch {
+          flashBadge('!');
+        }
+      }
+    });
+  }
+
+  return items;
+}
+
+export function initClipSlotsBackground(): void {
+  setContextMenuContributions(CLIP_SLOTS_ID, clipSlotsMenuContributions([]));
+  registerContextMenuLoader(CLIP_SLOTS_ID, async () => {
+    const slots = await getSlots();
+    setContextMenuContributions(CLIP_SLOTS_ID, clipSlotsMenuContributions(slots));
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes[CLIP_SLOTS_KEY]) {
+      scheduleContextMenuRebuild();
+    }
+  });
+  scheduleContextMenuRebuild();
+}

@@ -1,3 +1,4 @@
+import { createEmptyState, showToast } from '../../panel/ui';
 import { MAX_HANDLES, normalizeHandle } from './rules';
 import { loadSettings } from './settings';
 
@@ -5,7 +6,7 @@ function $<T extends HTMLElement>(selector: string): T {
   return document.querySelector(selector) as T;
 }
 
-/** Popup içindeki site engelleyici paneli (prototip popup'ından taşındı). */
+/** LifeTools Paneli › Odak › Engelleyici görünümü. */
 export function initBlockerPanel(): { render(): Promise<void> } {
   const dom = {
     enabled: $<HTMLInputElement>('#blocker-enabled'),
@@ -27,6 +28,7 @@ export function initBlockerPanel(): { render(): Promise<void> } {
   function showFeedback(message: string, type: 'error' | 'success' = 'error'): void {
     dom.feedback.textContent = message;
     dom.feedback.className = `feedback ${type}`;
+    showToast(message, type === 'error' ? 'error' : 'info');
   }
 
   function setBusy(value: boolean): void {
@@ -39,21 +41,30 @@ export function initBlockerPanel(): { render(): Promise<void> } {
       const { enabled, blockedHandles } = await loadSettings();
       dom.enabled.checked = enabled;
       dom.pill.classList.toggle('paused', !enabled);
-      dom.pillText.textContent = enabled ? ' Aktif' : ' Duraklatıldı';
+      dom.pillText.textContent = enabled ? 'Aktif' : 'Duraklatıldı';
       dom.statusTitle.textContent = enabled ? 'Koruma açık' : 'Koruma kapalı';
       dom.statusDescription.textContent = enabled
         ? 'Engellediğin profiller otomatik kapanır.'
         : 'Engelli profillere geçici olarak girebilirsin.';
       dom.count.textContent = String(blockedHandles.length);
       dom.empty.hidden = blockedHandles.length > 0;
+      dom.list.hidden = blockedHandles.length === 0;
       dom.list.replaceChildren();
+
+      if (blockedHandles.length === 0) {
+        dom.empty.replaceChildren(
+          createEmptyState({
+            icon: 'timer',
+            title: 'Engellenen profil yok.',
+            hint: 'Yukarıdan @kullaniciadi veya x.com bağlantısı ekleyerek başla.'
+          })
+        );
+        return;
+      }
 
       for (const handle of blockedHandles) {
         const item = document.createElement('li');
-        const avatar = document.createElement('span');
-        avatar.className = 'profile-icon';
-        avatar.textContent = '@';
-        avatar.setAttribute('aria-hidden', 'true');
+        item.className = 'chip handle-chip';
 
         const name = document.createElement('span');
         name.className = 'handle-name';
@@ -61,13 +72,15 @@ export function initBlockerPanel(): { render(): Promise<void> } {
 
         const remove = document.createElement('button');
         remove.type = 'button';
-        remove.className = 'delete-button';
+        remove.className = 'chip-remove';
         remove.textContent = '×';
         remove.title = `@${handle} engelini kaldır`;
         remove.setAttribute('aria-label', `@${handle} engelini kaldır`);
-        remove.addEventListener('click', () => { void deleteHandle(handle); });
+        remove.addEventListener('click', () => {
+          void deleteHandle(handle);
+        });
 
-        item.append(avatar, name, remove);
+        item.append(name, remove);
         dom.list.append(item);
       }
     } catch {

@@ -1,8 +1,35 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { categories, popupVisibility, routeCategory } from '../src/core/ui-visibility';
+import {
+  buildContextMenuTree,
+  CONTEXT_MENU_ROOT_ID,
+  CONTEXT_MENU_ROOT_TITLE,
+  visibleTopItemsForContext,
+  type ContextMenuContribution
+} from '../src/core/context-menu';
+import {
+  categories,
+  filterToolbarActions,
+  groupModulesByCategory,
+  metinTabs,
+  notlarTabs,
+  odakTabs,
+  popupVisibility,
+  resolveActiveTab,
+  routeCategory,
+  sekmelerTabs
+} from '../src/core/ui-visibility';
+import { modules } from '../src/modules';
+import { clipSlotsMenuContributions } from '../src/modules/clip-slots/background';
+import { linkCleanerMenuContributions } from '../src/modules/link-cleaner/background';
+import { quickTasksMenuContributions } from '../src/modules/quick-tasks/background';
+import { slapMemoMenuContributions } from '../src/modules/slapmemo/background';
+import { smartRepliesMenuContributions } from '../src/modules/smart-replies/background';
 import { validateTrigger } from '../src/modules/smart-replies/repo';
 import { findTriggerAtCaret } from '../src/modules/smart-replies/trigger';
+import { tabLabelsMenuContributions } from '../src/modules/tab-labels/background';
+import { mergeTabItems } from '../src/modules/tab-notes/panel';
+import { watchlistMenuContributions } from '../src/modules/watchlist/background';
 import { extractDomain, formatRelativeDate, groupTasksByDate } from '../src/panel/ui';
 import { formatSites, formatTasks } from '../src/popup/summary';
 
@@ -51,6 +78,7 @@ describe('arayüz', () => {
 
   it('popup görünürlüğü ve özet', () => {
     expect(popupVisibility({ 'quick-tasks': false }).tasks).toBe(false);
+    expect(popupVisibility({ 'smart-replies': false }).snippets).toBe(false);
     expect(formatTasks(3, 1)).toBe('3 açık görev (1 gecikmiş)');
     expect(formatSites([{ domain: 'x.com', seconds: 120 }])).toBe('x.com 2 dk');
   });
@@ -87,5 +115,125 @@ describe('arayüz', () => {
     expect(validateTrigger('/LIST')).toBe('/list');
     expect(validateTrigger(';ADRESIM')).toBe(';adresim');
     expect(findTriggerAtCaret('merhaba /LIST', ['/list'])).toBe('/list');
+  });
+
+  it('tek kök LifeTools sağ tık menüsünü bağlama ve açık modüllere göre kurar', () => {
+    const allContributions: ContextMenuContribution[] = [
+      ...watchlistMenuContributions(),
+      ...clipSlotsMenuContributions([{ label: 'Adres', text: 'İstanbul' }]),
+      ...slapMemoMenuContributions(),
+      ...linkCleanerMenuContributions(),
+      ...smartRepliesMenuContributions([{ id: 1, trigger: '/iade', title: 'İade' }]),
+      ...quickTasksMenuContributions(),
+      ...tabLabelsMenuContributions()
+    ];
+
+    const tree = buildContextMenuTree(allContributions, {});
+    expect(tree[0]).toEqual({
+      id: CONTEXT_MENU_ROOT_ID,
+      title: CONTEXT_MENU_ROOT_TITLE,
+      contexts: ['selection', 'editable', 'link', 'page']
+    });
+
+    expect(visibleTopItemsForContext(tree, 'selection').map(i => i.title)).toEqual([
+      "SlapMemo'ya kaydet",
+      'Görev olarak ekle',
+      'Yuvaya kaydet'
+    ]);
+    expect(visibleTopItemsForContext(tree, 'editable').map(i => i.title)).toEqual([
+      'Şablon ekle',
+      'Yuvadan yapıştır'
+    ]);
+    expect(visibleTopItemsForContext(tree, 'link').map(i => i.title)).toEqual([
+      'Temiz linki kopyala',
+      'İzleme listesine ekle'
+    ]);
+    expect(visibleTopItemsForContext(tree, 'page').map(i => i.title)).toEqual([
+      "SlapMemo'ya kaydet",
+      'Görev olarak ekle',
+      'Bu sayfanın temiz linki',
+      'İzleme listesine ekle',
+      'Sekmeyi etiketle'
+    ]);
+
+    // Kapalı modüllerin öğeleri ve alt öğeleri ağaçtan tamamen kalkar
+    const filtered = buildContextMenuTree(allContributions, {
+      slapmemo: false,
+      'clip-slots': false,
+      'tab-labels': false
+    });
+    const ids = new Set(filtered.map(i => i.id));
+    expect(ids.has('slapmemo')).toBe(false);
+    expect(ids.has('slapmemo:note')).toBe(false);
+    expect(ids.has('clip:save')).toBe(false);
+    expect(ids.has('clip:save:0')).toBe(false);
+    expect(ids.has('clip:paste')).toBe(false);
+    expect(ids.has('tab-labels-menu')).toBe(false);
+    expect(ids.has('quick-tasks:add')).toBe(true);
+
+    // Tüm modüller kapalıysa kök menü de oluşturulmaz
+    const allOff = buildContextMenuTree(allContributions, {
+      slapmemo: false,
+      'quick-tasks': false,
+      'clip-slots': false,
+      'smart-replies': false,
+      'link-cleaner': false,
+      watchlist: false,
+      'tab-labels': false
+    });
+    expect(allOff).toEqual([]);
+  });
+
+  it('kapalı araçları alt sekmelerden, site araç çubuğundan gizler ve modülleri gruplar', () => {
+    expect(sekmelerTabs({})).toEqual(['oturumlar', 'temizlik', 'etiket-notlar', 'arac-cubugu']);
+    expect(
+      sekmelerTabs({
+        'life-browser': false,
+        'zombie-tabs': false,
+        'pinned-guard': false
+      })
+    ).toEqual(['etiket-notlar', 'arac-cubugu']);
+    expect(resolveActiveTab('oturumlar', ['etiket-notlar', 'arac-cubugu'] as const, 'oturumlar')).toBe(
+      'etiket-notlar'
+    );
+
+    expect(odakTabs({ 'site-blocker': false })).toEqual(['sureler']);
+    expect(notlarTabs({ slapmemo: false })).toEqual(['watchlist']);
+    expect(metinTabs({ 'smart-replies': false, 'clip-slots': false })).toEqual(['link-cleaner']);
+
+    const toolbarActions = [
+      { id: 'link.copyPage', moduleId: 'link-cleaner', toolbar: true },
+      { id: 'task.addPage', moduleId: 'quick-tasks', toolbar: true },
+      { id: 'note.add', moduleId: 'slapmemo', toolbar: false }
+    ];
+    expect(
+      filterToolbarActions(toolbarActions, { 'link-cleaner': false }, ['link.copyPage', 'task.addPage']).map(
+        a => a.id
+      )
+    ).toEqual(['task.addPage']);
+
+    const grouped = groupModulesByCategory(modules);
+    expect(grouped.map(g => g.label)).toEqual([
+      'Notlar',
+      'Görevler',
+      'Metin',
+      'Sekmeler',
+      'Odak',
+      'Medya',
+      'Genel'
+    ]);
+    expect(grouped.reduce((sum, g) => sum + g.modules.length, 0)).toBe(modules.length);
+
+    const merged = mergeTabItems(
+      [{ url: 'https://a.com', label: 'Önemli', updated_at: 100 }],
+      [
+        { url: 'https://a.com', note: 'Not A', created_at: 50, updated_at: 200 },
+        { url: 'https://b.com', note: 'Not B', created_at: 150, updated_at: 150 }
+      ]
+    );
+    expect(merged).toEqual([
+      { url: 'https://a.com', label: 'Önemli', note: 'Not A', updated_at: 200 },
+      { url: 'https://b.com', label: null, note: 'Not B', updated_at: 150 }
+    ]);
   });
 });

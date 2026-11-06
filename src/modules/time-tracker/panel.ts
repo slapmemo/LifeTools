@@ -1,23 +1,181 @@
 import { popupDb } from '../../db/client';
 import type { Executor } from '../../db/migrations';
+import {
+  confirmSecondClick,
+  createEmptyState,
+  showToast
+} from '../../panel/ui';
 import { EXCLUDED_KEY } from './background';
 import { createTimeTrackerRepo } from './repo';
 import { localDay, siteKey } from './tracker';
-export function formatDuration(seconds: number): string { const h = Math.floor(seconds / 3600), m = Math.floor(seconds % 3600 / 60); return h ? `${h} sa ${m} dk` : m ? `${m} dk` : `${seconds} sn`; }
-function $<T extends HTMLElement>(s: string): T { return document.querySelector(s) as T; }
+
+export function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return h ? `${h} sa ${m} dk` : m ? `${m} dk` : `${seconds} sn`;
+}
+
+function $<T extends HTMLElement>(s: string): T {
+  return document.querySelector(s) as T;
+}
+
 export function initTimeTrackerPanel(db: Executor = popupDb): { render(): Promise<void> } {
- const repo = createTimeTrackerRepo(db), list = $<HTMLElement>('#time-list'), exclusions = $<HTMLElement>('#time-exclusions'), input = $<HTMLInputElement>('#time-domain'), feedback = $<HTMLElement>('#time-feedback'), del = $<HTMLButtonElement>('#time-delete');
- let week = false, confirmDelete = false;
- async function render(): Promise<void> { try {
-   const now = Date.now(), d = new Date(now); d.setDate(d.getDate()-6);
-   const rows = week ? await repo.getRange(localDay(d.getTime()), localDay(now)) : await repo.getDay(localDay(now)); const total = rows.reduce((sum, r) => sum+r.seconds, 0);
-   $('#time-total').textContent = `Toplam: ${formatDuration(total)}`; list.replaceChildren();
-   for (const row of rows) { const li = document.createElement('li'), text = document.createElement('div'), bar = document.createElement('div'), fill = document.createElement('div'); text.textContent = `${row.domain} ? ${formatDuration(row.seconds)}`; bar.className = 'time-bar'; fill.style.width = `${total ? 100*row.seconds/total : 0}%`; bar.append(fill); li.append(text,bar); list.append(li); }
-   const values = (await chrome.storage.local.get({ [EXCLUDED_KEY]: [] }))[EXCLUDED_KEY] as string[]; exclusions.replaceChildren();
-   for (const domain of values) { const li = document.createElement('li'), button = document.createElement('button'); li.append(document.createTextNode(domain+' ')); button.type='button'; button.textContent='Kald?r'; button.addEventListener('click', () => { void chrome.storage.local.set({ [EXCLUDED_KEY]: values.filter(v => v !== domain) }).then(render); }); li.append(button); exclusions.append(li); }
- } catch (e) { feedback.textContent = e instanceof Error ? e.message : 'İşlem başarısız.'; } }
- $('#time-toggle').addEventListener('click', () => { week = !week; $('#time-toggle').textContent = week ? 'Bug?n' : 'Son 7 g?n'; $('#time-heading').textContent = week ? 'Son 7 g?n' : 'Bug?n'; void render(); });
- $('#time-form').addEventListener('submit', e => { e.preventDefault(); void (async () => { const domain = siteKey(input.value.includes('://') ? input.value : 'https://'+input.value); if (!domain) { feedback.textContent='Ge?erli bir site gir.'; return; } const values = (await chrome.storage.local.get({ [EXCLUDED_KEY]: [] }))[EXCLUDED_KEY] as string[]; await chrome.storage.local.set({ [EXCLUDED_KEY]: [...new Set([...values,domain])] }); input.value=''; feedback.textContent=''; await render(); })(); });
- del.addEventListener('click', () => { if (!confirmDelete) { confirmDelete=true; del.textContent='Silmek i?in tekrar t?kla'; return; } void (async () => { await repo.deleteAll(); confirmDelete=false; del.textContent='T?m verileri sil'; await render(); })(); });
- return { render };
+  const repo = createTimeTrackerRepo(db);
+  const list = $<HTMLElement>('#time-list');
+  const empty = document.querySelector<HTMLElement>('#time-empty');
+  const exclusions = $<HTMLElement>('#time-exclusions');
+  const input = $<HTMLInputElement>('#time-domain');
+  const feedback = $<HTMLElement>('#time-feedback');
+  const del = $<HTMLButtonElement>('#time-delete');
+  const heading = document.querySelector<HTMLElement>('#time-heading');
+  const rangeBtns = document.querySelectorAll<HTMLButtonElement>('[data-time-range]');
+
+  let week = false;
+
+  function say(text: string, isError = false): void {
+    feedback.textContent = text;
+    feedback.className = isError ? 'feedback error' : 'feedback';
+    if (text) showToast(text, isError ? 'error' : 'info');
+  }
+
+  function updateRangeButtons(): void {
+    rangeBtns.forEach(btn => {
+      const isWeek = btn.dataset.timeRange === 'week';
+      const active = isWeek === week;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', String(active));
+    });
+    if (heading) heading.textContent = week ? '7 gün' : 'Bugün';
+  }
+
+  async function render(): Promise<void> {
+    try {
+      updateRangeButtons();
+      const now = Date.now();
+      const d = new Date(now);
+      d.setDate(d.getDate() - 6);
+      const rows = week
+        ? await repo.getRange(localDay(d.getTime()), localDay(now))
+        : await repo.getDay(localDay(now));
+      const total = rows.reduce((sum, r) => sum + r.seconds, 0);
+      $('#time-total').textContent = `Toplam: ${formatDuration(total)}`;
+
+      list.replaceChildren();
+      for (const row of rows) {
+        const li = document.createElement('li');
+        li.className = 'list-row time-row';
+
+        const main = document.createElement('div');
+        main.className = 'time-row-main';
+
+        const header = document.createElement('div');
+        header.className = 'time-row-header';
+
+        const domainEl = document.createElement('strong');
+        domainEl.className = 'time-domain';
+        domainEl.textContent = row.domain;
+
+        const durEl = document.createElement('span');
+        durEl.className = 'time-duration muted';
+        durEl.textContent = formatDuration(row.seconds);
+
+        header.append(domainEl, durEl);
+
+        const bar = document.createElement('div');
+        bar.className = 'time-bar';
+        const fill = document.createElement('div');
+        fill.className = 'time-bar-fill';
+        fill.style.width = `${total ? (100 * row.seconds) / total : 0}%`;
+        bar.append(fill);
+
+        main.append(header, bar);
+        li.append(main);
+        list.append(li);
+      }
+
+      list.hidden = rows.length === 0;
+      if (empty) {
+        empty.hidden = rows.length > 0;
+        if (rows.length === 0) {
+          empty.replaceChildren(
+            createEmptyState({
+              icon: 'timer',
+              title: week ? 'Son 7 günde süre kaydı yok.' : 'Bugün henüz süre kaydı yok.',
+              hint: 'Açık sekmelerde geçirdiğin etkin süre otomatik olarak takip edilir.'
+            })
+          );
+        }
+      }
+
+      const values = (await chrome.storage.local.get({ [EXCLUDED_KEY]: [] }))[EXCLUDED_KEY] as string[];
+      exclusions.replaceChildren();
+      if (values.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'muted';
+        li.textContent = 'Hariç tutulan site yok.';
+        exclusions.append(li);
+      } else {
+        for (const domain of values) {
+          const li = document.createElement('li');
+          li.className = 'chip';
+          const textSpan = document.createElement('span');
+          textSpan.textContent = domain;
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'chip-remove';
+          button.textContent = '×';
+          button.setAttribute('aria-label', `${domain} hariç tutma listesinden kaldır`);
+          button.addEventListener('click', () => {
+            void chrome.storage.local
+              .set({ [EXCLUDED_KEY]: values.filter(v => v !== domain) })
+              .then(() => {
+                say(`${domain} listeden kaldırıldı.`);
+                return render();
+              });
+          });
+          li.append(textSpan, button);
+          exclusions.append(li);
+        }
+      }
+    } catch (e) {
+      say(e instanceof Error ? e.message : 'İşlem başarısız.', true);
+    }
+  }
+
+  rangeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      week = btn.dataset.timeRange === 'week';
+      void render();
+    });
+  });
+
+  const legacyToggle = document.querySelector<HTMLButtonElement>('#time-toggle');
+  legacyToggle?.addEventListener('click', () => {
+    week = !week;
+    void render();
+  });
+
+  $('#time-form').addEventListener('submit', e => {
+    e.preventDefault();
+    void (async () => {
+      const domain = siteKey(input.value.includes('://') ? input.value : 'https://' + input.value);
+      if (!domain) {
+        say('Geçerli bir site gir.', true);
+        return;
+      }
+      const values = (await chrome.storage.local.get({ [EXCLUDED_KEY]: [] }))[EXCLUDED_KEY] as string[];
+      await chrome.storage.local.set({ [EXCLUDED_KEY]: [...new Set([...values, domain])] });
+      input.value = '';
+      say(`${domain} hariç tutuldu.`);
+      await render();
+    })();
+  });
+
+  confirmSecondClick(del, async () => {
+    await repo.deleteAll();
+    say('Tüm süre verileri silindi.');
+    await render();
+  });
+
+  return { render };
 }

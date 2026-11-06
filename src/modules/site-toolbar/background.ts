@@ -2,6 +2,7 @@ import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { listActions, toInfo, type ActionInfo, type ActionResult } from '../../core/actions';
 import { runAction } from '../../core/action-runtime';
 import { originOfUrl, replaceSiteScript } from '../../core/site-scripts';
+import { filterToolbarActions } from '../../core/ui-visibility';
 import { normalizeToolbarSettings, TOOLBAR_SITES_KEY, type ToolbarSite } from './settings';
 
 export const SITE_TOOLBAR_ID = 'site-toolbar';
@@ -28,8 +29,15 @@ function serial<T>(task: () => Promise<T>): Promise<T> {
 function refresh(): void {
   void serial(async () => {
     if (!await isModuleEnabled(SITE_TOOLBAR_ID)) { await replaceSiteScript(SCRIPT, [], SCRIPT_FILE, false); return; }
-    const sites = await loadToolbarSites();
-    await replaceSiteScript(SCRIPT, sites.filter(s => s.actions.length).map(s => s.origin), SCRIPT_FILE, false);
+    const [sites, data] = await Promise.all([
+      loadToolbarSites(),
+      chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} })
+    ]);
+    const flags = data[MODULE_FLAGS_KEY];
+    const activeOrigins = sites
+      .filter(s => filterToolbarActions(listActions(), flags, s.actions).length > 0)
+      .map(s => s.origin);
+    await replaceSiteScript(SCRIPT, activeOrigins, SCRIPT_FILE, false);
   }).catch(err => { console.debug('[Site Araç Çubuğu]', err); });
 }
 
@@ -47,8 +55,9 @@ async function handle(msg: { action?: string; id?: unknown; x?: unknown; y?: unk
   const site = await siteFor(sender);
   if (!site) return null;
   if (msg.action === 'get') {
-    const enabledIds = new Set(site.actions);
-    return { actions: listActions().filter(a => a.toolbar && enabledIds.has(a.id)).map(toInfo), x: site.x, y: site.y };
+    const data = await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} });
+    const actions = filterToolbarActions(listActions(), data[MODULE_FLAGS_KEY], site.actions).map(toInfo);
+    return { actions, x: site.x, y: site.y };
   }
   if (msg.action === 'move' && typeof msg.x === 'number' && typeof msg.y === 'number') {
     await serial(async () => {
@@ -62,7 +71,9 @@ async function handle(msg: { action?: string; id?: unknown; x?: unknown; y?: unk
     return { ok: true };
   }
   if (msg.action === 'run' && typeof msg.id === 'string') {
-    if (!site.actions.includes(msg.id) || !listActions().some(a => a.id === msg.id && a.toolbar)) return { ok: false, message: 'Bu eylem bu sitede açık değil.' };
+    const data = await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} });
+    const allowed = filterToolbarActions(listActions(), data[MODULE_FLAGS_KEY], site.actions);
+    if (!allowed.some(a => a.id === msg.id)) return { ok: false, message: 'Bu eylem bu sitede açık değil.' };
     return runAction(msg.id, undefined, sender.tab);
   }
   return null;

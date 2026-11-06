@@ -2,7 +2,7 @@ import { applyTheme } from '../../core/theme';
 void applyTheme();
 import { popupDb } from '../../db/client';
 import { requestActions, requestRunAction, splitArg, type ActionInfo } from '../../core/actions';
-import { isModuleEnabled } from '../../core/module-state';
+import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { normalizeUrl } from '../life-browser/tabs';
 import { createTabLabelsRepo } from '../tab-labels/repo';
 import { createTabNotesRepo } from '../tab-notes/repo';
@@ -45,6 +45,8 @@ async function load(): Promise<void> {
         return { tab, url, title: tab.title || url || 'Yeni sekme', label: lm.get(normalizeUrl(url)) || '', note: nm.get(normalizeUrl(url)) || '' };
       });
     } catch { tabItems = []; }
+  } else {
+    tabItems = [];
   }
   await refresh();
 }
@@ -136,5 +138,8 @@ document.addEventListener('keydown', event => {
     event.preventDefault();
     if (rows.length) { selected = (selected + (event.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length; render(); }
   } else if (event.key === 'Enter' && rows[selected]) { event.preventDefault(); void rows[selected].run(); }
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes[MODULE_FLAGS_KEY]) void load();
 });
 void load();

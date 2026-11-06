@@ -2,6 +2,7 @@ import { getBackend, setBackend, type DbBackend } from '../db/backend';
 import { pingDesktop, popupDbFor } from '../db/client';
 import type { PingInfo } from '../db/native';
 import { TargetNotEmptyError, transferData } from '../db/transfer';
+import { showToast } from '../panel/ui';
 
 const msg = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 const el = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -9,6 +10,7 @@ const el = <T extends HTMLElement>(id: string): T => document.getElementById(id)
 /** "Depolama" bölümü ve masaüstüne ulaşılamıyor uyarı şeridi. */
 export function initStoragePanel(): { render(): Promise<void> } {
   const status = el('storage-status');
+  const chip = document.getElementById('storage-backend-chip');
   const move = el<HTMLButtonElement>('storage-move');
   const back = el<HTMLButtonElement>('storage-back');
   const copyLabel = el('storage-copyback-label');
@@ -25,11 +27,15 @@ export function initStoragePanel(): { render(): Promise<void> } {
   const say = (text: string, kind: '' | 'error' | 'success' = ''): void => {
     feedback.textContent = text;
     feedback.className = `feedback ${kind}`.trim();
+    if (text && kind) {
+      showToast(text, kind === 'error' ? 'error' : 'info');
+    }
   };
   const disarm = (): void => {
     confirmOverwrite = false;
     clearTimeout(confirmTimer);
     move.textContent = MOVE_LABEL;
+    move.classList.remove('confirming');
   };
   const busy = (on: boolean): void => {
     move.disabled = on;
@@ -51,6 +57,17 @@ export function initStoragePanel(): { render(): Promise<void> } {
       ? `masaüstü uygulamasına bağlı (sürüm ${ping.version}, masaüstü şema ${ping.desktopSchema})`
       : `masaüstü uygulamasına ulaşılamıyor${pingError && pingError !== 'Masaüstü uygulamasına ulaşılamıyor' ? ` — ${pingError}` : ''}`;
     status.textContent = `Geçerli depolama: ${where}. Durum: ${link}.`;
+
+    if (chip) {
+      if (backend === 'desktop') {
+        chip.textContent = ping ? 'Masaüstü · Bağlı' : 'Masaüstü · Ulaşılamıyor';
+        chip.className = ping ? 'chip' : 'chip chip-danger';
+      } else {
+        chip.textContent = ping ? 'Tarayıcı (Masaüstü hazır)' : 'Tarayıcı';
+        chip.className = 'chip';
+      }
+    }
+
     move.hidden = backend === 'desktop';
     move.disabled = !ping;
     back.hidden = backend !== 'desktop';
@@ -81,11 +98,10 @@ export function initStoragePanel(): { render(): Promise<void> } {
     busy(true);
     try {
       say('Masaüstü uygulaması denetleniyor…');
-      await pingDesktop(); // (1)
+      await pingDesktop();
       say('Taşınıyor…');
-      // (2) masaüstünde migrasyon (3) tarayıcıdan oku (4) dolu hedefi onaysız reddet (5) tek işlemde yaz (6) doğrula
       const counts = await transferData(popupDbFor('browser'), popupDbFor('desktop'), confirmOverwrite);
-      await setBackend('desktop'); // (7)
+      await setBackend('desktop');
       disarm();
       const total = Object.values(counts).reduce((a, b) => a + b, 0);
       say(`Taşındı ve doğrulandı (${total} kayıt). Tarayıcı verilerin olduğu gibi korunuyor.`, 'success');
@@ -94,6 +110,7 @@ export function initStoragePanel(): { render(): Promise<void> } {
       if (err instanceof TargetNotEmptyError) {
         confirmOverwrite = true;
         move.textContent = OVERWRITE_LABEL;
+        move.classList.add('confirming');
         clearTimeout(confirmTimer);
         confirmTimer = setTimeout(disarm, 10_000);
         say(`Masaüstü veritabanında zaten ${err.total} eklenti kaydı var. Üzerine yazmak için "${OVERWRITE_LABEL}" düğmesine tekrar tıkla.`, 'error');

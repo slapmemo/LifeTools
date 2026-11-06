@@ -2,9 +2,22 @@ import { icon, type IconName } from '../../design/icons';
 import { requestRunAction } from '../core/actions';
 import { exportData, restoreData, validateBackup, type Backup } from '../core/backup';
 import { backupSettingKeys } from '../core/backup-settings';
-import { isModuleEnabled, MODULE_FLAGS_KEY, setModuleEnabled } from '../core/module-state';
+import { isModuleEnabled, MODULE_FLAGS_KEY, resolveEnabled, setModuleEnabled } from '../core/module-state';
 import { applyTheme } from '../core/theme';
-import { categories, routeCategory } from '../core/ui-visibility';
+import {
+  categories,
+  groupModulesByCategory,
+  metinTabs,
+  notlarTabs,
+  odakTabs,
+  resolveActiveTab,
+  routeCategory,
+  sekmelerTabs,
+  type MetinSubTab,
+  type NotlarSubTab,
+  type OdakSubTab,
+  type SekmelerSubTab
+} from '../core/ui-visibility';
 import { popupDb } from '../db/client';
 import { modules } from '../modules';
 import { CLIP_SLOTS_ID } from '../modules/clip-slots/background';
@@ -37,27 +50,53 @@ import { defaults as xVideoDefaults, SETTINGS_KEY as X_VIDEO_SETTINGS_KEY, X_VID
 import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
 import { initZombieTabsPanel } from '../modules/zombie-tabs/panel';
 import { initStoragePanel } from '../popup/storage-panel';
+import { confirmSecondClick, showToast } from './ui';
 
 const watchSection = document.querySelector('#watchlist-panel') as HTMLElement;
 const watch = initWatchlistPanel();
 const clipSection = document.querySelector('#clip-slots-panel') as HTMLElement;
 const clip = initClipSlotsPanel();
 const pipSection = document.querySelector('#pip-panel') as HTMLElement;
+const pipFeedback = document.querySelector('#pip-feedback') as HTMLElement;
+const pipShortcutHint = document.getElementById('pip-shortcut-hint');
+const pipShortcutChange = document.getElementById('pip-shortcut-change');
+
 document.querySelector('#pip-toggle')!.addEventListener('click', () => {
   void (async () => {
     const tab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
     const result = await requestRunAction('pip.toggle', undefined, tab?.id);
-    (document.querySelector('#pip-feedback') as HTMLElement).textContent =
-      result.message ?? (result.ok ? 'İşlem tamamlandı.' : 'İşlem başarısız.');
+    const msg = result.message ?? (result.ok ? 'İşlem tamamlandı.' : 'İşlem başarısız.');
+    pipFeedback.textContent = msg;
+    pipFeedback.hidden = false;
+    showToast(msg, result.ok ? 'info' : 'error');
   })();
 });
+
+pipShortcutChange?.addEventListener('click', () => {
+  void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+});
+
+async function refreshPipShortcut(): Promise<void> {
+  if (!pipShortcutHint || !chrome.commands?.getAll) return;
+  try {
+    const cmds = await chrome.commands.getAll();
+    const pipCmd = cmds.find(c => c.name === 'toggle-pip');
+    const key = pipCmd?.shortcut?.trim();
+    pipShortcutHint.textContent = `Kısayol: ${key || 'Atanmamış'}`;
+  } catch {
+    pipShortcutHint.textContent = 'Kısayol: Atanmamış';
+  }
+}
+
 const shortcutsSection = document.querySelector('#shortcuts-panel') as HTMLElement;
 const shortcuts = initShortcutsPanel();
 const toolbarSection = document.querySelector('#site-toolbar-panel') as HTMLElement;
 const siteToolbar = initSiteToolbarPanel();
+const tabToolsSection = document.querySelector('#tab-tools') as HTMLElement;
 const tabTools = initTabToolsPanel();
 const lifeBrowserSection = document.querySelector('#life-browser-panel') as HTMLElement;
 const lifeBrowser = initLifeBrowserPanel();
+const temizlikSection = document.querySelector('#sekmeler-temizlik') as HTMLElement;
 const zombieSection = document.querySelector('#zombie-tabs-panel') as HTMLElement;
 const zombies = initZombieTabsPanel();
 const pinnedSection = document.querySelector('#pinned-guard-panel') as HTMLElement;
@@ -80,163 +119,246 @@ const cleaner = initLinkCleanerPanel();
 const blocker = initBlockerPanel();
 const memo = initSlapMemoPanel();
 
-let notlarTab: 'slapmemo' | 'watchlist' = 'slapmemo';
-let metinTab: 'smart-replies' | 'clip-slots' | 'link-cleaner' = 'smart-replies';
+let notlarTab: NotlarSubTab = 'slapmemo';
+let metinTab: MetinSubTab = 'smart-replies';
+let sekmelerTab: SekmelerSubTab = 'oturumlar';
+let odakTab: OdakSubTab = 'engelleyici';
 let activeCategory = 'notlar';
 
 const notlarTabsWrap = document.getElementById('notlar-tabs')!;
 const memoNewBtn = document.getElementById('memo-new-btn') as HTMLButtonElement;
 const watchNewBtn = document.getElementById('watch-new-btn') as HTMLButtonElement;
 const metinTabsWrap = document.getElementById('metin-tabs')!;
+const sekmelerTabsWrap = document.getElementById('sekmeler-tabs')!;
+const odakTabsWrap = document.getElementById('odak-tabs')!;
 
 notlarTabsWrap.querySelectorAll<HTMLButtonElement>('[data-notlar-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
-    notlarTab = btn.dataset.notlarTab as 'slapmemo' | 'watchlist';
+    notlarTab = btn.dataset.notlarTab as NotlarSubTab;
     void updateSubTabs();
   });
 });
 
 metinTabsWrap.querySelectorAll<HTMLButtonElement>('[data-metin-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
-    metinTab = btn.dataset.metinTab as 'smart-replies' | 'clip-slots' | 'link-cleaner';
+    metinTab = btn.dataset.metinTab as MetinSubTab;
     void updateSubTabs();
   });
 });
 
-async function updateSubTabs(): Promise<void> {
-  const [memoOn, watchOn, smartOn, clipOn, cleanerOn] = await Promise.all([
-    isModuleEnabled(SLAPMEMO_ID),
-    isModuleEnabled(WATCHLIST_ID),
-    isModuleEnabled(SMART_REPLIES_ID),
-    isModuleEnabled(CLIP_SLOTS_ID),
-    isModuleEnabled(LINK_CLEANER_ID)
-  ]);
+sekmelerTabsWrap.querySelectorAll<HTMLButtonElement>('[data-sekmeler-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    sekmelerTab = btn.dataset.sekmelerTab as SekmelerSubTab;
+    void updateSubTabs();
+  });
+});
 
-  if (notlarTab === 'slapmemo' && !memoOn && watchOn) notlarTab = 'watchlist';
-  if (notlarTab === 'watchlist' && !watchOn && memoOn) notlarTab = 'slapmemo';
-  notlarTabsWrap.hidden = !(memoOn && watchOn);
+odakTabsWrap.querySelectorAll<HTMLButtonElement>('[data-odak-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    odakTab = btn.dataset.odakTab as OdakSubTab;
+    void updateSubTabs();
+  });
+});
+
+async function updateSubTabs(rawFlags?: unknown): Promise<void> {
+  const flags =
+    rawFlags !== undefined
+      ? rawFlags
+      : (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
+
+  // Notlar
+  const enabledNotlar = notlarTabs(flags);
+  notlarTab = resolveActiveTab(notlarTab, enabledNotlar, 'slapmemo');
+  notlarTabsWrap.hidden = enabledNotlar.length <= 1;
   notlarTabsWrap.querySelectorAll<HTMLButtonElement>('[data-notlar-tab]').forEach(btn => {
-    const active = btn.dataset.notlarTab === notlarTab;
+    const key = btn.dataset.notlarTab as NotlarSubTab;
+    btn.hidden = !enabledNotlar.includes(key);
+    const active = key === notlarTab;
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-selected', String(active));
   });
-  const showMemo = memoOn && notlarTab === 'slapmemo';
-  const showWatch = watchOn && notlarTab === 'watchlist';
+  const showMemo = enabledNotlar.includes('slapmemo') && notlarTab === 'slapmemo';
+  const showWatch = enabledNotlar.includes('watchlist') && notlarTab === 'watchlist';
   memoSection.hidden = !showMemo;
   watchSection.hidden = !showWatch;
   memoNewBtn.hidden = !showMemo;
   watchNewBtn.hidden = !showWatch;
 
-  const enabledMetin: Array<'smart-replies' | 'clip-slots' | 'link-cleaner'> = [];
-  if (smartOn) enabledMetin.push('smart-replies');
-  if (clipOn) enabledMetin.push('clip-slots');
-  if (cleanerOn) enabledMetin.push('link-cleaner');
-  if (enabledMetin.length > 0 && !enabledMetin.includes(metinTab)) {
-    metinTab = enabledMetin[0];
-  }
+  // Metin
+  const enabledMetin = metinTabs(flags);
+  metinTab = resolveActiveTab(metinTab, enabledMetin, 'smart-replies');
   metinTabsWrap.hidden = enabledMetin.length <= 1;
   metinTabsWrap.querySelectorAll<HTMLButtonElement>('[data-metin-tab]').forEach(btn => {
-    const key = btn.dataset.metinTab as 'smart-replies' | 'clip-slots' | 'link-cleaner';
+    const key = btn.dataset.metinTab as MetinSubTab;
     btn.hidden = !enabledMetin.includes(key);
     const active = key === metinTab;
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-selected', String(active));
   });
+  smartSection.hidden = !(enabledMetin.includes('smart-replies') && metinTab === 'smart-replies');
+  clipSection.hidden = !(enabledMetin.includes('clip-slots') && metinTab === 'clip-slots');
+  cleanerSection.hidden = !(enabledMetin.includes('link-cleaner') && metinTab === 'link-cleaner');
 
-  smartSection.hidden = !(smartOn && metinTab === 'smart-replies');
-  clipSection.hidden = !(clipOn && metinTab === 'clip-slots');
-  cleanerSection.hidden = !(cleanerOn && metinTab === 'link-cleaner');
+  // Sekmeler
+  const enabledSekmeler = sekmelerTabs(flags);
+  sekmelerTab = resolveActiveTab(sekmelerTab, enabledSekmeler, 'oturumlar');
+  sekmelerTabsWrap.hidden = enabledSekmeler.length <= 1;
+  sekmelerTabsWrap.querySelectorAll<HTMLButtonElement>('[data-sekmeler-tab]').forEach(btn => {
+    const key = btn.dataset.sekmelerTab as SekmelerSubTab;
+    btn.hidden = !enabledSekmeler.includes(key);
+    const active = key === sekmelerTab;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', String(active));
+  });
+  lifeBrowserSection.hidden = !(enabledSekmeler.includes('oturumlar') && sekmelerTab === 'oturumlar');
+  temizlikSection.hidden = !(enabledSekmeler.includes('temizlik') && sekmelerTab === 'temizlik');
+  zombieSection.hidden = !resolveEnabled(flags, ZOMBIE_TABS_ID);
+  pinnedSection.hidden = !resolveEnabled(flags, PINNED_GUARD_ID);
+  tabToolsSection.hidden = !(enabledSekmeler.includes('etiket-notlar') && sekmelerTab === 'etiket-notlar');
+  toolbarSection.hidden = !(enabledSekmeler.includes('arac-cubugu') && sekmelerTab === 'arac-cubugu');
+
+  // Odak
+  const enabledOdak = odakTabs(flags);
+  odakTab = resolveActiveTab(odakTab, enabledOdak, 'engelleyici');
+  odakTabsWrap.hidden = enabledOdak.length <= 1;
+  odakTabsWrap.querySelectorAll<HTMLButtonElement>('[data-odak-tab]').forEach(btn => {
+    const key = btn.dataset.odakTab as OdakSubTab;
+    btn.hidden = !enabledOdak.includes(key);
+    const active = key === odakTab;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', String(active));
+  });
+  blockerSection.hidden = !(enabledOdak.includes('engelleyici') && odakTab === 'engelleyici');
+  timeSection.hidden = !(enabledOdak.includes('sureler') && odakTab === 'sureler');
 }
 
-async function renderModules(): Promise<void> {
+async function renderModules(rawFlags?: unknown): Promise<void> {
+  const flags =
+    rawFlags !== undefined
+      ? rawFlags
+      : (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
   modulesList.replaceChildren();
-  for (const module of modules) {
-    const enabled = await isModuleEnabled(module.id);
 
-    const item = document.createElement('li');
-    item.className = 'module-item';
+  const grouped = groupModulesByCategory(modules);
+  for (const cat of grouped) {
+    const block = document.createElement('div');
+    block.className = 'module-category-block';
 
-    const text = document.createElement('div');
-    text.className = 'module-text';
-    const name = document.createElement('strong');
-    name.textContent = module.name;
-    const desc = document.createElement('p');
-    desc.textContent = module.description;
-    text.append(name, desc);
+    const h4 = document.createElement('h4');
+    h4.className = 'module-category-heading';
+    h4.append(icon(cat.icon, 15), cat.label);
 
-    const label = document.createElement('label');
-    label.className = 'switch';
-    label.setAttribute('aria-label', `${module.name} aç veya kapat`);
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.checked = enabled;
-    input.addEventListener('change', () => {
-      void setModuleEnabled(module.id, input.checked).then(refresh);
-    });
-    const track = document.createElement('span');
-    track.className = 'switch-track';
-    label.append(input, track);
+    const ul = document.createElement('ul');
+    ul.className = 'module-category-list';
 
-    item.append(text, label);
-    modulesList.append(item);
+    for (const module of cat.modules) {
+      const enabled = resolveEnabled(flags, module.id);
+
+      const item = document.createElement('li');
+      item.className = 'module-item';
+
+      const text = document.createElement('div');
+      text.className = 'module-text';
+      const name = document.createElement('strong');
+      name.textContent = module.name;
+      const desc = document.createElement('p');
+      desc.className = 'clamp-1';
+      desc.textContent = module.description;
+      text.append(name, desc);
+
+      const label = document.createElement('label');
+      label.className = 'switch';
+      label.setAttribute('aria-label', `${module.name} aç veya kapat`);
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = enabled;
+      input.addEventListener('change', () => {
+        void setModuleEnabled(module.id, input.checked).then(() => {
+          showToast(`${module.name} ${input.checked ? 'açıldı' : 'kapatıldı'}.`, 'info');
+          return refresh();
+        });
+      });
+      const track = document.createElement('span');
+      track.className = 'switch-track';
+      label.append(input, track);
+
+      item.append(text, label);
+      ul.append(item);
+    }
+
+    block.append(h4, ul);
+    modulesList.append(block);
   }
 }
 
 const xVideoPanel = document.querySelector('#x-video-panel') as HTMLElement;
+const xVideoStatus = document.getElementById('x-video-status');
+const xVideoHowtoIcon = document.getElementById('x-video-howto-icon');
+if (xVideoHowtoIcon) xVideoHowtoIcon.replaceChildren(icon('clapperboard', 18));
+
 const xQuality = document.querySelector('#x-video-quality') as HTMLSelectElement;
 const xOneClick = document.querySelector('#x-video-one-click') as HTMLInputElement;
 const xSaveAs = document.querySelector('#x-video-save-as') as HTMLInputElement;
 for (const control of [xQuality, xOneClick, xSaveAs]) {
   control.addEventListener('change', () => {
-    void chrome.storage.local.set({
-      [X_VIDEO_SETTINGS_KEY]: { quality: xQuality.value, oneClick: xOneClick.checked, saveAs: xSaveAs.checked }
-    });
+    void chrome.storage.local
+      .set({
+        [X_VIDEO_SETTINGS_KEY]: {
+          quality: xQuality.value,
+          oneClick: xOneClick.checked,
+          saveAs: xSaveAs.checked
+        }
+      })
+      .then(() => showToast('X Video İndirici ayarları kaydedildi.', 'info'));
   });
 }
 
 async function refresh(): Promise<void> {
-  xVideoPanel.hidden = !(await isModuleEnabled(X_VIDEO_ID));
+  const flags = (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
+  const xEnabled = resolveEnabled(flags, X_VIDEO_ID);
+  xVideoPanel.hidden = !xEnabled;
+  if (xVideoStatus) xVideoStatus.textContent = xEnabled ? 'Etkin' : 'Kapalı';
+
   const xData = await chrome.storage.local.get({ [X_VIDEO_SETTINGS_KEY]: xVideoDefaults });
   const xSettings = { ...xVideoDefaults, ...xData[X_VIDEO_SETTINGS_KEY] };
   xQuality.value = xSettings.quality;
   xOneClick.checked = xSettings.oneClick;
   xSaveAs.checked = xSettings.saveAs;
-  await renderModules();
-  await updateSubTabs();
 
-  if (await isModuleEnabled(WATCHLIST_ID)) await watch.render();
-  if (await isModuleEnabled(CLIP_SLOTS_ID)) await clip.render();
-  pipSection.hidden = !(await isModuleEnabled(PIP_ID));
+  await renderModules(flags);
+  await updateSubTabs(flags);
+
+  if (resolveEnabled(flags, WATCHLIST_ID)) await watch.render();
+  if (resolveEnabled(flags, CLIP_SLOTS_ID)) await clip.render();
+  pipSection.hidden = !resolveEnabled(flags, PIP_ID);
+  if (!pipSection.hidden) await refreshPipShortcut();
   await tabTools.render();
-  timeSection.hidden = !(await isModuleEnabled(TIME_TRACKER_ID));
-  if (!timeSection.hidden) await timeTracker.render();
-  tasksSection.hidden = !(await isModuleEnabled(QUICK_TASKS_ID));
+  if (resolveEnabled(flags, TIME_TRACKER_ID)) await timeTracker.render();
+  tasksSection.hidden = !resolveEnabled(flags, QUICK_TASKS_ID);
   if (!tasksSection.hidden) await tasks.render();
-  if (await isModuleEnabled(SMART_REPLIES_ID)) await smart.render();
-  blockerSection.hidden = !(await isModuleEnabled(SITE_BLOCKER_ID));
-  if (!blockerSection.hidden) await blocker.render();
-  if (await isModuleEnabled(SLAPMEMO_ID)) await memo.render();
-  if (await isModuleEnabled(LINK_CLEANER_ID)) await cleaner.render();
-  lifeBrowserSection.hidden = !(await isModuleEnabled(LIFE_BROWSER_ID));
-  if (!lifeBrowserSection.hidden) await lifeBrowser.render();
-  zombieSection.hidden = !(await isModuleEnabled(ZOMBIE_TABS_ID));
-  if (!zombieSection.hidden) await zombies.render();
-  pinnedSection.hidden = !(await isModuleEnabled(PINNED_GUARD_ID));
-  if (!pinnedSection.hidden) await pinned.render();
-  shortcutsSection.hidden = !(await isModuleEnabled(SHORTCUTS_ID));
-  if (!shortcutsSection.hidden) await shortcuts.render();
-  toolbarSection.hidden = !(await isModuleEnabled(SITE_TOOLBAR_ID));
-  if (!toolbarSection.hidden) await siteToolbar.render();
+  if (resolveEnabled(flags, SMART_REPLIES_ID)) await smart.render();
+  if (resolveEnabled(flags, SITE_BLOCKER_ID)) await blocker.render();
+  if (resolveEnabled(flags, SLAPMEMO_ID)) await memo.render();
+  if (resolveEnabled(flags, LINK_CLEANER_ID)) await cleaner.render();
+  if (resolveEnabled(flags, LIFE_BROWSER_ID)) await lifeBrowser.render();
+  if (resolveEnabled(flags, ZOMBIE_TABS_ID)) await zombies.render();
+  if (resolveEnabled(flags, PINNED_GUARD_ID)) await pinned.render();
+  const shortcutsOn = resolveEnabled(flags, SHORTCUTS_ID);
+  shortcutsSection.hidden = !shortcutsOn;
+  const shortcutsAnchor = document.querySelector<HTMLElement>('[data-ayarlar-anchor="shortcuts-panel"]');
+  if (shortcutsAnchor) shortcutsAnchor.hidden = !shortcutsOn;
+  if (shortcutsOn) await shortcuts.render();
+  if (resolveEnabled(flags, SITE_TOOLBAR_ID)) await siteToolbar.render();
 }
 
 async function showDbStatus(): Promise<void> {
   try {
     const version = await popupDb.schemaVersion();
     dbStatus.textContent = `Veritabanı durumu: hazır (şema sürümü ${version})`;
-    dbStatus.className = 'db-status ok';
+    dbStatus.className = 'chip db-status ok';
   } catch (err) {
     dbStatus.textContent = `Veritabanı durumu: hata — ${err instanceof Error ? err.message : String(err)}`;
-    dbStatus.className = 'db-status error';
+    dbStatus.className = 'chip chip-danger db-status error';
   }
 }
 
@@ -246,12 +368,32 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+const AYARLAR_ANCHORS = new Set([
+  'modules-section',
+  'shortcuts-panel',
+  'theme-section',
+  'storage-section',
+  'backup-section',
+  'backup-download'
+]);
+
+document.querySelectorAll<HTMLAnchorElement>('[data-ayarlar-anchor]').forEach(link => {
+  link.addEventListener('click', event => {
+    event.preventDefault();
+    const targetId = link.dataset.ayarlarAnchor!;
+    document.querySelectorAll<HTMLElement>('[data-ayarlar-anchor]').forEach(a => {
+      a.classList.toggle('active', a === link);
+    });
+    document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+
 void refresh().then(() => {
   const hash = decodeURIComponent(location.hash.slice(1));
   if (hash === 'backup-download') {
     (document.getElementById('backup-section') ?? document.body).scrollIntoView();
     (document.getElementById('backup-download') as HTMLButtonElement | null)?.click();
-  } else if (hash) {
+  } else if (hash && AYARLAR_ANCHORS.has(hash)) {
     document.getElementById(hash)?.scrollIntoView();
   }
 });
@@ -263,9 +405,15 @@ const backupPreview = document.querySelector('#backup-preview') as HTMLElement;
 const backupFeedback = document.querySelector('#backup-feedback') as HTMLElement;
 const backupRestore = document.querySelector('#backup-restore') as HTMLButtonElement;
 let selectedBackup: Backup | null = null;
+
 const backupError = (err: unknown): void => {
-  backupFeedback.textContent = `Hata: ${err instanceof Error ? err.message : String(err)}`;
+  const msg = `Hata: ${err instanceof Error ? err.message : String(err)}`;
+  backupFeedback.textContent = msg;
+  backupFeedback.className = 'feedback error';
+  backupFeedback.hidden = false;
+  showToast(msg, 'error');
 };
+
 document.querySelector('#backup-download')!.addEventListener('click', () => {
   void (async () => {
     try {
@@ -277,17 +425,24 @@ document.querySelector('#backup-download')!.addEventListener('click', () => {
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       backupFeedback.textContent = 'Yedek indirildi.';
+      backupFeedback.className = 'feedback';
+      backupFeedback.hidden = false;
+      showToast('Yedek indirildi.', 'info');
     } catch (err) {
       backupError(err);
     }
   })();
 });
+
 backupFile.addEventListener('change', () => {
   void (async () => {
     selectedBackup = null;
     backupRestore.hidden = true;
+    backupRestore.textContent = 'Geri yükle';
+    backupRestore.classList.remove('confirming');
     backupPreview.textContent = '';
     backupFeedback.textContent = '';
+    backupFeedback.hidden = true;
     if (!backupFile.files?.[0]) return;
     try {
       selectedBackup = validateBackup(JSON.parse(await backupFile.files[0].text()));
@@ -299,8 +454,10 @@ backupFile.addEventListener('change', () => {
     }
   })();
 });
-backupRestore.addEventListener('click', () => {
-  void (async () => {
+
+confirmSecondClick(
+  backupRestore,
+  async () => {
     if (!selectedBackup) return;
     backupRestore.disabled = true;
     backupFile.disabled = true;
@@ -315,63 +472,42 @@ backupRestore.addEventListener('click', () => {
         )
       );
       backupFeedback.textContent = 'Yedek geri yüklendi. Eklenti yeniden başlatılıyor…';
+      backupFeedback.className = 'feedback';
+      backupFeedback.hidden = false;
+      showToast('Yedek geri yüklendi.', 'info');
       setTimeout(() => chrome.runtime.reload(), 1000);
     } catch (err) {
       backupError(err);
       backupRestore.disabled = false;
       backupFile.disabled = false;
     }
-  })();
-});
+  },
+  'Emin misin? Geri yükle'
+);
 
 const pageHeadingIcons: Record<string, IconName> = {
   'notlar-heading': 'notebook-pen',
   'gorevler-heading': 'list-checks',
-  'metin-heading': 'text-cursor-input'
+  'metin-heading': 'text-cursor-input',
+  'sekmeler-heading': 'layout-grid',
+  'odak-heading': 'timer',
+  'medya-heading': 'clapperboard',
+  'ayarlar-heading': 'settings'
 };
 for (const [id, name] of Object.entries(pageHeadingIcons)) {
   const h = document.getElementById(id);
   if (h) h.prepend(icon(name, 20), ' ');
 }
 
-const headingIcons: Record<string, IconName> = {
-  'life-browser-panel': 'layout-grid',
-  'zombie-tabs-panel': 'layout-grid',
-  'pinned-guard-panel': 'layout-grid',
-  'tab-tools': 'layout-grid',
-  'site-toolbar-panel': 'layout-grid',
-  'blocker-panel': 'timer',
-  'time-tracker-panel': 'timer',
-  'x-video-panel': 'clapperboard',
-  'pip-panel': 'clapperboard',
-  'modules-section': 'settings',
-  'shortcuts-panel': 'settings',
-  'theme-section': 'settings',
-  'storage-section': 'settings',
-  'backup-section': 'settings'
-};
-for (const [id, name] of Object.entries(headingIcons)) {
-  const card = document.getElementById(id);
-  card?.classList.add('card');
-  const h = card?.querySelector('h2');
-  if (h) h.prepend(icon(name, 18), ' ');
-}
-
-const mapping: Record<string, string[]> = {
-  notlar: ['notlar'],
-  gorevler: ['gorevler'],
-  metin: ['metin'],
-  sekmeler: ['life-browser-panel', 'zombie-tabs-panel', 'pinned-guard-panel', 'tab-tools', 'site-toolbar-panel'],
-  odak: ['blocker-panel', 'time-tracker-panel'],
-  medya: ['x-video-panel', 'pip-panel'],
-  ayarlar: ['modules-section', 'shortcuts-panel', 'theme-section', 'storage-section', 'backup-section', 'db-footer']
-};
+const ALL_CATEGORIES = ['notlar', 'gorevler', 'metin', 'sekmeler', 'odak', 'medya', 'ayarlar'] as const;
 
 const nav = document.getElementById('navigation')!;
 async function route(): Promise<void> {
   const flags = (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
   const visible = categories(flags);
-  const active = routeCategory(location.hash === '#backup-download' ? '#ayarlar' : location.hash, visible);
+  const rawHash = location.hash.replace(/^#/, '');
+  const normalizedHash = AYARLAR_ANCHORS.has(rawHash) ? '#ayarlar' : location.hash;
+  const active = routeCategory(normalizedHash, visible);
   activeCategory = active;
   nav.replaceChildren();
   for (const category of visible) {
@@ -388,15 +524,14 @@ async function route(): Promise<void> {
     a.append(icon(category.icon, 18), label);
     nav.append(a);
   }
-  for (const [category, ids] of Object.entries(mapping)) {
-    for (const id of ids) {
-      const el = document.getElementById(id);
-      if (!el) continue;
-      if (category === 'notlar' || category === 'gorevler' || category === 'metin') {
-        el.hidden = category !== active;
-      }
-      el.style.display = category === active ? '' : 'none';
-    }
+  for (const category of ALL_CATEGORIES) {
+    const el = document.getElementById(category);
+    if (!el) continue;
+    el.hidden = category !== active;
+    el.style.display = category === active ? '' : 'none';
+  }
+  if (AYARLAR_ANCHORS.has(rawHash) && rawHash !== 'backup-download') {
+    document.getElementById(rawHash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
 
@@ -426,11 +561,34 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes[MODULE_FLAGS_KEY]) void route();
 });
 void route();
+
 void applyTheme();
-const theme = document.querySelector('#theme-select') as HTMLSelectElement;
+const themeSelect = document.querySelector('#theme-select') as HTMLSelectElement;
+const themeButtons = document.querySelectorAll<HTMLButtonElement>('[data-theme-value]');
+
+function syncThemeUi(value: string): void {
+  themeSelect.value = value;
+  themeButtons.forEach(btn => {
+    const active = btn.dataset.themeValue === value;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+}
+
 void chrome.storage.local.get({ ui_theme: 'system' }).then(data => {
-  theme.value = data.ui_theme;
+  syncThemeUi(String(data.ui_theme || 'system'));
 });
-theme.addEventListener('change', () => {
-  void chrome.storage.local.set({ ui_theme: theme.value }).then(applyTheme);
+
+themeButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const value = btn.dataset.themeValue ?? 'system';
+    syncThemeUi(value);
+    void chrome.storage.local.set({ ui_theme: value }).then(applyTheme);
+  });
 });
+
+themeSelect.addEventListener('change', () => {
+  syncThemeUi(themeSelect.value);
+  void chrome.storage.local.set({ ui_theme: themeSelect.value }).then(applyTheme);
+});
+void isModuleEnabled;

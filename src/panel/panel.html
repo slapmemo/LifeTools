@@ -205,142 +205,395 @@
       </div>
     </section>
 
-    <section id="modules-section" class="section">
-      <div class="section-heading"><h2>Araçlar</h2></div>
-      <ul id="modules-list" class="modules-list" aria-label="Araçlar"></ul>
-    </section>
-
-    <section id="x-video-panel" class="section" hidden><h2>X Video İndirici</h2>
-      <label for="x-video-quality">Varsayılan kalite</label><select id="x-video-quality"><option value="highest">En yüksek</option><option value="720">720p</option><option value="lowest">En düşük</option></select>
-      <label><input id="x-video-one-click" type="checkbox"> Tek tıkla varsayılan kaliteyi indir</label>
-      <label><input id="x-video-save-as" type="checkbox"> Kaydet penceresini göster</label>
-    </section>
-    <div id="blocker-panel" hidden>
-      <section class="control-card" aria-label="Koruma durumu">
-        <div class="control-text">
-          <span id="state-pill" class="status-pill"><span class="status-dot"></span><span id="state-pill-text"> Aktif</span></span>
-          <h2 id="status-title">Koruma açık</h2>
-          <p id="status-description">Engellediğin profiller otomatik kapanır.</p>
-        </div>
-        <label class="switch" aria-label="Korumayı aç veya kapat">
-          <input id="blocker-enabled" type="checkbox" checked />
-          <span class="switch-track"></span>
-        </label>
-      </section>
-
-      <section class="section">
-        <div class="section-heading"><h2>Profil ekle</h2></div>
-        <form id="add-form" novalidate>
-          <label class="sr-only" for="handle-input">Engellenecek kullanıcı adı veya bağlantı</label>
-          <div class="input-row">
-            <div class="input-wrap">
-              <span class="at-mark" aria-hidden="true">@</span>
-              <input id="handle-input" type="text" spellcheck="false" autocomplete="off"
-                placeholder="kullaniciadi veya X bağlantısı" maxlength="250" />
-            </div>
-            <button id="add-button" type="submit">+ Ekle</button>
+    <section id="sekmeler" class="category-view" hidden aria-label="Sekmeler">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2 id="sekmeler-heading">Sekmeler</h2>
+          <div id="sekmeler-tabs" class="segmented" role="tablist" aria-label="Sekmeler bölümleri">
+            <button type="button" class="seg-btn active" data-sekmeler-tab="oturumlar" role="tab" aria-selected="true">Oturumlar</button>
+            <button type="button" class="seg-btn" data-sekmeler-tab="temizlik" role="tab" aria-selected="false">Temizlik</button>
+            <button type="button" class="seg-btn" data-sekmeler-tab="etiket-notlar" role="tab" aria-selected="false">Etiket ve notlar</button>
+            <button type="button" class="seg-btn" data-sekmeler-tab="arac-cubugu" role="tab" aria-selected="false">Araç çubuğu</button>
           </div>
-        </form>
-        <p class="hint">@kullaniciadi veya x.com/kullaniciadi yazabilirsin.</p>
-        <p id="feedback" class="feedback" aria-live="polite"></p>
-      </section>
-
-      <section class="section blocked-section">
-        <div class="section-heading">
-          <h2>Engellenen profiller</h2>
-          <span id="count" class="count">0</span>
         </div>
-        <div id="empty" class="empty-state">
-          <strong>Liste henüz boş</strong>
-          <p>Yukarıdan bir profil ekleyerek başla.</p>
+        <div class="page-header-actions">
+          <button id="open-switcher" type="button">Sekme değiştiriciyi aç</button>
         </div>
-        <ul id="handle-list" class="handle-list" aria-label="Engellenen profiller"></ul>
-      </section>
-    </div>
+      </div>
 
-    <section id="time-tracker-panel" class="section" hidden aria-label="Web Süre Takibi">
-      <div class="section-heading"><h2>Web Süre Takibi · <span id="time-heading">Bugün</span></h2><button id="time-toggle" type="button">Son 7 gün</button></div>
-      <p id="time-total"></p><ul id="time-list" class="time-list"></ul>
-      <h3>Hariç tutulan siteler</h3><form id="time-form"><div class="input-row"><input id="time-domain" placeholder="ornek.com" aria-label="Hariç tutulacak site" required /><button type="submit">Ekle</button></div></form>
-      <ul id="time-exclusions"></ul><p id="time-feedback" class="feedback" aria-live="polite"></p>
-      <button id="time-delete" type="button">Tüm verileri sil</button>
+      <div id="life-browser-panel" aria-label="Oturumlar">
+        <div class="card stack-card">
+          <form id="lb-save-form" class="inline-editor-row">
+            <input id="lb-name" placeholder="Oturum adı…" maxlength="100" aria-label="Oturum adı" required />
+            <button type="submit" class="primary">Bu pencereyi kaydet</button>
+            <button id="lb-save-close" type="button">Kaydet ve kapat</button>
+            <input id="lb-close" type="checkbox" hidden />
+          </form>
+          <div class="toolbar-actions-row">
+            <button id="lb-group" type="button">Siteye göre grupla</button>
+            <button id="lb-dedupe" type="button">Kopyaları kapat</button>
+          </div>
+          <ul id="lb-duplicates" class="hint-list" hidden aria-label="Kopya sekmeler"></ul>
+          <p id="lb-feedback" class="feedback" aria-live="polite" hidden></p>
+        </div>
+
+        <div class="section-subheader">
+          <h3>Kayıtlı oturumlar</h3>
+          <span id="lb-count" class="chip">0</span>
+        </div>
+        <div id="lb-empty" hidden></div>
+        <ul id="lb-sessions" class="card list-card" aria-label="Kayıtlı oturumlar"></ul>
+      </div>
+
+      <div id="sekmeler-temizlik" class="stack-group" hidden>
+        <div id="zombie-tabs-panel" class="card stack-card" aria-label="Zombi Sekme Temizleyici">
+          <div class="card-header-row">
+            <div class="page-header-left">
+              <h3>Zombi sekmeler</h3>
+              <span id="zombie-count" class="chip">0</span>
+            </div>
+            <div class="page-header-actions">
+              <form id="zombie-form" class="inline-editor-row">
+                <label class="muted" for="zombie-hours">Eşik:</label>
+                <select id="zombie-hours" aria-label="Zombi sekme eşiği">
+                  <option value="1">1 saat</option>
+                  <option value="4">4 saat</option>
+                  <option value="12">12 saat</option>
+                  <option value="24" selected>24 saat (1 gün)</option>
+                  <option value="48">48 saat (2 gün)</option>
+                  <option value="72">72 saat (3 gün)</option>
+                  <option value="168">7 gün</option>
+                </select>
+              </form>
+              <button id="zombie-close-all" type="button" hidden>Tümünü kapat</button>
+              <button id="zombie-move-all" type="button" hidden>Tümünü oturuma taşı</button>
+            </div>
+          </div>
+          <p id="zombie-feedback" class="feedback" aria-live="polite" hidden></p>
+          <div id="zombie-empty" hidden></div>
+          <ul id="zombie-list" class="list-card" aria-label="Zombi sekmeler"></ul>
+        </div>
+
+        <div id="pinned-guard-panel" class="card stack-card" aria-label="Sabit Sekme Koruyucu">
+          <div class="card-header-row">
+            <h3>Son kapanan sabit sekmeler</h3>
+          </div>
+          <p id="pinned-feedback" class="feedback" aria-live="polite" hidden></p>
+          <div id="pinned-empty" hidden></div>
+          <ul id="pinned-closed" class="list-card" aria-label="Son kapanan sabit sekmeler"></ul>
+        </div>
+      </div>
+
+      <div id="tab-tools" class="stack-group" hidden aria-label="Etiket ve notlar">
+        <div id="tab-current-card" class="card stack-card">
+          <div class="card-header-row">
+            <h3>Bu sekme</h3>
+            <span id="tab-current-url" class="muted clamp-1"></span>
+          </div>
+
+          <div id="tab-labels-controls" class="stack-subblock">
+            <label for="tab-label" class="field-label">Etiket</label>
+            <div id="tab-label-chips" class="chip-list" aria-label="Hazır etiketler"></div>
+            <div class="inline-editor-row">
+              <input id="tab-label" list="tab-label-options" maxlength="100" placeholder="Özel etiket yaz veya seç…" />
+              <datalist id="tab-label-options">
+                <option value="Önemli"></option>
+                <option value="Sonra Bak"></option>
+                <option value="Araştırma"></option>
+              </datalist>
+              <button id="tab-label-save" type="button">Etiketi kaydet</button>
+            </div>
+          </div>
+
+          <div id="tab-notes-controls" class="stack-subblock">
+            <label for="tab-note" class="field-label">Bu sekmeye not</label>
+            <textarea id="tab-note" maxlength="1000" rows="3" placeholder="Bu sekme için not bırak…"></textarea>
+            <div class="form-footer">
+              <label class="checkbox-label">
+                <input id="tab-note-transfer" type="checkbox" />
+                <span>Sekme kapanınca SlapMemo'ya aktar</span>
+              </label>
+              <button id="tab-note-save" type="button" class="primary">Notu kaydet</button>
+            </div>
+          </div>
+          <p id="tab-tools-feedback" class="feedback" aria-live="polite" hidden></p>
+        </div>
+
+        <div id="tab-saved-card" class="stack-subblock">
+          <div class="section-subheader">
+            <h3>Etiketli ve notlu sayfalar</h3>
+            <span id="tab-saved-count" class="chip">0</span>
+          </div>
+          <div id="tab-saved-empty" hidden></div>
+          <ul id="tab-saved-list" class="card list-card" aria-label="Etiketli ve notlu sayfalar"></ul>
+        </div>
+
+        <div id="title-cleaner-controls" class="card stack-card">
+          <h3>Başlık sadeleştirici özel kuralları</h3>
+          <p class="hint">Bu sitedeki sekme başlıklarından kaldırılacak metin parçalarını her satıra bir kural gelecek şekilde yaz.</p>
+          <div class="inline-editor-row">
+            <input id="title-rule-host" placeholder="ornek.com" aria-label="Site alan adı" />
+          </div>
+          <textarea id="title-rule" rows="3" placeholder="Her satıra bir kural…"></textarea>
+          <div class="form-footer">
+            <ul id="title-rules-list" class="chip-list" aria-label="Kayıtlı site kuralları"></ul>
+            <button id="title-rule-save" type="button" class="primary">Kuralları kaydet</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="site-toolbar-panel" class="stack-group" hidden aria-label="Site Araç Çubuğu">
+        <div class="card stack-card">
+          <h3>Site ekle</h3>
+          <p class="hint">Site izninden sonra o sitede küçük, sürüklenebilir bir LT düğmesi çıkar; her site için hangi eylemlerin görüneceğini aşağıdan seçebilirsin.</p>
+          <form id="toolbar-site-form" class="inline-editor-row">
+            <input id="toolbar-site" placeholder="ornek.com" aria-label="Araç çubuğu gösterilecek site" required />
+            <button type="submit" class="primary">＋ Site ekle</button>
+          </form>
+          <p id="toolbar-feedback" class="feedback" aria-live="polite" hidden></p>
+        </div>
+
+        <div id="toolbar-empty" hidden></div>
+        <ul id="toolbar-sites" class="card list-card" aria-label="Araç çubuğu siteleri"></ul>
+      </div>
     </section>
-    <section id="life-browser-panel" class="section" hidden aria-label="LifeBrowser">
-      <div class="section-heading"><h2>LifeBrowser</h2><span id="lb-count" class="count">0</span></div>
-      <form id="lb-save-form">
-        <div class="input-row"><input id="lb-name" placeholder="Oturum adı" maxlength="100" aria-label="Oturum adı" required /><button type="submit">Oturumu kaydet</button></div>
-        <label><input id="lb-close" type="checkbox" /> Kaydet ve kapat</label>
-      </form>
-      <button id="lb-group" type="button">Siteye göre grupla</button>
-      <p id="lb-feedback" class="feedback" aria-live="polite"></p>
-      <h3>Kayıtlı oturumlar</h3>
-      <ul id="lb-sessions" class="memo-list" aria-label="Kayıtlı oturumlar"></ul>
-      <h3>Kopya sekmeler</h3>
-      <ul id="lb-duplicates" class="memo-list" aria-label="Kopya sekmeler"></ul>
-      <button id="lb-dedupe" type="button" hidden>Kopyaları kapat</button>
+
+    <section id="odak" class="category-view" hidden aria-label="Odak">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2 id="odak-heading">Odak</h2>
+          <div id="odak-tabs" class="segmented" role="tablist" aria-label="Odak bölümleri">
+            <button type="button" class="seg-btn active" data-odak-tab="engelleyici" role="tab" aria-selected="true">Engelleyici</button>
+            <button type="button" class="seg-btn" data-odak-tab="sureler" role="tab" aria-selected="false">Süreler</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="blocker-panel" class="stack-group">
+        <div class="card control-card" aria-label="Koruma durumu">
+          <div class="control-text">
+            <span id="state-pill" class="chip"><span class="status-dot"></span><span id="state-pill-text">Aktif</span></span>
+            <h3 id="status-title">Koruma açık</h3>
+            <p id="status-description" class="muted">Engellediğin profiller otomatik kapanır.</p>
+          </div>
+          <label class="switch" aria-label="Korumayı aç veya kapat">
+            <input id="blocker-enabled" type="checkbox" checked />
+            <span class="switch-track"></span>
+          </label>
+        </div>
+
+        <div class="card stack-card">
+          <h3>Profil ekle</h3>
+          <form id="add-form" class="inline-editor-row" novalidate>
+            <label class="sr-only" for="handle-input">Engellenecek kullanıcı adı veya bağlantı</label>
+            <input id="handle-input" type="text" spellcheck="false" autocomplete="off"
+              placeholder="@kullaniciadi veya x.com/kullaniciadi" maxlength="250" />
+            <button id="add-button" type="submit" class="primary">＋ Ekle</button>
+          </form>
+          <p id="feedback" class="feedback" aria-live="polite" hidden></p>
+        </div>
+
+        <div class="card stack-card">
+          <div class="card-header-row">
+            <h3>Engellenen profiller</h3>
+            <span id="count" class="chip">0</span>
+          </div>
+          <div id="empty" hidden></div>
+          <ul id="handle-list" class="chip-list" aria-label="Engellenen profiller"></ul>
+        </div>
+      </div>
+
+      <div id="time-tracker-panel" class="stack-group" hidden aria-label="Web Süre Takibi">
+        <div class="card card-header-row">
+          <div>
+            <span class="muted">Web Süre Takibi · <span id="time-heading">Bugün</span></span>
+            <h3 id="time-total" class="time-total-heading">Toplam: 0 sn</h3>
+          </div>
+          <div id="time-range-tabs" class="segmented" role="tablist" aria-label="Zaman aralığı">
+            <button type="button" class="seg-btn active" data-time-range="day" aria-pressed="true">Bugün</button>
+            <button type="button" class="seg-btn" data-time-range="week" aria-pressed="false">7 gün</button>
+          </div>
+          <button id="time-toggle" type="button" hidden>Son 7 gün</button>
+        </div>
+
+        <div id="time-empty" hidden></div>
+        <ul id="time-list" class="card list-card" aria-label="Site süreleri"></ul>
+
+        <div class="card stack-card">
+          <h3>Hariç tutulan siteler</h3>
+          <form id="time-form" class="inline-editor-row">
+            <input id="time-domain" placeholder="ornek.com" aria-label="Hariç tutulacak site" required />
+            <button type="submit">＋ Ekle</button>
+          </form>
+          <ul id="time-exclusions" class="chip-list" aria-label="Hariç tutulan siteler"></ul>
+          <p id="time-feedback" class="feedback" aria-live="polite" hidden></p>
+          <div class="form-footer">
+            <span class="hint">Hariç tutulan alan adlarında geçirilen süre kaydedilmez.</span>
+            <button id="time-delete" type="button" class="danger">Tüm verileri sil</button>
+          </div>
+        </div>
+      </div>
     </section>
-    <section id="zombie-tabs-panel" class="section" hidden aria-label="Zombi Sekme Temizleyici">
-      <div class="section-heading"><h2>Zombi Sekmeler</h2><span id="zombie-count" class="count">0</span></div>
-      <form id="zombie-form">
-        <label for="zombie-hours">Şu kadar saattir açılmayan sekmeler</label>
-        <div class="input-row"><input id="zombie-hours" type="number" min="1" step="1" required /><button type="submit">Kaydet</button></div>
-      </form>
-      <ul id="zombie-list" class="memo-list" aria-label="Zombi sekmeler"></ul>
-      <button id="zombie-close-all" type="button" hidden>Tümünü kapat</button>
-      <button id="zombie-move-all" type="button" hidden>Tümünü oturuma taşı</button>
-      <p id="zombie-feedback" class="feedback" aria-live="polite"></p>
-      <p class="hint">Sabit, ses çalan ve etkin sekmeler önerilmez.</p>
+
+    <section id="medya" class="category-view" hidden aria-label="Medya">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2 id="medya-heading">Medya</h2>
+        </div>
+      </div>
+
+      <div id="x-video-panel" class="card stack-card">
+        <div class="card-header-row">
+          <h3>X Video İndirici</h3>
+          <span id="x-video-status" class="chip">Etkin</span>
+        </div>
+
+        <div class="settings-rows">
+          <div class="setting-row">
+            <label for="x-video-quality">Varsayılan kalite</label>
+            <select id="x-video-quality">
+              <option value="highest">En yüksek</option>
+              <option value="720">720p</option>
+              <option value="lowest">En düşük</option>
+            </select>
+          </div>
+
+          <label class="setting-row">
+            <span>Tek tıkla varsayılan kaliteyi indir</span>
+            <span class="switch">
+              <input id="x-video-one-click" type="checkbox" />
+              <span class="switch-track"></span>
+            </span>
+          </label>
+
+          <label class="setting-row">
+            <span>Kaydet penceresini göster</span>
+            <span class="switch">
+              <input id="x-video-save-as" type="checkbox" />
+              <span class="switch-track"></span>
+            </span>
+          </label>
+        </div>
+
+        <div class="media-howto">
+          <span id="x-video-howto-icon" class="media-howto-icon"></span>
+          <p class="hint">X (Twitter) akışında video veya GIF içeren gönderilerin altındaki eylem çubuğunda İndir düğmesi görünür. Düğmeye tıklayarak seçtiğin kalitede MP4 olarak indirebilirsin.</p>
+        </div>
+      </div>
+
+      <div id="pip-panel" class="card stack-card">
+        <div class="card-header-row">
+          <h3>Resim içinde resim</h3>
+        </div>
+        <p class="muted">Etkin sekmedeki oynatılan veya en uygun videoyu diğer pencerelerin üzerinde kalan küçük oynatıcıda açar.</p>
+        <div class="form-footer">
+          <div class="pip-shortcut-row">
+            <span id="pip-shortcut-hint" class="chip chip-mono">Kısayol: kontrol ediliyor…</span>
+            <button id="pip-shortcut-change" type="button" class="ghost muted-link">Değiştir</button>
+          </div>
+          <button id="pip-toggle" type="button" class="primary">Resim içinde resim</button>
+        </div>
+        <p id="pip-feedback" class="feedback" aria-live="polite" hidden></p>
+      </div>
     </section>
-    <section id="pinned-guard-panel" class="section" hidden aria-label="Sabit Sekme Koruyucu">
-      <div class="section-heading"><h2>Son kapanan sabit sekmeler</h2></div>
-      <ul id="pinned-closed" class="memo-list" aria-label="Son kapanan sabit sekmeler"></ul>
-      <p id="pinned-feedback" class="feedback" aria-live="polite"></p>
-      <p class="hint">Chrome kapatmayı engelleyemez; sabit sekme kapanınca bildirim gösterilir.</p>
+
+    <section id="ayarlar" class="category-view" hidden aria-label="Ayarlar">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2 id="ayarlar-heading">Ayarlar</h2>
+          <nav id="ayarlar-anchors" class="segmented" aria-label="Ayarlar bölümleri">
+            <a href="#modules-section" class="seg-btn" data-ayarlar-anchor="modules-section">Araçlar</a>
+            <a href="#shortcuts-panel" class="seg-btn" data-ayarlar-anchor="shortcuts-panel">Kısayollar</a>
+            <a href="#theme-section" class="seg-btn" data-ayarlar-anchor="theme-section">Görünüm</a>
+            <a href="#storage-section" class="seg-btn" data-ayarlar-anchor="storage-section">Depolama</a>
+            <a href="#backup-section" class="seg-btn" data-ayarlar-anchor="backup-section">Yedek</a>
+          </nav>
+        </div>
+      </div>
+
+      <div id="modules-section" class="card stack-card" aria-label="Araçlar">
+        <div class="card-header-row">
+          <h3>Araçlar</h3>
+          <span class="hint">Kapattığın araçlar panelden, sağ tık menüsünden ve aramadan gizlenir.</span>
+        </div>
+        <div id="modules-list" class="modules-groups" aria-label="Araçlar"></div>
+      </div>
+
+      <div id="shortcuts-panel" class="card stack-card" aria-label="Kısayollar">
+        <div class="card-header-row">
+          <h3>Kısayollar</h3>
+          <button id="shortcuts-open" type="button">Değiştir</button>
+        </div>
+        <p id="shortcuts-warning" class="feedback error" aria-live="polite" hidden></p>
+        <table class="shortcuts-table" aria-label="LifeTools komutları">
+          <thead>
+            <tr>
+              <th>İşlem</th>
+              <th>Tuş</th>
+            </tr>
+          </thead>
+          <tbody id="shortcuts-list"></tbody>
+        </table>
+        <p class="hint">Tuş atamalarını Chrome yönetir: "Değiştir" düğmesiyle chrome://extensions/shortcuts sayfasını açabilirsin.</p>
+      </div>
+
+      <div id="theme-section" class="card stack-card" aria-label="Görünüm">
+        <div class="card-header-row">
+          <div>
+            <h3>Görünüm</h3>
+            <p class="hint">Eklenti ve masaüstü arayüzünün renk temasını seç.</p>
+          </div>
+          <div id="theme-segmented" class="segmented" role="radiogroup" aria-label="Tema seçimi">
+            <button type="button" class="seg-btn active" data-theme-value="system" aria-pressed="true">Sistem</button>
+            <button type="button" class="seg-btn" data-theme-value="light" aria-pressed="false">Açık</button>
+            <button type="button" class="seg-btn" data-theme-value="dark" aria-pressed="false">Koyu</button>
+          </div>
+          <select id="theme-select" hidden aria-label="Tema">
+            <option value="system">Sistem</option>
+            <option value="light">Açık</option>
+            <option value="dark">Koyu</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="storage-section" class="card stack-card" aria-label="Depolama">
+        <div class="card-header-row">
+          <h3>Depolama</h3>
+          <span id="storage-backend-chip" class="chip">Kontrol ediliyor…</span>
+        </div>
+        <p id="storage-status" class="muted">Kontrol ediliyor…</p>
+        <div class="form-actions">
+          <button id="storage-move" type="button" class="primary">Verileri masaüstüne taşı</button>
+          <button id="storage-back" type="button" hidden>Tarayıcı depolamasına geri dön</button>
+        </div>
+        <label id="storage-copyback-label" class="checkbox-label" hidden>
+          <input id="storage-copyback" type="checkbox" />
+          <span>Masaüstündeki verileri tarayıcıya da kopyala (tarayıcıdaki mevcut veriler değiştirilir)</span>
+        </label>
+        <p id="storage-feedback" class="feedback" aria-live="polite" hidden></p>
+        <p class="hint">Önce masaüstü uygulamasında Ayarlar → "Chrome eklentisini bağla" adımını yap. Taşıma tarayıcıdaki verileri silmez.</p>
+        <div id="db-footer" class="db-footer-row">
+          <span id="db-status" class="chip">Veritabanı durumu: kontrol ediliyor…</span>
+        </div>
+      </div>
+
+      <div id="backup-section" class="card stack-card" aria-label="Yedek">
+        <div class="card-header-row">
+          <h3>Yedek</h3>
+          <button id="backup-download" type="button" class="primary">Yedeği indir</button>
+        </div>
+        <div class="backup-restore-box">
+          <label for="backup-file" class="field-label">Yedekten geri yükle</label>
+          <input id="backup-file" type="file" accept="application/json,.json" />
+          <p id="backup-preview" class="hint"></p>
+          <div class="form-actions">
+            <button id="backup-restore" type="button" class="danger" hidden>Geri yükle</button>
+          </div>
+        </div>
+        <p id="backup-feedback" class="feedback" aria-live="polite" hidden></p>
+        <p class="hint">Geri yükleme tamamlandığında eklenti ayarları uygulamak için yeniden başlatılır.</p>
+      </div>
     </section>
-    <section id="tab-tools" class="section" aria-label="Sekme araçları">
-      <div class="section-heading"><h2>Bu sekme</h2></div>
-      <div id="tab-labels-controls"><label for="tab-label">Etiket</label><input id="tab-label" list="tab-label-options" maxlength="100" placeholder="Etiket seç veya yaz"><datalist id="tab-label-options"><option value="Önemli"><option value="Sonra Bak"><option value="Araştırma"></datalist><button id="tab-label-save" type="button">Etiketi kaydet</button></div>
-      <div id="tab-notes-controls"><label for="tab-note">Bu sekmeye not</label><textarea id="tab-note" maxlength="1000" rows="3"></textarea><button id="tab-note-save" type="button">Notu kaydet</button><label><input id="tab-note-transfer" type="checkbox"> Sekme kapanınca SlapMemo'ya aktar</label></div>
-      <div id="title-cleaner-controls"><label for="title-rule">Bu site için başlıktan kaldırılacak metin</label><textarea id="title-rule" rows="3" placeholder="Her satıra bir kural"></textarea><button id="title-rule-save" type="button">Kuralları kaydet</button></div>
-      <button id="open-switcher" type="button">Sekme değiştiriciyi aç</button><p id="tab-tools-feedback" class="feedback" aria-live="polite"></p>
-    </section>
-    <section id="shortcuts-panel" class="section" hidden aria-label="Kısayollar">
-      <div class="section-heading"><h2>Kısayollar</h2></div>
-      <ul id="shortcuts-list" class="memo-list" aria-label="LifeTools komutları"></ul>
-      <p id="shortcuts-warning" class="feedback" aria-live="polite" hidden></p>
-      <button id="shortcuts-open" type="button">Değiştir</button>
-      <p class="hint">Gerçek tuş atamalarını Chrome yönetir: chrome://extensions/shortcuts sayfasında her komuta bir tuş verebilirsin. Burada yalnızca mevcut atamalar gösterilir.</p>
-    </section>
-    <section id="site-toolbar-panel" class="section" hidden aria-label="Site Araç Çubuğu">
-      <div class="section-heading"><h2>Site Araç Çubuğu</h2></div>
-      <form id="toolbar-site-form"><div class="input-row"><input id="toolbar-site" placeholder="ornek.com" aria-label="Araç çubuğu gösterilecek site" required /><button type="submit">Site ekle</button></div></form>
-      <ul id="toolbar-sites" aria-label="Araç çubuğu siteleri"></ul>
-      <p id="toolbar-feedback" class="feedback" aria-live="polite"></p>
-      <p class="hint">Site izninden sonra o sitede küçük, sürüklenebilir bir LT düğmesi çıkar; hiçbir eylem kendiliğinden çalışmaz.</p>
-    </section>
-    <section id="pip-panel" class="section" hidden><h2>Resim içinde resim</h2><button id="pip-toggle" type="button">Resim içinde resim</button><p id="pip-feedback" class="feedback" aria-live="polite"></p></section>
-    <section id="theme-section" class="section"><h2>Görünüm</h2><label for="theme-select">Tema</label><select id="theme-select"><option value="system">Sistem</option><option value="light">Açık</option><option value="dark">Koyu</option></select></section>
-    <section id="storage-section" class="section" aria-label="Depolama">
-      <div class="section-heading"><h2>Depolama</h2></div>
-      <p id="storage-status" class="hint">Kontrol ediliyor…</p>
-      <button id="storage-move" type="button">Verileri masaüstüne taşı</button>
-      <button id="storage-back" type="button" hidden>Tarayıcı depolamasına geri dön</button>
-      <label id="storage-copyback-label" hidden><input id="storage-copyback" type="checkbox"> Masaüstündeki verileri tarayıcıya da kopyala (tarayıcıdaki mevcut veriler değiştirilir)</label>
-      <p id="storage-feedback" class="feedback" aria-live="polite"></p>
-      <p class="hint">Önce masaüstü uygulamasında Ayarlar → "Chrome eklentisini bağla" adımını yap. Taşıma tarayıcıdaki verileri silmez.</p>
-    </section>
-    <section id="backup-section" class="section" aria-label="Yedek">
-      <div class="section-heading"><h2>Yedek</h2></div>
-      <button id="backup-download" type="button">Yedeği indir</button>
-      <label for="backup-file">Yedekten geri yükle</label><input id="backup-file" type="file" accept="application/json,.json" />
-      <p id="backup-preview" class="hint"></p><button id="backup-restore" type="button" hidden>Evet, geri yükle</button>
-      <p id="backup-feedback" class="feedback" aria-live="polite"></p>
-      <p class="hint">Geri yükleme tamamlandığında eklenti ayarları uygulamak için yeniden başlatılır.</p>
-    </section>
-    <footer id="db-footer">
-      <span id="db-status" class="db-status">Veritabanı durumu: kontrol ediliyor…</span>
-      <span>Veriler yalnızca bu tarayıcıda saklanır.</span>
-    </footer>
   </main>
   <script src="panel.js" type="module"></script>
 </body>
