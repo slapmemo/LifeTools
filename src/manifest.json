@@ -5,10 +5,20 @@
   "version": "0.1.0",
   "description": "Günlük küçük araçlar: site engelleyici ve daha fazlası. Veriler yalnızca bu tarayıcıda.",
   "minimum_chrome_version": "116",
-  "permissions": ["storage", "clipboardWrite", "webNavigation", "offscreen", "contextMenus", "activeTab", "scripting"],
+  "permissions": [
+    "storage",
+    "clipboardWrite",
+    "webNavigation",
+    "offscreen",
+    "contextMenus",
+    "activeTab",
+    "scripting"
+  ],
   "commands": {
     "save-selection": {
-      "suggested_key": { "default": "Alt+Shift+S" },
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
       "description": "Seçili metni SlapMemo'ya kaydet"
     }
   },
@@ -38,5 +48,9 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ]
 }

@@ -25,6 +25,10 @@ Kayıt sonrası eklenti simgesinde kısa süre `✓` (kaydedildi), `=` (zaten ka
 Sağ tık menüsünden bağlantının veya sayfanın temiz linkini kopyala.
 Popup'ta etkin sayfanın ya da yapıştırdığın linkin temiz sürümünü gör ve kopyala.
 
+## Akıllı Yanıtlar
+
+Popup üzerinden `/iade` veya `;adres` gibi tetikleyicilerle Şablon ekleyebilir, arayabilir ve düzenleyebilirsin. Düzenlenebilir bir alanda sağ tık → **Şablon ekle** ile metni ekle. Yazarken genişletme için siteyi popup'ta ekleyip istenen site iznini ver; yeni açılan sayfada tetikleyicinin ardından Space veya Tab kullan. Metin yalnızca eklenir, gönderilmez.
+
 ## Kurulum ve derleme
 
 ```

@@ -102,6 +102,22 @@
       <p id="cleaner-feedback" class="feedback" aria-live="polite"></p>
     </section>
 
+    <section id="smart-replies-panel" class="section" hidden>
+      <div class="section-heading"><h2>Akıllı Yanıtlar</h2></div>
+      <form id="snippet-form">
+        <label for="snippet-trigger">Tetikleyici</label><input id="snippet-trigger" placeholder="/iade veya ;adres" required />
+        <label for="snippet-title">Başlık</label><input id="snippet-title" required />
+        <label for="snippet-body">Metin</label><textarea id="snippet-body" rows="3" required></textarea>
+        <button type="submit">Kaydet</button><button id="snippet-cancel" type="button">Vazgeç</button>
+      </form>
+      <p id="snippet-feedback" class="feedback" aria-live="polite"></p>
+      <input id="snippet-search" type="search" placeholder="Şablonlarda ara…" aria-label="Şablonlarda ara" />
+      <ul id="snippet-list" class="memo-list"></ul>
+      <h3>Yazarken genişletme siteleri</h3>
+      <form id="snippet-site-form"><input id="snippet-site" placeholder="example.com" aria-label="Site adresi" required /><button type="submit">Site ekle</button></form>
+      <ul id="snippet-sites"></ul>
+      <p class="hint">Site izninden sonra yeni açılan sayfalarda Space veya Tab ile genişletilir.</p>
+    </section>
     <footer>
       <span id="db-status" class="db-status">Veritabanı durumu: kontrol ediliyor…</span>
       <span>Veriler yalnızca bu tarayıcıda saklanır.</span>

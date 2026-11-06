@@ -16,8 +16,8 @@ async function setup() {
 test('gerçek SQLite üzerinde migrasyonlar sürüm 2\'ye ulaşır', async () => {
   const ex = await createMemoryExecutor();
   const result = await runMigrations(ex);
-  assert.deepEqual(result.applied, [1, 2]);
-  assert.equal(await readVersion(ex), 2);
+  assert.deepEqual(result.applied, [1, 2, 3]);
+  assert.equal(await readVersion(ex), 3);
 });
 
 test('buildFtsQuery özel karakterleri ayıklar ve ı\'yı i yapar', () => {

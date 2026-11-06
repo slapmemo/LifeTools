@@ -1,3 +1,5 @@
+import { SMART_REPLIES_ID } from '../modules/smart-replies/background';
+import { initSmartRepliesPanel } from '../modules/smart-replies/panel';
 import { LINK_CLEANER_ID } from '../modules/link-cleaner/background';
 import { initLinkCleanerPanel } from '../modules/link-cleaner/panel';
 import { isModuleEnabled, MODULE_FLAGS_KEY, setModuleEnabled } from '../core/module-state';
@@ -15,6 +17,8 @@ const dbStatus = document.querySelector('#db-status') as HTMLElement;
 const memoSection = document.querySelector('#slapmemo-panel') as HTMLElement;
 
 const cleanerSection = document.querySelector('#link-cleaner-panel') as HTMLElement;
+const smartSection = document.querySelector('#smart-replies-panel') as HTMLElement;
+const smart = initSmartRepliesPanel();
 const cleaner = initLinkCleanerPanel();
 const blocker = initBlockerPanel();
 const memo = initSlapMemoPanel();
@@ -55,6 +59,8 @@ async function renderModules(): Promise<void> {
 
 async function refresh(): Promise<void> {
   await renderModules();
+  smartSection.hidden = !(await isModuleEnabled(SMART_REPLIES_ID));
+  if (!smartSection.hidden) await smart.render();
   blockerSection.hidden = !(await isModuleEnabled(SITE_BLOCKER_ID));
   if (!blockerSection.hidden) await blocker.render();
   memoSection.hidden = !(await isModuleEnabled(SLAPMEMO_ID));

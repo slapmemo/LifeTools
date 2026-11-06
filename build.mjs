@@ -10,6 +10,7 @@ mkdirSync(dist, { recursive: true });
 await build({
   entryPoints: {
     background: 'src/background.ts',
+    'smart-replies-content': 'src/modules/smart-replies/content.ts',
     popup: 'src/popup/popup.ts',
     offscreen: 'src/db/offscreen.ts',
     'db-worker': 'src/db/worker.ts'
