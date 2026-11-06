@@ -1,0 +1,38 @@
+:root { color-scheme: dark; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #1b1d23; color: #e6e8ee; }
+button, input, textarea { font: inherit; color: inherit; background: #2a2d36; border: 1px solid #3a3e4a; border-radius: 6px; padding: 6px 10px; }
+button { cursor: pointer; }
+button:hover { background: #343846; }
+button.danger { border-color: #7a3b3b; }
+button.small { padding: 2px 8px; font-size: 12px; }
+input[type='checkbox'] { padding: 0; }
+.muted { color: #8b90a0; font-size: 12px; }
+.grow { flex: 1; min-width: 0; }
+.shell { display: flex; height: 100vh; }
+.sidebar { width: 170px; background: #14161b; padding: 12px 8px; display: flex; flex-direction: column; gap: 4px; }
+.brand { font-weight: 600; padding: 4px 8px 12px; }
+.navbtn { text-align: left; background: transparent; border-color: transparent; }
+.navbtn.active { background: #2f3a57; }
+.content { flex: 1; overflow: auto; padding: 16px 20px; }
+h2 { margin: 0 0 12px; font-size: 18px; }
+h3 { margin: 16px 0 8px; font-size: 14px; }
+.toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.form-row { margin: 8px 0; }
+.banner { background: #3b3320; border: 1px solid #6a5a2a; border-radius: 6px; padding: 8px 10px; margin: 8px 0; display: none; }
+section > p.banner { display: block; }
+.list { display: flex; flex-direction: column; gap: 6px; }
+.row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; background: #23262e; border-radius: 6px; cursor: pointer; }
+.row:hover, .row.selected { background: #2f3444; }
+.row.pinned { border-left: 3px solid #f0b429; }
+.txt { white-space: pre-wrap; word-break: break-word; max-height: 4.5em; overflow: hidden; flex: 1; }
+.meta { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.empty { color: #8b90a0; padding: 16px 0; }
+.status { min-height: 18px; }
+table { border-collapse: collapse; margin-top: 12px; }
+th, td { padding: 4px 14px 4px 0; text-align: left; }
+.picker { display: flex; flex-direction: column; height: 100vh; padding: 8px; gap: 8px; border: 1px solid #3a3e4a; }
+.picker-list { overflow: auto; flex: 1; }
+body[data-view='toast'] { background: #14161b; overflow: hidden; }
+.toast { padding: 14px 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body[data-view='picker'] { overflow: hidden; }
