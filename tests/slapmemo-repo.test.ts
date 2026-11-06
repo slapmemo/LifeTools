@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { readVersion, runMigrations } from '../src/db/migrations';
+import { MIGRATIONS, readVersion, runMigrations } from '../src/db/migrations';
 import type { NoteCategory } from '../src/modules/slapmemo/categories';
 import { buildFtsQuery, createNotesRepo } from '../src/modules/slapmemo/repo';
 import { createMemoryExecutor } from './sqlite-memory';
@@ -16,8 +16,8 @@ async function setup() {
 test('gerçek SQLite üzerinde migrasyonlar sürüm 6\'e ulaşır', async () => {
   const ex = await createMemoryExecutor();
   const result = await runMigrations(ex);
-  assert.deepEqual(result.applied, [1, 2, 3, 4, 5, 6]);
-  assert.equal(await readVersion(ex), 6);
+  assert.deepEqual(result.applied, MIGRATIONS.map(m => m.version));
+  assert.equal(await readVersion(ex), Math.max(...MIGRATIONS.map(m => m.version)));
 });
 
 test('buildFtsQuery özel karakterleri ayıklar ve ı\'yı i yapar', () => {

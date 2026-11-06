@@ -17,7 +17,8 @@
     "activeTab",
     "scripting",
     "tabGroups",
-    "notifications"
+    "notifications",
+    "favicon"
   ],
   "commands": {
     "save-selection": {
@@ -25,6 +26,12 @@
         "default": "Alt+Shift+S"
       },
       "description": "Seçili metni SlapMemo'ya kaydet"
+    },
+    "open-switcher": {
+      "suggested_key": {
+        "default": "Alt+Shift+Space"
+      },
+      "description": "Görsel sekme değiştiriciyi aç"
     }
   },
   "host_permissions": [

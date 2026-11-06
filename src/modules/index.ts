@@ -1,3 +1,7 @@
+import { tabLabelsModule } from './tab-labels';
+import { tabNotesModule } from './tab-notes';
+import { tabSwitcherModule } from './tab-switcher';
+import { titleCleanerModule } from './title-cleaner';
 import { timeTrackerModule } from './time-tracker';
 import { quickTasksModule } from './quick-tasks';
 import { smartRepliesModule } from './smart-replies';
@@ -10,4 +14,4 @@ import { zombieTabsModule } from './zombie-tabs';
 import { pinnedGuardModule } from './pinned-guard';
 
 /** Tüm araçların kaydı. Yeni araç buraya eklenir. */
-export const modules: readonly LifeModule[] = [timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule];
+export const modules: readonly LifeModule[] = [timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule, tabLabelsModule, tabNotesModule, tabSwitcherModule, titleCleanerModule];

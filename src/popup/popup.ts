@@ -1,3 +1,4 @@
+import { initTabToolsPanel } from '../modules/tab-notes/panel';
 import { exportData, restoreData, validateBackup, type Backup } from '../core/backup';
 import { backupSettingKeys } from '../core/backup-settings';
 import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
@@ -22,6 +23,7 @@ import { initZombieTabsPanel } from '../modules/zombie-tabs/panel';
 import { PINNED_GUARD_ID } from '../modules/pinned-guard/background';
 import { initPinnedGuardPanel } from '../modules/pinned-guard/panel';
 
+const tabTools = initTabToolsPanel();
 const lifeBrowserSection = document.querySelector('#life-browser-panel') as HTMLElement;
 const lifeBrowser = initLifeBrowserPanel();
 const zombieSection = document.querySelector('#zombie-tabs-panel') as HTMLElement;
@@ -83,6 +85,7 @@ async function renderModules(): Promise<void> {
 
 async function refresh(): Promise<void> {
   await renderModules();
+  await tabTools.render();
   timeSection.hidden = !(await isModuleEnabled(TIME_TRACKER_ID));
   if (!timeSection.hidden) await timeTracker.render();
   tasksSection.hidden = !(await isModuleEnabled(QUICK_TASKS_ID));

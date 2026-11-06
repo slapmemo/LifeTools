@@ -74,3 +74,9 @@ npm run build
 npm test          # birim testleri (vitest)
 npm run typecheck # tür denetimi
 ```
+
+## Sekme araçları
+
+Görsel sekme değiştiriciyi popup'tan veya Alt+Shift+Space ile aç. Başlık, adres, etiket ve notlarda ara; yön tuşları ve Enter ile geç, Delete ile seçili sekmeyi kapat.
+
+Popup'tan sekmeye etiket veya kısa not ekle; sağ tık menüsünden hazır etiketleri seç. Adresin # bölümü yok sayılır. İstersen sekme kapanınca notu SlapMemo'ya aktar. Başlık temizleyicinin siteye özel kurallarını popup'ta her satıra bir metin olarak düzenle. Bu veriler ve ayarlar yerel yedeğe dahildir.

@@ -12,6 +12,7 @@ await build({
     background: 'src/background.ts',
     'smart-replies-content': 'src/modules/smart-replies/content.ts',
     popup: 'src/popup/popup.ts',
+    switcher: 'src/modules/tab-switcher/switcher.ts',
     offscreen: 'src/db/offscreen.ts',
     'db-worker': 'src/db/worker.ts'
   },
@@ -26,6 +27,8 @@ await build({
 });
 
 copyFileSync('src/manifest.json', join(dist, 'manifest.json'));
+copyFileSync('src/modules/tab-switcher/switcher.html', join(dist, 'switcher.html'));
+copyFileSync('src/modules/tab-switcher/switcher.css', join(dist, 'switcher.css'));
 copyFileSync('src/popup/popup.html', join(dist, 'popup.html'));
 copyFileSync('src/popup/popup.css', join(dist, 'popup.css'));
 copyFileSync('src/db/offscreen.html', join(dist, 'offscreen.html'));

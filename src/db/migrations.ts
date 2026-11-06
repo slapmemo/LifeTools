@@ -81,6 +81,10 @@ export const MIGRATIONS: readonly Migration[] = [
       group_title TEXT, group_color TEXT
     )`,
     'CREATE INDEX idx_session_tabs_session ON session_tabs(session_id, position)'
+  ] },
+  { version: 7, statements: [
+    'CREATE TABLE tab_labels (url TEXT PRIMARY KEY, label TEXT NOT NULL, updated_at INTEGER NOT NULL)',
+    'CREATE TABLE tab_notes (url TEXT PRIMARY KEY, note TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)'
   ] }
 ];
 
