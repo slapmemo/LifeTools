@@ -23,5 +23,8 @@ windows = { version = "=0.61.3", features = [
   "Win32_System_Threading",
   "Win32_System_Memory",
   "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_Devices_DeviceAndDriverInstallation",
+  "Win32_Devices_Properties",
+  "Win32_System_Power",
 ] }
 arboard = "=3.6.1"

@@ -13,6 +13,7 @@
     "windows": [
       { "label": "main", "title": "LifeTools", "url": "index.html", "width": 980, "height": 700, "minWidth": 720, "minHeight": 480, "visible": false },
       { "label": "picker", "title": "Pano geçmişi", "url": "index.html", "width": 420, "height": 360, "decorations": false, "alwaysOnTop": true, "skipTaskbar": true, "resizable": false, "visible": false },
+      { "label": "snippets", "title": "Şablonlar", "url": "index.html", "width": 440, "height": 320, "decorations": false, "alwaysOnTop": true, "skipTaskbar": true, "resizable": false, "visible": false },
       { "label": "toast", "title": "LifeTools bildirimi", "url": "index.html", "width": 320, "height": 52, "decorations": false, "alwaysOnTop": true, "skipTaskbar": true, "resizable": false, "focus": false, "shadow": false, "visible": false }
     ],
     "security": {

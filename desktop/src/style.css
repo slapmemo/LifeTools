@@ -35,4 +35,14 @@ th, td { padding: 4px 14px 4px 0; text-align: left; }
 .picker-list { overflow: auto; flex: 1; }
 body[data-view='toast'] { background: #14161b; overflow: hidden; }
 .toast { padding: 14px 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body[data-view='picker'] { overflow: hidden; }
+body[data-view='picker'], body[data-view='snippets'] { overflow: hidden; }
+select { font: inherit; color: inherit; background: #2a2d36; border: 1px solid #3a3e4a; border-radius: 6px; padding: 5px 8px; }
+textarea { width: 100%; resize: vertical; }
+.check { display: flex; gap: 6px; align-items: center; margin: 6px 0; }
+.form-box { background: #23262e; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+.ch-row { cursor: default; align-items: center; }
+.ch-name { width: 190px; margin: 0; flex-shrink: 0; }
+.batt { gap: 10px; }
+.bar { width: 120px; height: 8px; background: #14161b; border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; background: #4caf7d; }
+.bar-fill.low { background: #d9534f; }

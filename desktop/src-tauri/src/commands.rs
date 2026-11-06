@@ -99,6 +99,89 @@ pub fn picker_hide(app: AppHandle) {
 }
 
 #[tauri::command]
+pub fn snippet_list(state: St, query: String) -> Result<Vec<db::Snippet>, String> {
+    db::list_snippets(&state.db(), &query).map_err(err)
+}
+
+#[tauri::command]
+pub fn snippet_save(state: St, id: Option<i64>, trigger: String, title: String, body: String) -> Result<i64, String> {
+    db::save_snippet(&state.db(), id, &trigger, &title, &body)
+}
+
+#[tauri::command]
+pub fn snippet_delete(state: St, id: i64) -> Result<(), String> {
+    db::delete_snippet(&state.db(), id).map(|_| ()).map_err(err)
+}
+
+#[tauri::command]
+pub fn snippet_insert(app: AppHandle, state: St, id: i64) -> Result<(), String> {
+    match crate::paste::insert(&app, state.inner(), id) {
+        Ok(Some(note)) => {
+            crate::toast(&app, &note);
+            Ok(())
+        }
+        Ok(None) => Ok(()),
+        Err(e) => {
+            crate::toast(&app, &e);
+            Err(e)
+        }
+    }
+}
+
+#[tauri::command]
+pub fn snippet_picker_hide(app: AppHandle) {
+    if let Some(w) = app.get_webview_window("snippets") {
+        let _ = w.hide();
+    }
+}
+
+#[tauri::command]
+pub fn prefs_get(state: St) -> Result<db::Prefs, String> {
+    db::load_prefs(&state.db()).map_err(err)
+}
+
+#[tauri::command]
+pub fn prefs_set(state: St, prefs: db::Prefs) -> Result<(), String> {
+    db::save_prefs(&state.db(), &prefs).map_err(err)
+}
+
+#[tauri::command]
+pub fn battery_list(app: AppHandle) -> Vec<crate::battery::DeviceBattery> {
+    crate::refresh_batteries(&app)
+}
+
+#[tauri::command]
+pub fn ambient_preset_list(state: St) -> Result<Vec<db::AmbientPreset>, String> {
+    db::list_presets(&state.db()).map_err(err)
+}
+
+#[tauri::command]
+pub fn ambient_preset_save(state: St, name: String, config_json: String) -> Result<i64, String> {
+    db::save_preset(&state.db(), &name, &config_json)
+}
+
+#[tauri::command]
+pub fn ambient_preset_delete(state: St, id: i64) -> Result<(), String> {
+    db::delete_preset(&state.db(), id).map(|_| ()).map_err(err)
+}
+
+#[tauri::command]
+pub fn ambient_last_get(state: St) -> Result<Option<String>, String> {
+    db::get_setting(&state.db(), "ambient_last").map_err(err)
+}
+
+#[tauri::command]
+pub fn ambient_last_set(state: St, config_json: String) -> Result<(), String> {
+    let json = crate::ambient::sanitize_config(&config_json)?;
+    db::set_setting(&state.db(), "ambient_last", &json).map_err(err)
+}
+
+#[tauri::command]
+pub fn toast_show(app: AppHandle, message: String) {
+    crate::toast(&app, &message.chars().take(80).collect::<String>());
+}
+
+#[tauri::command]
 pub fn electricity_get(state: St) -> Result<Electricity, String> {
     let raw = db::get_setting(&state.db(), "electricity").map_err(err)?;
     Ok(raw.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default())

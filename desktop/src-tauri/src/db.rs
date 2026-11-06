@@ -33,6 +33,13 @@ pub const MIGRATIONS: &[Migration] = &[
         version: 3,
         statements: &["CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)"],
     },
+    Migration {
+        version: 4,
+        statements: &[
+            "CREATE TABLE snippets (id INTEGER PRIMARY KEY, trigger TEXT NOT NULL UNIQUE, title TEXT NOT NULL, body TEXT NOT NULL, use_count INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+            "CREATE TABLE ambient_presets (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, config_json TEXT NOT NULL, updated_at INTEGER NOT NULL)",
+        ],
+    },
 ];
 
 pub fn default_path() -> std::result::Result<PathBuf, String> {
@@ -91,6 +98,135 @@ pub fn migrate_with(db: &mut Connection, migrations: &[Migration]) -> Result<Vec
 
 pub fn migrate(db: &mut Connection) -> Result<Vec<i64>> {
     migrate_with(db, MIGRATIONS)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Snippet {
+    pub id: i64,
+    pub trigger: String,
+    pub title: String,
+    pub body: String,
+    pub use_count: i64,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+pub fn normalize_trigger(trigger: &str) -> std::result::Result<String, String> {
+    let mut chars = trigger.chars();
+    if !matches!(chars.next(), Some('/' | ';')) {
+        return Err("Tetikleyici / veya ; ile başlamalı.".into());
+    }
+    let suffix: Vec<char> = chars.collect();
+    if suffix.is_empty() || suffix.len() > 31 || !suffix.iter().all(|c|
+        c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | 'ç' | 'Ç' | 'ğ' | 'Ğ' | 'ı' | 'İ' | 'ö' | 'Ö' | 'ş' | 'Ş' | 'ü' | 'Ü')) {
+        return Err("Tetikleyici 1–31 harf, rakam, _ veya - içermeli.".into());
+    }
+    Ok(trigger.to_lowercase())
+}
+
+fn snippet_err(e: rusqlite::Error) -> String {
+    match &e {
+        rusqlite::Error::SqliteFailure(f, _) if f.code == rusqlite::ErrorCode::ConstraintViolation => {
+            "Bu tetikleyici zaten kullanılıyor.".into()
+        }
+        _ => e.to_string(),
+    }
+}
+
+pub fn save_snippet(db: &Connection, id: Option<i64>, trigger: &str, title: &str, body: &str) -> std::result::Result<i64, String> {
+    let trigger = normalize_trigger(trigger)?;
+    let title = title.trim();
+    if title.is_empty() || body.is_empty() { return Err("Başlık ve içerik gerekli.".into()); }
+    if title.chars().count() > 80 { return Err("Başlık en fazla 80 karakter olmalı.".into()); }
+    if body.chars().count() > MAX_TEXT_CHARS { return Err("İçerik en fazla 10 000 karakter olmalı.".into()); }
+    let now = now_secs();
+    if let Some(id) = id {
+        let n = db.execute("UPDATE snippets SET trigger=?1,title=?2,body=?3,updated_at=?4 WHERE id=?5", params![trigger,title,body,now,id]).map_err(snippet_err)?;
+        if n == 0 { return Err("Şablon bulunamadı.".into()); }
+        Ok(id)
+    } else {
+        db.execute("INSERT INTO snippets(trigger,title,body,created_at,updated_at) VALUES(?1,?2,?3,?4,?4)", params![trigger,title,body,now]).map_err(snippet_err)?;
+        Ok(db.last_insert_rowid())
+    }
+}
+
+pub fn get_snippet_body(db: &Connection, id: i64) -> Result<Option<String>> {
+    db.query_row("SELECT body FROM snippets WHERE id=?1", [id], |r| r.get(0)).optional()
+}
+
+pub fn bump_snippet_use(db: &Connection, id: i64) -> Result<()> {
+    db.execute("UPDATE snippets SET use_count=use_count+1 WHERE id=?1", [id])?;
+    Ok(())
+}
+
+// ---------- Ortam sesi ön ayarları ----------
+
+#[derive(Serialize, Debug, Clone)]
+pub struct AmbientPreset {
+    pub id: i64,
+    pub name: String,
+    pub config_json: String,
+    pub updated_at: i64,
+}
+
+pub fn list_presets(db: &Connection) -> Result<Vec<AmbientPreset>> {
+    let mut st = db.prepare("SELECT id,name,config_json,updated_at FROM ambient_presets ORDER BY name COLLATE NOCASE")?;
+    let rows = st.query_map([], |r| Ok(AmbientPreset { id: r.get(0)?, name: r.get(1)?, config_json: r.get(2)?, updated_at: r.get(3)? }))?;
+    rows.collect()
+}
+
+/// Aynı adlı ön ayar varsa üzerine yazar.
+pub fn save_preset(db: &Connection, name: &str, config_json: &str) -> std::result::Result<i64, String> {
+    let name = crate::ambient::validate_name(name)?;
+    let json = crate::ambient::sanitize_config(config_json)?;
+    db.execute(
+        "INSERT INTO ambient_presets(name,config_json,updated_at) VALUES(?1,?2,?3)
+         ON CONFLICT(name) DO UPDATE SET config_json=excluded.config_json, updated_at=excluded.updated_at",
+        params![name, json, now_secs()],
+    ).map_err(|e| e.to_string())?;
+    db.query_row("SELECT id FROM ambient_presets WHERE name=?1", [&name], |r| r.get(0)).map_err(|e| e.to_string())
+}
+
+pub fn delete_preset(db: &Connection, id: i64) -> Result<usize> {
+    db.execute("DELETE FROM ambient_presets WHERE id=?1", [id])
+}
+
+// ---------- Tercihler ----------
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct Prefs {
+    /// Pil %20 altına düşünce bildir.
+    pub battery_notify: bool,
+    /// Şablonu yalnızca panoya kopyala (Ctrl+V gönderme).
+    pub copy_only: bool,
+}
+
+impl Default for Prefs {
+    fn default() -> Self {
+        Prefs { battery_notify: true, copy_only: false }
+    }
+}
+
+pub fn load_prefs(db: &Connection) -> Result<Prefs> {
+    Ok(get_setting(db, "prefs")?.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default())
+}
+
+pub fn save_prefs(db: &Connection, p: &Prefs) -> Result<()> {
+    set_setting(db, "prefs", &serde_json::to_string(p).unwrap_or_default())
+}
+
+pub fn list_snippets(db: &Connection, query: &str) -> Result<Vec<Snippet>> {
+    let mut stmt = db.prepare("SELECT id,trigger,title,body,use_count,created_at,updated_at FROM snippets ORDER BY use_count DESC,trigger")?;
+    let rows = stmt.query_map([], |r| Ok(Snippet { id:r.get(0)?, trigger:r.get(1)?, title:r.get(2)?, body:r.get(3)?, use_count:r.get(4)?, created_at:r.get(5)?, updated_at:r.get(6)? }))?;
+    let q = fold(query.trim());
+    let mut out = Vec::new();
+    for row in rows { let item = row?; if q.is_empty() || [&item.trigger, &item.title, &item.body].iter().any(|s| fold(s).contains(&q)) { out.push(item); } }
+    Ok(out)
+}
+
+pub fn delete_snippet(db: &Connection, id: i64) -> Result<usize> {
+    db.execute("DELETE FROM snippets WHERE id=?1", [id])
 }
 
 // ---------- Ayarlar ----------
@@ -176,6 +312,7 @@ pub fn fold(s: &str) -> String {
     s.chars()
         .flat_map(|c| match c {
             'İ' | 'I' | 'ı' => vec!['i'],
+            'Ç' | 'ç' => vec!['c'], 'Ğ' | 'ğ' => vec!['g'], 'Ö' | 'ö' => vec!['o'], 'Ş' | 'ş' => vec!['s'], 'Ü' | 'ü' => vec!['u'],
             c => c.to_lowercase().collect::<Vec<_>>(),
         })
         .collect()
@@ -277,16 +414,75 @@ mod tests {
     }
 
     #[test]
+    fn snippets_crud_validation_and_search() {
+        let d = db();
+        assert_eq!(normalize_trigger("/İ").unwrap(), "/i\u{307}");
+        assert!(normalize_trigger("abc").is_err());
+        assert!(normalize_trigger("/").is_err());
+        assert!(normalize_trigger(&format!("/{}", "a".repeat(32))).is_err());
+        let id = save_snippet(&d, None, "/TEST", "İstanbul", "Merhaba").unwrap();
+        assert!(save_snippet(&d, None, "/test", "x", "y").is_err());
+        assert_eq!(list_snippets(&d, "istanbul").unwrap()[0].id, id);
+        save_snippet(&d, Some(id), ";yeni", "Yeni", "İçerik").unwrap();
+        assert_eq!(list_snippets(&d, "icerik").unwrap()[0].trigger, ";yeni");
+        assert_eq!(delete_snippet(&d, id).unwrap(), 1);
+        assert!(list_snippets(&d, "").unwrap().is_empty());
+    }
+
+    #[test]
+    fn snippet_use_count_lowercase_and_unique_message() {
+        let d = db();
+        let a = save_snippet(&d, None, "/ÇAY", "Çay", "Demli").unwrap();
+        let t: String = d.query_row("SELECT trigger FROM snippets WHERE id=?1", [a], |r| r.get(0)).unwrap();
+        assert_eq!(t, "/çay");
+        let b = save_snippet(&d, None, ";b", "B", "bb").unwrap();
+        assert_eq!(save_snippet(&d, Some(b), "/ÇAY", "B", "bb").unwrap_err(), "Bu tetikleyici zaten kullanılıyor.");
+        bump_snippet_use(&d, b).unwrap();
+        bump_snippet_use(&d, b).unwrap();
+        assert_eq!(list_snippets(&d, "").unwrap()[0].id, b); // çok kullanılan önce
+        assert_eq!(get_snippet_body(&d, a).unwrap().as_deref(), Some("Demli"));
+        assert_eq!(get_snippet_body(&d, 999).unwrap(), None);
+        assert_eq!(list_snippets(&d, "DEMLİ").unwrap().len(), 1);
+        assert!(save_snippet(&d, None, "/x", "  ", "y").is_err());
+        assert!(save_snippet(&d, Some(999), "/zz", "t", "y").is_err());
+    }
+
+    #[test]
+    fn ambient_presets_crud_and_validation() {
+        let d = db();
+        let id = save_preset(&d, " Yağmur ", r#"{"master":0.6,"channels":{"rain":{"on":true,"vol":0.9}}}"#).unwrap();
+        let again = save_preset(&d, "Yağmur", r#"{"master":0.3}"#).unwrap();
+        assert_eq!(id, again);
+        let l = list_presets(&d).unwrap();
+        assert_eq!(l.len(), 1);
+        assert_eq!(l[0].name, "Yağmur");
+        assert!(l[0].config_json.contains("0.3"));
+        assert!(save_preset(&d, "", "{}").is_err());
+        assert!(save_preset(&d, "x", r#"{"master":5}"#).is_err());
+        assert_eq!(list_presets(&d).unwrap().len(), 1);
+        assert_eq!(delete_preset(&d, id).unwrap(), 1);
+        assert!(list_presets(&d).unwrap().is_empty());
+    }
+
+    #[test]
+    fn prefs_default_and_roundtrip() {
+        let d = db();
+        assert_eq!(load_prefs(&d).unwrap(), Prefs { battery_notify: true, copy_only: false });
+        save_prefs(&d, &Prefs { battery_notify: false, copy_only: true }).unwrap();
+        assert_eq!(load_prefs(&d).unwrap(), Prefs { battery_notify: false, copy_only: true });
+    }
+
+    #[test]
     fn migrations_apply_and_are_idempotent() {
         let mut d = Connection::open_in_memory().unwrap();
         assert_eq!(read_version(&d).unwrap(), 0);
-        assert_eq!(migrate(&mut d).unwrap(), vec![1, 2, 3]);
-        assert_eq!(read_version(&d).unwrap(), 3);
+        assert_eq!(migrate(&mut d).unwrap(), vec![1, 2, 3, 4]);
+        assert_eq!(read_version(&d).unwrap(), 4);
         assert!(migrate(&mut d).unwrap().is_empty());
         let v: String = d
             .query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(v, "3");
+        assert_eq!(v, "4");
     }
 
     #[test]
@@ -297,7 +493,7 @@ mod tests {
             statements: &["CREATE TABLE x (a INTEGER)", "THIS IS NOT SQL"],
         }];
         assert!(migrate_with(&mut d, &bad).is_err());
-        assert_eq!(read_version(&d).unwrap(), 3);
+        assert_eq!(read_version(&d).unwrap(), 4);
         let n: i64 = d
             .query_row("SELECT COUNT(*) FROM sqlite_master WHERE name='x'", [], |r| r.get(0))
             .unwrap();

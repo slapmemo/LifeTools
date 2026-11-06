@@ -1,1 +1,1 @@
-{"identifier":"default","description":"LifeTools pencereleri","windows":["main","picker","toast"],"permissions":["core:default"]}
+{"identifier":"default","description":"LifeTools pencereleri","windows":["main","picker","snippets","toast"],"permissions":["core:default"]}

@@ -25,6 +25,11 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+export interface View {
+  el: HTMLElement;
+  refresh: () => Promise<void> | void;
+}
+
 export function fmtTime(sec: number): string {
   return new Date(sec * 1000).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' });
 }

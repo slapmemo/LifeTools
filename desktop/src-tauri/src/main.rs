@@ -1,9 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod ambient;
+mod battery;
+mod battery_win;
 mod clipboard;
 mod commands;
 mod db;
 mod electricity;
+mod paste;
 mod privacy;
 mod state;
 mod win;
@@ -24,6 +28,32 @@ fn picker_shortcut() -> Shortcut {
 
 fn topmost_shortcut() -> Shortcut {
     Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyT)
+}
+
+fn snippets_shortcut() -> Shortcut {
+    Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space)
+}
+
+/// Pilleri okur, tepsi ipucunu günceller ve (açıksa) eşik altı bildirimini verir.
+fn refresh_batteries(app: &AppHandle) -> Vec<battery::DeviceBattery> {
+    let readings = battery_win::read_all();
+    if let Some(t) = app.tray_by_id("main") {
+        let _ = t.set_tooltip(Some(battery::tooltip_text(&readings)));
+    }
+    let state = app.state::<Arc<AppState>>();
+    let notify = db::load_prefs(&state.db()).map(|p| p.battery_notify).unwrap_or(true);
+    if notify {
+        let low = state
+            .tracker
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .update(&readings, battery::LOW_THRESHOLD);
+        if !low.is_empty() {
+            let parts: Vec<String> = low.iter().map(|d| format!("{} %{}", d.name, d.percent)).collect();
+            toast(app, &format!("Pil azaldı: {}", parts.join(", ")));
+        }
+    }
+    readings
 }
 
 fn show_main(app: &AppHandle, section: Option<&str>) {
@@ -118,17 +148,34 @@ fn toggle_picker(app: &AppHandle) {
     let _ = app.emit_to("picker", "picker-open", ());
 }
 
+fn toggle_snippets(app: &AppHandle) {
+    let Some(w) = app.get_webview_window("snippets") else { return };
+    if w.is_visible().unwrap_or(false) {
+        let _ = w.hide();
+        return;
+    }
+    // Seçici açılmadan önceki pencere: ekleme sonrası odak buraya döner.
+    app.state::<Arc<AppState>>()
+        .snippet_target
+        .store(paste::foreground_raw(), Ordering::SeqCst);
+    place_near_cursor(&w);
+    let _ = w.show();
+    let _ = w.set_focus();
+    let _ = app.emit_to("snippets", "snippets-open", ());
+}
+
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "LifeTools'u aç", true, None::<&str>)?;
     let clip = MenuItem::with_id(app, "clipboard", "Pano geçmişi", true, None::<&str>)?;
     let top = MenuItem::with_id(app, "topmost", "Etkin pencereyi üstte tut", true, None::<&str>)?;
+    let ambient = MenuItem::with_id(app, "ambient", "Ortam sesi: Oynat/Durdur", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Ayarlar", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Çıkış", true, None::<&str>)?;
-    let items: [&dyn IsMenuItem<tauri::Wry>; 6] = [&open, &clip, &top, &settings, &sep, &quit];
+    let items: [&dyn IsMenuItem<tauri::Wry>; 7] = [&open, &clip, &top, &ambient, &settings, &sep, &quit];
     let menu = Menu::with_items(app, &items)?;
 
-    let mut builder = TrayIconBuilder::new()
+    let mut builder = TrayIconBuilder::with_id("main")
         .tooltip("LifeTools")
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -136,6 +183,10 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
             "open" => show_main(app, None),
             "clipboard" => show_main(app, Some("clipboard")),
             "settings" => show_main(app, Some("settings")),
+            // Ses ana pencerenin (gizli kalsa da çalışan) web görünümünde üretilir.
+            "ambient" => {
+                let _ = app.emit_to("main", "ambient-toggle", ());
+            }
             "topmost" => {
                 // Menü kapandıktan sonra ön plan penceresi önceki pencereye döner.
                 let app = app.clone();
@@ -174,6 +225,7 @@ fn run_maintenance(state: &AppState) {
 fn main() {
     let picker_sc = picker_shortcut();
     let topmost_sc = topmost_shortcut();
+    let snippets_sc = snippets_shortcut();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -190,6 +242,8 @@ fn main() {
                         toggle_picker(app);
                     } else if shortcut == &topmost_sc {
                         toggle_topmost(app);
+                    } else if shortcut == &snippets_sc {
+                        toggle_snippets(app);
                     }
                 })
                 .build(),
@@ -199,7 +253,7 @@ fn main() {
                 api.prevent_close();
                 let _ = window.hide();
             }
-            WindowEvent::Focused(false) if window.label() == "picker" => {
+            WindowEvent::Focused(false) if matches!(window.label(), "picker" | "snippets") => {
                 let _ = window.hide();
             }
             _ => {}
@@ -221,6 +275,20 @@ fn main() {
             commands::electricity_get,
             commands::electricity_save,
             commands::electricity_estimate,
+            commands::snippet_list,
+            commands::snippet_save,
+            commands::snippet_delete,
+            commands::snippet_insert,
+            commands::snippet_picker_hide,
+            commands::prefs_get,
+            commands::prefs_set,
+            commands::battery_list,
+            commands::ambient_preset_list,
+            commands::ambient_preset_save,
+            commands::ambient_preset_delete,
+            commands::ambient_last_get,
+            commands::ambient_last_set,
+            commands::toast_show,
         ])
         .setup(|app| {
             let path = db::default_path()?;
@@ -231,13 +299,19 @@ fn main() {
 
             build_tray(app)?;
 
-            for sc in [picker_shortcut(), topmost_shortcut()] {
+            for sc in [picker_shortcut(), topmost_shortcut(), snippets_shortcut()] {
                 if let Err(e) = app.global_shortcut().register(sc) {
                     eprintln!("Kısayol kaydedilemedi ({sc:?}): {e}");
                 }
             }
 
             clipboard::spawn_listener(app.handle().clone(), state.clone());
+
+            let handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                refresh_batteries(&handle);
+                std::thread::sleep(Duration::from_secs(300));
+            });
 
             let st = state.clone();
             std::thread::spawn(move || loop {

@@ -149,6 +149,9 @@ fn handle_update(app: &AppHandle, state: &Arc<AppState>, hwnd: HWND) {
             }
         }
     }
+    if state.is_programmatic(&text) {
+        return;
+    }
     let inserted = db::insert_clip(&state.db(), &text, db::now_secs(), settings.max_items).unwrap_or(false);
     if inserted {
         let _ = app.emit("clipboard-changed", ());

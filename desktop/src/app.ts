@@ -1,15 +1,17 @@
 import { listen } from '@tauri-apps/api/event';
 import { api, errText, type Electricity, type Estimate, type PinnedWindow } from './api';
-import { debounce, fmtTime, h, parseNum } from './dom';
+import { debounce, fmtTime, h, parseNum, type View } from './dom';
+import { ambientView, toggleFromTray } from './ambient_view';
+import { batteriesView } from './batteries';
+import { snippetsView } from './snippets';
 
-type SectionId = 'clipboard' | 'windows' | 'electricity' | 'settings';
-interface View {
-  el: HTMLElement;
-  refresh: () => Promise<void> | void;
-}
+type SectionId = 'clipboard' | 'snippets' | 'batteries' | 'ambient' | 'windows' | 'electricity' | 'settings';
 
 const SECTIONS: [SectionId, string][] = [
   ['clipboard', 'Pano'],
+  ['snippets', 'Şablonlar'],
+  ['batteries', 'Piller'],
+  ['ambient', 'Ortam sesi'],
   ['windows', 'Pencereler'],
   ['electricity', 'Elektrik'],
   ['settings', 'Ayarlar']
@@ -18,6 +20,9 @@ const SECTIONS: [SectionId, string][] = [
 export function mountMain(root: HTMLElement): void {
   const views: Record<SectionId, View> = {
     clipboard: clipboardView(),
+    snippets: snippetsView(),
+    batteries: batteriesView(),
+    ambient: ambientView(),
     windows: windowsView(),
     electricity: electricityView(),
     settings: settingsView()
@@ -45,6 +50,7 @@ export function mountMain(root: HTMLElement): void {
   void listen<string>('navigate', (e) => {
     if (SECTIONS.some(([id]) => id === e.payload)) show(e.payload as SectionId);
   });
+  void listen('ambient-toggle', () => void toggleFromTray());
   void listen('clipboard-changed', () => {
     if (current === 'clipboard') void views.clipboard.refresh();
   });
@@ -356,6 +362,8 @@ function electricityView(): View {
 
 function settingsView(): View {
   const autostart = h('input', { type: 'checkbox' });
+  const copyOnly = h('input', { type: 'checkbox' });
+  const battNotify = h('input', { type: 'checkbox' });
   const expire = h('input', { type: 'number', min: '1', max: '365' });
   const max = h('input', { type: 'number', min: '10', max: '5000' });
   const excl = h('textarea', { rows: 6, class: 'grow' });
@@ -367,6 +375,9 @@ function settingsView(): View {
     {},
     h('h2', {}, 'Ayarlar'),
     h('label', { class: 'check' }, autostart, ' Windows açılışında başlat'),
+    h('h3', {}, 'Şablonlar ve piller'),
+    h('label', { class: 'check' }, copyOnly, ' Şablonu yalnızca panoya kopyala (otomatik yapıştırma yok)'),
+    h('label', { class: 'check' }, battNotify, ' Pil %20 altına düşünce bildir'),
     h('h3', {}, 'Pano geçmişi'),
     h('div', { class: 'form-row' }, h('label', {}, 'Sabitlenmemiş kayıtlar şu kadar gün sonra silinir: ', expire)),
     h('div', { class: 'form-row' }, h('label', {}, 'En fazla kayıt sayısı (sabitlenenler hariç): ', max)),
@@ -374,8 +385,20 @@ function settingsView(): View {
     excl,
     h('div', { class: 'toolbar' }, saveBtn, msg),
     h('h3', {}, 'Kısayollar'),
-    h('ul', {}, h('li', {}, 'Ctrl+Shift+V — pano seçici'), h('li', {}, 'Ctrl+Alt+T — etkin pencereyi üstte tut / bırak'))
+    h('ul', {}, h('li', {}, 'Ctrl+Shift+V — pano seçici'), h('li', {}, 'Ctrl+Alt+T — etkin pencereyi üstte tut / bırak'),
+      h('li', {}, 'Ctrl+Shift+Space — şablon seçici')
+    )
   );
+
+  const savePrefs = async () => {
+    try {
+      await api.prefsSet({ copy_only: copyOnly.checked, battery_notify: battNotify.checked });
+    } catch (e) {
+      msg.textContent = errText(e);
+    }
+  };
+  copyOnly.addEventListener('change', () => void savePrefs());
+  battNotify.addEventListener('change', () => void savePrefs());
 
   autostart.addEventListener('change', async () => {
     try {
@@ -412,6 +435,9 @@ function settingsView(): View {
       msg.textContent = '';
       const s = await api.settingsGet();
       fill(s.expire_days, s.max_items, s.exclusions);
+      const p = await api.prefsGet();
+      copyOnly.checked = p.copy_only;
+      battNotify.checked = p.battery_notify;
       try {
         autostart.checked = await api.autostartGet();
       } catch {
