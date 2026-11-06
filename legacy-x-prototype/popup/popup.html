@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>X Sekme Koruması</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">X<span>×</span></div>
+        <div>
+          <h1>Sekme Koruması</h1>
+          <p>X / Twitter profil engelleyici</p>
+        </div>
+      </div>
+      <div class="version">v1.0</div>
+    </header>
+
+    <section class="control-card" aria-label="Koruma durumu">
+      <div class="control-text">
+        <span id="state-pill" class="status-pill active"><span class="status-dot"></span> Aktif</span>
+        <h2 id="status-title">Koruma açık</h2>
+        <p id="status-description">Engellediğin profiller otomatik kapanır.</p>
+      </div>
+      <label class="switch" aria-label="Korumayı aç veya kapat">
+        <input id="enabled" type="checkbox" checked />
+        <span class="switch-track"></span>
+      </label>
+    </section>
+
+    <section class="section">
+      <div class="section-heading"><h2>Profil ekle</h2></div>
+      <form id="add-form" novalidate>
+        <label class="sr-only" for="handle-input">Engellenecek kullanıcı adı veya bağlantı</label>
+        <div class="input-row">
+          <div class="input-wrap">
+            <span class="at-mark" aria-hidden="true">@</span>
+            <input id="handle-input" type="text" spellcheck="false" autocomplete="off"
+              placeholder="kullaniciadi veya X bağlantısı" maxlength="250" />
+          </div>
+          <button id="add-button" type="submit">+ Ekle</button>
+        </div>
+      </form>
+      <p class="hint">@kullaniciadi veya x.com/kullaniciadi yazabilirsin.</p>
+      <p id="feedback" class="feedback" aria-live="polite"></p>
+    </section>
+
+    <section class="section blocked-section">
+      <div class="section-heading">
+        <h2>Engellenen profiller</h2>
+        <span id="count" class="count">0</span>
+      </div>
+      <div id="empty" class="empty-state">
+        <div class="empty-icon" aria-hidden="true">◎</div>
+        <strong>Liste henüz boş</strong>
+        <p>Yukarıdan bir profil ekleyerek başla.</p>
+      </div>
+      <ul id="handle-list" class="handle-list" aria-label="Engellenen profiller"></ul>
+    </section>
+
+    <footer>
+      <span class="lock" aria-hidden="true">●</span>
+      Veriler yalnızca bu tarayıcıda saklanır.
+    </footer>
+  </main>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
