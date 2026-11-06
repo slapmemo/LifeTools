@@ -1,0 +1,1 @@
+export async function applyTheme(): Promise<void> { const data = await chrome.storage.local.get({ui_theme:'system'}); const theme = data.ui_theme; if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme; else delete document.documentElement.dataset.theme; }

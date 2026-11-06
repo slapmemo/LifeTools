@@ -7,7 +7,7 @@ export const EXCLUDED_KEY = 'timeTrackerExcluded';
 const SESSION_KEY = 'timeTrackerState', ALARM = 'time-tracker:flush';
 const repo = createTimeTrackerRepo(backgroundDb);
 let queue = Promise.resolve();
-function schedule(action: () => Promise<void>): void { queue = queue.then(action).catch(e => console.debug('[Web S?re Takibi]', e)); }
+function schedule(action: () => Promise<void>): void { queue = queue.then(action).catch(e => console.debug('[Web Süre Takibi]', e)); }
 async function load(): Promise<TrackerState> { const data = await chrome.storage.session.get(SESSION_KEY); return (data[SESSION_KEY] as TrackerState | undefined) ?? initialState(); }
 async function apply(events: Event[]): Promise<void> {
   let state = await load(); const excluded = (await chrome.storage.local.get({ [EXCLUDED_KEY]: [] }))[EXCLUDED_KEY] as string[];

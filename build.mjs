@@ -14,6 +14,7 @@ await build({
     'x-video-ui': 'src/modules/x-video/x-video-ui.ts',
     'smart-replies-content': 'src/modules/smart-replies/content.ts',
     popup: 'src/popup/popup.ts',
+    panel: 'src/panel/panel.ts',
     'site-toolbar-content': 'src/modules/site-toolbar/content.ts',
     switcher: 'src/modules/tab-switcher/switcher.ts',
     'command-center': 'src/modules/command-center/command-center.ts',
@@ -38,6 +39,10 @@ copyFileSync('src/modules/tab-switcher/switcher.html', join(dist, 'switcher.html
 copyFileSync('src/modules/tab-switcher/switcher.css', join(dist, 'switcher.css'));
 copyFileSync('src/modules/command-center/command-center.html', join(dist, 'command-center.html'));
 copyFileSync('src/modules/command-center/command-center.css', join(dist, 'command-center.css'));
+copyFileSync('design/tokens.css', join(dist, 'tokens.css'));
+copyFileSync('design/components.css', join(dist, 'components.css'));
+copyFileSync('src/panel/panel.html', join(dist, 'panel.html'));
+copyFileSync('src/panel/panel.css', join(dist, 'panel.css'));
 copyFileSync('src/popup/popup.html', join(dist, 'popup.html'));
 copyFileSync('src/popup/popup.css', join(dist, 'popup.css'));
 copyFileSync('src/db/offscreen.html', join(dist, 'offscreen.html'));

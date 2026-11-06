@@ -1,3 +1,5 @@
+import { applyTheme } from '../../core/theme';
+void applyTheme();
 import { popupDb } from '../../db/client';
 import { isModuleEnabled } from '../../core/module-state';
 import { normalizeUrl } from '../life-browser/tabs';

@@ -33,9 +33,9 @@ Popup üzerinden `/iade` veya `;adres` gibi tetikleyicilerle Şablon ekleyebilir
 
 Popup'tan görev ve isteğe bağlı tarih ekle; açık görevleri tamamla, sil veya tamamlananları temizle. İstersen etkin sayfanın bağlantısını ekle. Sayfa, seçim veya bağlantı üzerinde sağ tık → **Görev olarak ekle** ile de kaydedebilirsin. Görevler yerel SQLite veritabanında saklanır.
 
-## Web S?re Takibi
+## Web Süre Takibi
 
-Odakl? Chrome penceresinin etkin sekmesinde, kullan?c? aktifken ge?irilen s?reyi bug?n veya son yedi g?n i?in g?sterir. Siteleri hari? tutabilir ve verileri silebilirsin. Yaln?zca alan ad? ve s?re yerel olarak saklan?r; ziyaret edilen sayfalar?n adresleri kaydedilmez ve a? iste?i yap?lmaz.
+Odaklı Chrome penceresinin etkin sekmesinde, kullanıcı aktifken geçirilen süreyi bugün veya son yedi gün için gösterir. Siteleri hariç tutabilir ve verileri silebilirsin. Yalnızca alan adı ve süre yerel olarak saklanır; ziyaret edilen sayfaların adresleri kaydedilmez ve ağ isteği yapılmaz.
 
 ## LifeBrowser
 
@@ -119,3 +119,7 @@ Popup'ta A–E yuvalarını düzenle ve kopyala. Seçimi sağ tıkla yuvaya kayd
 ## X Video İndirici
 
 X veya Twitter’da zaten izleyebildiğin herkese açık video ve GIF’leri İndir düğmesiyle indirebilirsin. Popup’ta kalite, tek tıkla indirme ve kaydet penceresi ayarlanabilir. Yalnızca progressive MP4 desteklenir; HLS (m3u8) birleştirme, DRM ve korumaları aşma desteklenmez. MP4 olmayan içerikte “Bu video indirilemiyor (yalnızca akış)” gösterilir. Yalnızca seçtiğin medya dosyası indirilir. X sayfa yapısını değiştirdiğinde düğme çalışmayabilir.
+
+## Arayüz (popup ve LifeTools Paneli)
+
+Popup (360 px) hızlı arama, tek kutudan not/görev ekleme ve "Bugün" özetini gösterir. Diğer tüm araçlar, ayarlar, tema (Sistem/Açık/Koyu), depolama ve yedek **LifeTools Paneli**'nde (`panel.html`, eklenti seçenekleri sayfası) kategorilere ayrılmıştır: `#notlar`, `#gorevler`, `#metin`, `#sekmeler`, `#odak`, `#medya`, `#ayarlar`. Tüm araçları kapalı olan kategori kenar çubuğundan kalkar. Ortak tasarım dosyaları `design/` altındadır (`tokens.css`, `components.css`, `icons.ts`; ikonlar Lucide, ISC).

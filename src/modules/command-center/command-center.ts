@@ -1,3 +1,5 @@
+import { applyTheme } from '../../core/theme';
+void applyTheme();
 import { popupDb } from '../../db/client';
 import { requestActions, requestRunAction, splitArg, type ActionInfo } from '../../core/actions';
 import { isModuleEnabled } from '../../core/module-state';

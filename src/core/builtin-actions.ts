@@ -25,7 +25,7 @@ const sessions = createSessionsRepo(backgroundDb);
 
 /** Popup'ı sekme olarak açar ve ilgili bölüme kaydırır (popup.ts hash'i okur). */
 async function openPopupSection(hash: string): Promise<void> {
-  await chrome.tabs.create({ url: chrome.runtime.getURL(`popup.html#${hash}`) });
+  await chrome.tabs.create({ url: chrome.runtime.getURL(`panel.html#${hash === 'zombie-tabs-panel' ? 'sekmeler' : hash === 'time-tracker-panel' ? 'odak' : 'backup-download'}`) });
 }
 
 function needTab(tab: chrome.tabs.Tab | undefined): chrome.tabs.Tab & { id: number } {
