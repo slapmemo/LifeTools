@@ -63,7 +63,14 @@ export const MIGRATIONS: readonly Migration[] = [
     id INTEGER PRIMARY KEY, trigger TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
     body TEXT NOT NULL, use_count INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
-  )`] }
+  )`] },
+  { version: 4, statements: [
+    `CREATE TABLE tasks (
+      id INTEGER PRIMARY KEY, title TEXT NOT NULL, note TEXT, url TEXT, due_date TEXT,
+      done_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    )`,
+    'CREATE INDEX idx_tasks_done_due ON tasks(done_at, due_date)'
+  ] }
 ];
 
 export const SCHEMA_VERSION_KEY = 'schema_version';

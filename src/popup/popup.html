@@ -118,6 +118,17 @@
       <ul id="snippet-sites"></ul>
       <p class="hint">Site izninden sonra yeni açılan sayfalarda Space veya Tab ile genişletilir.</p>
     </section>
+    <section id="quick-tasks-panel" class="section" hidden aria-label="Hızlı Görevler">
+      <div class="section-heading"><h2>Hızlı Görevler</h2><span id="task-count" class="count">0</span></div>
+      <form id="task-form">
+        <div class="input-row"><input id="task-title" placeholder="Görev ekle…" maxlength="300" aria-label="Görev başlığı" required /><button type="submit">Ekle</button></div>
+        <label for="task-date">Tarih</label> <input id="task-date" type="date" />
+        <label><input id="task-attach" type="checkbox" /> Bu sayfayı ekle</label>
+      </form>
+      <p id="task-feedback" class="feedback" aria-live="polite"></p>
+      <ul id="task-open" class="task-list" aria-label="Açık görevler"></ul>
+      <details><summary>Tamamlananlar</summary><button id="task-clear" type="button">Temizle</button><ul id="task-done" class="task-list" aria-label="Tamamlanan görevler"></ul></details>
+    </section>
     <footer>
       <span id="db-status" class="db-status">Veritabanı durumu: kontrol ediliyor…</span>
       <span>Veriler yalnızca bu tarayıcıda saklanır.</span>

@@ -29,6 +29,10 @@ Popup'ta etkin sayfanın ya da yapıştırdığın linkin temiz sürümünü gö
 
 Popup üzerinden `/iade` veya `;adres` gibi tetikleyicilerle Şablon ekleyebilir, arayabilir ve düzenleyebilirsin. Düzenlenebilir bir alanda sağ tık → **Şablon ekle** ile metni ekle. Yazarken genişletme için siteyi popup'ta ekleyip istenen site iznini ver; yeni açılan sayfada tetikleyicinin ardından Space veya Tab kullan. Metin yalnızca eklenir, gönderilmez.
 
+## Hızlı Görevler
+
+Popup'tan görev ve isteğe bağlı tarih ekle; açık görevleri tamamla, sil veya tamamlananları temizle. İstersen etkin sayfanın bağlantısını ekle. Sayfa, seçim veya bağlantı üzerinde sağ tık → **Görev olarak ekle** ile de kaydedebilirsin. Görevler yerel SQLite veritabanında saklanır.
+
 ## Kurulum ve derleme
 
 ```

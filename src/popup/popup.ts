@@ -1,3 +1,5 @@
+import { QUICK_TASKS_ID } from '../modules/quick-tasks/background';
+import { initQuickTasksPanel } from '../modules/quick-tasks/panel';
 import { SMART_REPLIES_ID } from '../modules/smart-replies/background';
 import { initSmartRepliesPanel } from '../modules/smart-replies/panel';
 import { LINK_CLEANER_ID } from '../modules/link-cleaner/background';
@@ -9,6 +11,9 @@ import { SITE_BLOCKER_ID } from '../modules/site-blocker/background';
 import { initBlockerPanel } from '../modules/site-blocker/panel';
 import { SLAPMEMO_ID } from '../modules/slapmemo/background';
 import { initSlapMemoPanel } from '../modules/slapmemo/panel';
+
+const tasksSection = document.querySelector('#quick-tasks-panel') as HTMLElement;
+const tasks = initQuickTasksPanel();
 
 const modulesList = document.querySelector('#modules-list') as HTMLElement;
 const blockerSection = document.querySelector('#blocker-panel') as HTMLElement;
@@ -59,6 +64,8 @@ async function renderModules(): Promise<void> {
 
 async function refresh(): Promise<void> {
   await renderModules();
+  tasksSection.hidden = !(await isModuleEnabled(QUICK_TASKS_ID));
+  if (!tasksSection.hidden) await tasks.render();
   smartSection.hidden = !(await isModuleEnabled(SMART_REPLIES_ID));
   if (!smartSection.hidden) await smart.render();
   blockerSection.hidden = !(await isModuleEnabled(SITE_BLOCKER_ID));

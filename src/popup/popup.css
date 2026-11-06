@@ -85,3 +85,9 @@ textarea, select { font: inherit; }
 .cleaner-label { display: block; margin: 14px 0 8px; font-weight: 650; }
 .cleaner-copy { margin-top: 8px; padding: 7px 12px; border: 0; border-radius: 8px; background: #f0f2f5; color: #11141a; font-weight: 700; }
 .cleaner-copy:disabled { opacity: .45; cursor: default; }
+
+.task-list { list-style: none; margin: 8px 0; padding: 0; }
+.task-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.task-title { flex: 1; overflow-wrap: anywhere; }
+.task-date { font-size: 12px; white-space: nowrap; }
+.task-date.overdue { color: #e05a5f; }
