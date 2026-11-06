@@ -13,11 +13,11 @@ async function setup() {
   return { ex, repo };
 }
 
-test('gerçek SQLite üzerinde migrasyonlar sürüm 2\'ye ulaşır', async () => {
+test('gerçek SQLite üzerinde migrasyonlar sürüm 5\'e ulaşır', async () => {
   const ex = await createMemoryExecutor();
   const result = await runMigrations(ex);
-  assert.deepEqual(result.applied, [1, 2, 3, 4]);
-  assert.equal(await readVersion(ex), 4);
+  assert.deepEqual(result.applied, [1, 2, 3, 4, 5]);
+  assert.equal(await readVersion(ex), 5);
 });
 
 test('buildFtsQuery özel karakterleri ayıklar ve ı\'yı i yapar', () => {

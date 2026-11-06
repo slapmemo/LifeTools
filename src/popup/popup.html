@@ -129,6 +129,13 @@
       <ul id="task-open" class="task-list" aria-label="Açık görevler"></ul>
       <details><summary>Tamamlananlar</summary><button id="task-clear" type="button">Temizle</button><ul id="task-done" class="task-list" aria-label="Tamamlanan görevler"></ul></details>
     </section>
+    <section id="time-tracker-panel" class="section" hidden aria-label="Web S?re Takibi">
+      <div class="section-heading"><h2>Web S?re Takibi ? <span id="time-heading">Bug?n</span></h2><button id="time-toggle" type="button">Son 7 g?n</button></div>
+      <p id="time-total"></p><ul id="time-list" class="time-list"></ul>
+      <h3>Hari? tutulan siteler</h3><form id="time-form"><div class="input-row"><input id="time-domain" placeholder="ornek.com" aria-label="Hari? tutulacak site" required /><button type="submit">Ekle</button></div></form>
+      <ul id="time-exclusions"></ul><p id="time-feedback" class="feedback" aria-live="polite"></p>
+      <button id="time-delete" type="button">T?m verileri sil</button>
+    </section>
     <footer>
       <span id="db-status" class="db-status">Veritabanı durumu: kontrol ediliyor…</span>
       <span>Veriler yalnızca bu tarayıcıda saklanır.</span>

@@ -33,6 +33,10 @@ Popup üzerinden `/iade` veya `;adres` gibi tetikleyicilerle Şablon ekleyebilir
 
 Popup'tan görev ve isteğe bağlı tarih ekle; açık görevleri tamamla, sil veya tamamlananları temizle. İstersen etkin sayfanın bağlantısını ekle. Sayfa, seçim veya bağlantı üzerinde sağ tık → **Görev olarak ekle** ile de kaydedebilirsin. Görevler yerel SQLite veritabanında saklanır.
 
+## Web S?re Takibi
+
+Odakl? Chrome penceresinin etkin sekmesinde, kullan?c? aktifken ge?irilen s?reyi bug?n veya son yedi g?n i?in g?sterir. Siteleri hari? tutabilir ve verileri silebilirsin. Yaln?zca alan ad? ve s?re yerel olarak saklan?r; ziyaret edilen sayfalar?n adresleri kaydedilmez ve a? iste?i yap?lmaz.
+
 ## Kurulum ve derleme
 
 ```

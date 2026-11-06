@@ -6,6 +6,9 @@
   "description": "Günlük küçük araçlar: site engelleyici ve daha fazlası. Veriler yalnızca bu tarayıcıda.",
   "minimum_chrome_version": "116",
   "permissions": [
+    "tabs",
+    "idle",
+    "alarms",
     "storage",
     "clipboardWrite",
     "webNavigation",

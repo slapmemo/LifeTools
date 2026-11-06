@@ -1,3 +1,5 @@
+import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
+import { initTimeTrackerPanel } from '../modules/time-tracker/panel';
 import { QUICK_TASKS_ID } from '../modules/quick-tasks/background';
 import { initQuickTasksPanel } from '../modules/quick-tasks/panel';
 import { SMART_REPLIES_ID } from '../modules/smart-replies/background';
@@ -12,6 +14,8 @@ import { initBlockerPanel } from '../modules/site-blocker/panel';
 import { SLAPMEMO_ID } from '../modules/slapmemo/background';
 import { initSlapMemoPanel } from '../modules/slapmemo/panel';
 
+const timeSection = document.querySelector('#time-tracker-panel') as HTMLElement;
+const timeTracker = initTimeTrackerPanel();
 const tasksSection = document.querySelector('#quick-tasks-panel') as HTMLElement;
 const tasks = initQuickTasksPanel();
 
@@ -64,6 +68,8 @@ async function renderModules(): Promise<void> {
 
 async function refresh(): Promise<void> {
   await renderModules();
+  timeSection.hidden = !(await isModuleEnabled(TIME_TRACKER_ID));
+  if (!timeSection.hidden) await timeTracker.render();
   tasksSection.hidden = !(await isModuleEnabled(QUICK_TASKS_ID));
   if (!tasksSection.hidden) await tasks.render();
   smartSection.hidden = !(await isModuleEnabled(SMART_REPLIES_ID));

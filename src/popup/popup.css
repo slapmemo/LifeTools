@@ -91,3 +91,8 @@ textarea, select { font: inherit; }
 .task-title { flex: 1; overflow-wrap: anywhere; }
 .task-date { font-size: 12px; white-space: nowrap; }
 .task-date.overdue { color: #e05a5f; }
+
+.time-list { list-style: none; padding: 0; }
+.time-list li { margin: 8px 0; }
+.time-bar { height: 5px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+.time-bar div { height: 100%; background: #6366f1; }
