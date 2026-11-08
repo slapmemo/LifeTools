@@ -7,13 +7,27 @@ export interface TabInput { id?: number; url?: string; pendingUrl?: string; titl
 export const MAX_WORKSPACES = 30;
 export const MAX_TABS = 300;
 export const BADGE_COLORS: Record<GroupColor, string> = { grey: '#5f6368', blue: '#1a73e8', red: '#d93025', yellow: '#f9ab00', green: '#188038', pink: '#d01884', purple: '#a142f4', cyan: '#007b83', orange: '#e8710a' };
+export function tabUrl(t: TabInput): string { return t.url === 'about:blank' ? t.pendingUrl || t.url : t.url || t.pendingUrl || ''; }
 export function workspaceTabs<T extends TabInput>(tabs: readonly T[], base: string): T[] {
-  return tabs.filter(t => { const url = t.url || t.pendingUrl || ''; return !t.pinned && !isInternalTabUrl(url, base) && /^(https?:|file:|chrome:\/\/newtab\/?(?:[?#].*)?$)/i.test(url); }).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+  return tabs.filter(t => { const url = tabUrl(t); return !t.pinned && !isInternalTabUrl(url, base) && /^(https?:|file:|chrome:\/\/newtab\/?(?:[?#].*)?$)/i.test(url); }).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 }
 export function snapshot(tabs: readonly TabInput[], base: string): Pick<Workspace, 'tabs' | 'activeIndex'> {
-  const selected = workspaceTabs(tabs, base).slice(0, MAX_TABS);
-  return { tabs: selected.map(t => ({ url: (t.url || t.pendingUrl)!, title: t.title || '', ...(t.favIconUrl ? { favIconUrl: t.favIconUrl } : {}) })), activeIndex: Math.max(0, selected.findIndex(t => t.active)) };
+  const selected = workspaceTabs(tabs, base);
+  if (selected.length > MAX_TABS) throw new Error('Bu pencerede çok fazla sekme var (300 sınırı)');
+  return { tabs: selected.map(t => ({ url: tabUrl(t), title: t.title || '', ...(t.favIconUrl ? { favIconUrl: t.favIconUrl } : {}) })), activeIndex: Math.max(0, selected.findIndex(t => t.active)) };
 }
+export function bindingDecision(items: readonly Workspace[], last: string, map: Record<string, string>, openIds: readonly number[], windowId: number, tabs: readonly TabInput[], base: string): { id?: string; restore: boolean } {
+  const occupied = new Set(openIds.filter(id => id !== windowId).map(id => map[id]));
+  const candidate = items.find(w => w.id === last && !occupied.has(w.id));
+  const eligible = workspaceTabs(tabs, base);
+  const blank = eligible.every(t => /^chrome:\/\/newtab\//i.test(tabUrl(t)));
+  return { id: candidate?.id, restore: !!candidate && blank && candidate.tabs.length > 0 };
+}
+export function shouldSaveSnapshot(tabs: readonly TabInput[], base: string, closing: boolean, existing: readonly WorkspaceTab[] = []): boolean {
+  const selected = workspaceTabs(tabs, base);
+  return !closing && selected.length > 0 && !(existing.some(t => !/^chrome:\/\/newtab\//i.test(t.url)) && selected.every(t => /^chrome:\/\/newtab\//i.test(tabUrl(t))));
+}
+export function savedTabIds(tabs: readonly TabInput[], base: string): number[] { snapshot(tabs, base); return workspaceTabs(tabs, base).flatMap(t => t.id === undefined ? [] : [t.id]); }
 export function validName(name: unknown): name is string { return typeof name === 'string' && name.trim().length > 0 && name.trim().length <= 100; }
 export function createWorkspace(items: readonly Workspace[], name: unknown, color: unknown, id: string): Workspace {
   if (items.length >= MAX_WORKSPACES || !validName(name) || !isGroupColor(color) || !id) throw new Error('Geçersiz çalışma alanı');

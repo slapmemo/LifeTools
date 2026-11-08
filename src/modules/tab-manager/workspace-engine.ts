@@ -1,8 +1,9 @@
 import { extensionBaseUrl } from '../../core/internal-tab';
-import { badge, convertPlan, createWorkspace, deleteWorkspace, MAX_TABS, snapshot, updateWorkspace, workspaceTabs, type Workspace } from './workspaces';
+import { badge, bindingDecision, convertPlan, createWorkspace, deleteWorkspace, MAX_TABS, savedTabIds, shouldSaveSnapshot, snapshot, updateWorkspace, workspaceTabs, type Workspace } from './workspaces';
 
 const KEY = 'workspaces', MODE = 'workspaceMode', MAP = 'windowWorkspace', LAST = 'lastWorkspaceId';
 const locks = new Set<number>();
+const closingWindows = new Set<number>();
 const timers = new Map<number, ReturnType<typeof setTimeout>>();
 let queue: Promise<unknown> = Promise.resolve();
 const serial = <T>(fn: () => Promise<T>): Promise<T> => { const next = queue.then(fn); queue = next.catch(() => {}); return next; };
@@ -15,18 +16,53 @@ async function state(): Promise<{ items: Workspace[]; mode: 'groups' | 'workspac
   return { items, mode: local[MODE] === 'groups' ? 'groups' : 'workspaces', map };
 }
 async function assign(windowId: number, s: Awaited<ReturnType<typeof state>>): Promise<string> {
-  if (s.items.some(w => w.id === s.map[windowId])) return s.map[windowId];
-  const local = await chrome.storage.local.get(LAST);
-  const id = s.items.find(w => w.id === local[LAST])?.id ?? s.items[0].id;
-  s.map[windowId] = id; await chrome.storage.session.set({ [MAP]: s.map }); return id;
+  if (s.items.some(w => w.id === s.map[windowId])) {
+    const wins = await chrome.windows.getAll({ windowTypes: ['normal'] });
+    if (!wins.some(w => w.id !== undefined && w.id !== windowId && !w.incognito && s.map[w.id] === s.map[windowId])) return s.map[windowId];
+    delete s.map[windowId];
+  }
+  const local = await chrome.storage.local.get(LAST), tabs = await chrome.tabs.query({ windowId });
+  const wins = await chrome.windows.getAll({ windowTypes: ['normal'] });
+  const decision = bindingDecision(s.items, local[LAST], s.map, wins.flatMap(w => w.id === undefined || w.incognito ? [] : [w.id]), windowId, tabs, extensionBaseUrl());
+  let id = decision.id;
+  if (!id) {
+    let n = 1; while (s.items.some(w => w.name === `Pencere ${n}`)) n++;
+    const w = createWorkspace(s.items, `Pencere ${n}`, 'grey', crypto.randomUUID());
+    Object.assign(w, snapshot(tabs, extensionBaseUrl())); s.items.push(w); id = w.id;
+    await chrome.storage.local.set({ [KEY]: s.items });
+  }
+  if (decision.restore) {
+    const w = s.items.find(x => x.id === id)!;
+    const created: number[] = [];
+    try {
+      for (const entry of w.tabs) { const t = await chrome.tabs.create({ windowId, url: entry.url, active: false }); if (t.id !== undefined) created.push(t.id); }
+      if (!created.length) throw new Error('Sekmeler oluşturulamadı');
+      await chrome.tabs.update(created[Math.min(w.activeIndex, created.length - 1)], { active: true });
+      s.map[windowId] = id; await chrome.storage.session.set({ [MAP]: s.map });
+    } catch (error) { await Promise.allSettled(created.map(tabId => chrome.tabs.remove(tabId))); throw error; }
+  } else {
+    if (decision.id && shouldSaveSnapshot(tabs, extensionBaseUrl(), closingWindows.has(windowId))) {
+      Object.assign(s.items.find(w => w.id === id)!, snapshot(tabs, extensionBaseUrl()), { updatedAt: Date.now() });
+      await chrome.storage.local.set({ [KEY]: s.items });
+    }
+    s.map[windowId] = id; await chrome.storage.session.set({ [MAP]: s.map });
+  }
+  return id;
 }
 async function normal(id: number): Promise<boolean> { const w = await chrome.windows.get(id); return w.type === 'normal' && !w.incognito; }
-async function saveSnapshot(windowId: number, s: Awaited<ReturnType<typeof state>>): Promise<void> {
-  if (s.mode !== 'workspaces' || !await normal(windowId)) return;
-  const id = await assign(windowId, s), tabs = await chrome.tabs.query({ windowId });
+async function saveSnapshot(windowId: number, s: Awaited<ReturnType<typeof state>>): Promise<number[]> {
+  if (s.mode !== 'workspaces' || closingWindows.has(windowId) || !await normal(windowId)) return [];
+  const wasMapped = s.items.some(w => w.id === s.map[windowId]);
+  const id = await assign(windowId, s);
+  if (!wasMapped) return [];
+  const tabs = await chrome.tabs.query({ windowId });
   const w = s.items.find(x => x.id === id)!;
+  const ids = savedTabIds(tabs, extensionBaseUrl());
+  if (!shouldSaveSnapshot(tabs, extensionBaseUrl(), closingWindows.has(windowId), w.tabs)) return [];
   Object.assign(w, snapshot(tabs, extensionBaseUrl()), { updatedAt: Date.now() });
+  if (closingWindows.has(windowId)) return [];
   await chrome.storage.local.set({ [KEY]: s.items });
+  return ids;
 }
 async function paint(windowId: number, s: Awaited<ReturnType<typeof state>>): Promise<void> {
   const tabs = await chrome.tabs.query({ windowId });
@@ -38,30 +74,30 @@ async function paint(windowId: number, s: Awaited<ReturnType<typeof state>>): Pr
   }));
 }
 function schedule(windowId: number): void {
-  if (locks.has(windowId)) return;
+  if (locks.has(windowId) || closingWindows.has(windowId)) return;
   clearTimeout(timers.get(windowId));
-  timers.set(windowId, setTimeout(() => { timers.delete(windowId); void serial(async () => { if (locks.has(windowId)) return; const s = await state(); await saveSnapshot(windowId, s); await paint(windowId, s); }).catch(() => {}); }, 800));
+  timers.set(windowId, setTimeout(() => { timers.delete(windowId); void serial(async () => { if (locks.has(windowId) || closingWindows.has(windowId)) return; const s = await state(); await saveSnapshot(windowId, s); if (!closingWindows.has(windowId)) await paint(windowId, s); }).catch(() => {}); }, 800));
 }
-async function switchTo(windowId: number, id: string, s: Awaited<ReturnType<typeof state>>): Promise<void> {
+async function switchTo(windowId: number, id: string, s: Awaited<ReturnType<typeof state>>, saved?: number[]): Promise<void> {
   if (s.mode !== 'workspaces' || !await normal(windowId)) throw new Error('Çalışma alanı modu etkin değil');
   const target = s.items.find(w => w.id === id); if (!target) throw new Error('Çalışma alanı bulunamadı');
-  if (await assign(windowId, s) === id) { await paint(windowId, s); return; }
+  const wins = await chrome.windows.getAll({ windowTypes: ['normal'] });
+  if (wins.some(w => w.id !== undefined && w.id !== windowId && !w.incognito && s.map[w.id] === id)) throw new Error('Çalışma alanı başka bir pencerede açık');
+  if (saved === undefined && await assign(windowId, s) === id) { await paint(windowId, s); return; }
   locks.add(windowId); clearTimeout(timers.get(windowId)); timers.delete(windowId);
   const created: number[] = [];
   let oldTabsClosed = false;
   try {
-    await saveSnapshot(windowId, s);
-    const old = workspaceTabs(await chrome.tabs.query({ windowId }), extensionBaseUrl()).flatMap(t => t.id === undefined ? [] : [t.id]);
+    const old = saved ?? await saveSnapshot(windowId, s);
     const entries = target.tabs.length ? target.tabs : [{ url: 'chrome://newtab/', title: '' }];
     for (const entry of entries) { const tab = await chrome.tabs.create({ windowId, url: entry.url, active: false }); if (tab.id !== undefined) created.push(tab.id); }
     if (!created.length) throw new Error('Sekmeler oluşturulamadı');
     const active = created[Math.min(Math.max(0, target.activeIndex), created.length - 1)];
     await chrome.tabs.update(active, { active: true });
-    for (const tabId of created) if (tabId !== active) void chrome.tabs.discard(tabId).catch(() => {});
-    if (old.length) await chrome.tabs.remove(old);
+    await chrome.storage.local.set({ [LAST]: id }); s.map[windowId] = id; await chrome.storage.session.set({ [MAP]: s.map });
     oldTabsClosed = true;
-    s.map[windowId] = id; await chrome.storage.session.set({ [MAP]: s.map }); await chrome.storage.local.set({ [LAST]: id });
-    await saveSnapshot(windowId, s); await paint(windowId, s);
+    await Promise.allSettled(old.map(tabId => chrome.tabs.remove(tabId)));
+    await paint(windowId, s);
   } catch (error) { if (!oldTabsClosed && created.length) await chrome.tabs.remove(created).catch(() => {}); throw error; }
   finally { locks.delete(windowId); }
 }
@@ -89,16 +125,34 @@ async function handle(message: Record<string, unknown>): Promise<Record<string, 
     try { for (const p of plan) { const w = createWorkspace(s.items, p.name, p.color, crypto.randomUUID()); Object.assign(w, snapshot(p.tabs, extensionBaseUrl())); s.items.push(w); } await chrome.storage.local.set({ [KEY]: s.items }); const ids = plan.flatMap(p => p.tabs.flatMap(t => t.id === undefined ? [] : [t.id])); if (ids.length) { const all = await chrome.tabs.query({ windowId }); if (all.length === ids.length) await chrome.tabs.create({ windowId, active: false }); await chrome.tabs.remove(ids); } await saveSnapshot(windowId, s); } finally { locks.delete(windowId); }
     return {};
   }
-  if (type === 'ws:delete') { const moveTo = message.moveTo; if (moveTo !== undefined && typeof moveTo !== 'string') throw new Error('Geçersiz hedef'); deleteWorkspace(s.items, id, moveTo as string | undefined); const fallback = (moveTo as string | undefined) ?? s.items.find(w => w.id !== id)!.id; for (const key of Object.keys(s.map)) if (s.map[key] === id) await switchTo(Number(key), fallback, s).catch(async e => { if (await normal(Number(key)).catch(() => false)) throw e; delete s.map[key]; }); s.items = deleteWorkspace(s.items, id, moveTo as string | undefined); await chrome.storage.local.set({ [KEY]: s.items }); await chrome.storage.session.set({ [MAP]: s.map }); return {}; }
+  if (type === 'ws:delete') {
+    const moveTo = message.moveTo; if (moveTo !== undefined && typeof moveTo !== 'string') throw new Error('Geçersiz hedef');
+    deleteWorkspace(s.items, id, moveTo as string | undefined);
+    const wins = await chrome.windows.getAll({ windowTypes: ['normal'] });
+    const open = wins.flatMap(w => w.id === undefined || w.incognito ? [] : [w.id]);
+    const sourceWindows = open.filter(n => s.map[n] === id);
+    const fallback = (moveTo as string | undefined) ?? s.items.find(w => w.id !== id)!.id;
+    if (open.some(n => s.map[n] === fallback)) throw new Error('Hedef çalışma alanı başka bir pencerede açık');
+    const saved = new Map<number, number[]>();
+    for (const n of sourceWindows) saved.set(n, await saveSnapshot(n, s));
+    const remaining = deleteWorkspace(s.items, id, moveTo as string | undefined);
+    if (moveTo !== undefined) { s.items = remaining; await chrome.storage.local.set({ [KEY]: s.items }); }
+    for (const n of sourceWindows) await switchTo(n, fallback, s, saved.get(n));
+    if (moveTo === undefined) { s.items = remaining; await chrome.storage.local.set({ [KEY]: s.items }); }
+    for (const key of Object.keys(s.map)) if (s.map[key] === id) delete s.map[key];
+    await chrome.storage.session.set({ [MAP]: s.map }); return {};
+  }
   if (type === 'ws:move-tabs') {
     if (!Array.isArray(message.tabIds) || !message.tabIds.length || !message.tabIds.every(n => Number.isInteger(n) && n >= 0) || new Set(message.tabIds).size !== message.tabIds.length) throw new Error('Geçersiz sekmeler');
     const target = s.items.find(w => w.id === id); if (!target) throw new Error('Çalışma alanı bulunamadı');
+    const wins = await chrome.windows.getAll({ windowTypes: ['normal'] });
+    if (wins.some(w => w.id !== undefined && !w.incognito && s.map[w.id] === id)) throw new Error('Hedef çalışma alanı başka bir pencerede açık');
     const tabs = await Promise.all((message.tabIds as number[]).map(n => chrome.tabs.get(n))); if (tabs.some(t => !workspaceTabs([t], extensionBaseUrl()).length || t.incognito)) throw new Error('Geçersiz sekmeler');
     for (const windowId of new Set(tabs.map(t => t.windowId))) { if (!await normal(windowId)) throw new Error('Geçersiz pencere'); await saveSnapshot(windowId, s); if (s.map[windowId] === id) throw new Error('Sekmeler zaten bu çalışma alanında'); }
     if (target.tabs.length + tabs.length > MAX_TABS) throw new Error('Sekme sınırı aşıldı');
     target.tabs.push(...snapshot(tabs, extensionBaseUrl()).tabs); target.updatedAt = Date.now(); await chrome.storage.local.set({ [KEY]: s.items });
     for (const windowId of new Set(tabs.map(t => t.windowId))) { const all = await chrome.tabs.query({ windowId }); if (all.every(t => t.id !== undefined && (message.tabIds as number[]).includes(t.id))) await chrome.tabs.create({ windowId, active: false }); }
-    await chrome.tabs.remove(message.tabIds as number[]); return {};
+    await Promise.allSettled((message.tabIds as number[]).map(tabId => chrome.tabs.remove(tabId))); return {};
   }
   throw new Error('Bilinmeyen işlem');
 }
@@ -109,10 +163,11 @@ export function initWorkspaceEngine(): void {
     void serial(() => handle(message)).then(result => respond({ ok: true, ...result }), error => respond({ ok: false, error: String(error instanceof Error ? error.message : error) })); return true;
   });
   chrome.tabs.onCreated.addListener(t => schedule(t.windowId));
-  chrome.tabs.onRemoved.addListener((_id, info) => { if (!info.isWindowClosing) schedule(info.windowId); });
+  const markClosing = (id: number): void => { closingWindows.add(id); clearTimeout(timers.get(id)); timers.delete(id); };
+  chrome.tabs.onRemoved.addListener((_id, info) => { if (info.isWindowClosing) markClosing(info.windowId); else schedule(info.windowId); });
   chrome.tabs.onUpdated.addListener((_id, change, tab) => { if (change.url !== undefined || change.title !== undefined || change.pinned !== undefined) schedule(tab.windowId); });
   chrome.tabs.onMoved.addListener((_id, info) => schedule(info.windowId)); chrome.tabs.onAttached.addListener((_id, info) => schedule(info.newWindowId)); chrome.tabs.onDetached.addListener((_id, info) => schedule(info.oldWindowId)); chrome.tabs.onActivated.addListener(info => schedule(info.windowId));
-  chrome.windows.onCreated.addListener(w => { if (w.id !== undefined && w.type === 'normal' && !w.incognito) schedule(w.id); });
-  chrome.windows.onRemoved.addListener(id => { clearTimeout(timers.get(id)); timers.delete(id); void serial(async () => { const s = await state(); delete s.map[id]; await chrome.storage.session.set({ [MAP]: s.map }); }); });
+  chrome.windows.onCreated.addListener(w => { if (w.id !== undefined && w.type === 'normal' && !w.incognito) { closingWindows.delete(w.id); schedule(w.id); } });
+  chrome.windows.onRemoved.addListener(id => { markClosing(id); void serial(async () => { const s = await state(); delete s.map[id]; await chrome.storage.session.set({ [MAP]: s.map }); }); });
   const seed = (): void => { void chrome.windows.getAll({ windowTypes: ['normal'] }).then(wins => wins.forEach(w => { if (w.id !== undefined && !w.incognito) schedule(w.id); })); }; seed(); chrome.runtime.onStartup.addListener(seed);
 }
