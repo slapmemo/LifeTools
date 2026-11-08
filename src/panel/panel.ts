@@ -526,15 +526,15 @@ async function route(): Promise<void> {
   activeCategory = active;
   nav.replaceChildren();
   for (const category of visible) {
-    if (category.id === 'ayarlar') {
-      const hr = document.createElement('hr');
-      nav.append(hr);
-    }
     const a = document.createElement('a');
     a.href = `#${category.id}`;
     a.title = category.label;
-    a.className = (category.id === active ? 'active' : '') + (category.star ? ' star' : '');
+    a.setAttribute('aria-label', category.label);
+    if (category.id === active) a.setAttribute('aria-current', 'page');
+    a.className = (category.id === active ? 'active' : '') + (category.id === 'ayarlar' ? ' nav-settings' : '');
     const label = document.createElement('span');
+    label.className = 'nav-tooltip';
+    label.setAttribute('aria-hidden', 'true');
     label.textContent = category.label;
     a.append(icon(category.icon, 18), label);
     nav.append(a);
