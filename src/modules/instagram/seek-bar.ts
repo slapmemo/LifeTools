@@ -17,20 +17,31 @@ export function bufferedPercent(end: number, duration: number): number {
   return Number.isFinite(end) && Number.isFinite(duration) && duration > 0 ? Math.max(0, Math.min(100, end / duration * 100)) : 0;
 }
 
+export function barRect(rect: { left: number; top: number; bottom: number; width: number; height: number }, viewportHeight: number): { left: number; top: number; width: number } | null {
+  if (rect.width <= 0 || rect.height <= 0 || rect.bottom <= 0 || rect.top >= viewportHeight || rect.bottom > viewportHeight) return null;
+  return { left: rect.left, top: rect.bottom - 36, width: rect.width };
+}
+
 type Bar = { destroy(): void; position(): void };
 const bars = new WeakMap<HTMLVideoElement, Bar>();
 const videos = new Set<HTMLVideoElement>();
 let active = false;
 let hovered: HTMLVideoElement | undefined;
+let positionFrame = 0;
+
+function positionAll(): void { for (const video of videos) bars.get(video)?.position(); }
+function schedulePositions(): void {
+  if (!positionFrame && videos.size && !document.hidden) positionFrame = requestAnimationFrame(() => {
+    positionFrame = 0;
+    positionAll();
+    schedulePositions();
+  });
+}
 
 function createBar(video: HTMLVideoElement): Bar {
-  let parent = video.parentElement;
-  while (parent && getComputedStyle(parent).position === 'static') parent = parent.parentElement;
-  parent ||= document.documentElement;
-  const container = parent;
   const host = document.createElement('div');
   host.dataset.lifetoolsInstagram = '';
-  host.style.cssText = 'position:absolute;z-index:2147483646;height:36px;pointer-events:none';
+  host.style.cssText = 'position:fixed;z-index:2147483647;height:36px;pointer-events:none';
   const root = host.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
   style.textContent = `${PAGE_THEME}
@@ -51,7 +62,7 @@ function createBar(video: HTMLVideoElement): Bar {
   const played = document.createElement('div'); played.className = 'played';
   const thumb = document.createElement('div'); thumb.className = 'thumb';
   const tip = document.createElement('div'); tip.className = 'tip';
-  track.append(rail, buffer, played, thumb); wrap.append(label, track, tip); root.append(style, wrap); container.append(host);
+  track.append(rail, buffer, played, thumb); wrap.append(label, track, tip); root.append(style, wrap); document.documentElement.append(host);
   let frame = 0; let dragging = false;
   const finite = () => Number.isFinite(video.duration) && video.duration > 0;
   function update(): void {
@@ -69,10 +80,15 @@ function createBar(video: HTMLVideoElement): Bar {
   function play(): void { if (!frame) frame = requestAnimationFrame(tick); }
   function pause(): void { if (frame) cancelAnimationFrame(frame); frame = 0; update(); }
   function position(): void {
-    const rect = video.getBoundingClientRect(); const base = container.getBoundingClientRect();
-    host.style.left = `${rect.left - base.left + container.scrollLeft - container.clientLeft}px`;
-    host.style.top = `${rect.bottom - base.top + container.scrollTop - container.clientTop - 36}px`;
-    host.style.width = `${rect.width}px`;
+    const rect = video.getBoundingClientRect();
+    const next = video.isConnected && rect.right > 0 && rect.left < innerWidth ? barRect(rect, innerHeight) : null;
+    const display = next ? '' : 'none';
+    if (host.style.display !== display) host.style.display = display;
+    if (!next) return;
+    const left = `${next.left}px`; const top = `${next.top}px`; const width = `${next.width}px`;
+    if (host.style.left !== left) host.style.left = left;
+    if (host.style.top !== top) host.style.top = top;
+    if (host.style.width !== width) host.style.width = width;
   }
   function target(event: PointerEvent, seek: boolean): void {
     const rect = track.getBoundingClientRect(); const time = pointerTime(event.clientX, rect.left, rect.width, video.duration);
@@ -87,21 +103,27 @@ function createBar(video: HTMLVideoElement): Bar {
   const events = ['timeupdate', 'progress', 'durationchange', 'seeked', 'loadedmetadata'] as const;
   for (const name of events) video.addEventListener(name, update);
   video.addEventListener('play', play); video.addEventListener('pause', pause); video.addEventListener('ended', pause);
-  const resize = new ResizeObserver(position); resize.observe(video); resize.observe(container);
+  const resize = new ResizeObserver(position); resize.observe(video);
   position(); update(); if (!video.paused) play();
   return { position, destroy() { resize.disconnect(); pause(); for (const name of events) video.removeEventListener(name, update); video.removeEventListener('play', play); video.removeEventListener('pause', pause); video.removeEventListener('ended', pause); host.remove(); } };
 }
 
 function scan(): void {
   for (const video of videos) if (!active || !video.isConnected) { bars.get(video)?.destroy(); bars.delete(video); videos.delete(video); if (hovered === video) hovered = undefined; }
-  if (!active) return;
+  if (!active) { if (positionFrame) cancelAnimationFrame(positionFrame); positionFrame = 0; return; }
   for (const video of document.querySelectorAll('video')) if (!bars.has(video)) { bars.set(video, createBar(video)); videos.add(video); }
+  if (!videos.size && positionFrame) { cancelAnimationFrame(positionFrame); positionFrame = 0; }
+  schedulePositions();
 }
 if (typeof document !== 'undefined') {
 const observer = new MutationObserver(scan);
 observer.observe(document, { childList: true, subtree: true });
-window.addEventListener('scroll', () => { for (const video of videos) bars.get(video)?.position(); }, true);
-window.addEventListener('resize', () => { for (const video of videos) bars.get(video)?.position(); });
+window.addEventListener('scroll', positionAll, true);
+window.addEventListener('resize', positionAll);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && positionFrame) { cancelAnimationFrame(positionFrame); positionFrame = 0; }
+  else if (!document.hidden) { positionAll(); schedulePositions(); }
+});
 document.addEventListener('pointermove', event => {
   hovered = undefined;
   for (const video of videos) { const r = video.getBoundingClientRect(); if (event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom) hovered = video; }
