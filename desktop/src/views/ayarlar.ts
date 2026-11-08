@@ -132,35 +132,27 @@ export function settingsView(): View {
 
   const el = h(
     'section',
-    {},
+    { class: 'settings-view' },
     h('h2', {}, 'Ayarlar'),
-    h('div', { class: 'toolbar' }, h('span', {}, 'Görünüm: '), themeGroup),
-    h('label', { class: 'check' }, autostart, ' Windows açılışında başlat'),
-    h('h3', {}, 'Şablonlar ve piller'),
-    h('label', { class: 'check' }, copyOnly, ' Şablonu yalnızca panoya kopyala (otomatik yapıştırma yok)'),
-    h('label', { class: 'check' }, battNotify, ' Pil %20 altına düşünce bildir'),
-    h('h3', {}, 'Pano geçmişi'),
-    h('div', { class: 'form-row' }, h('label', {}, 'Sabitlenmemiş kayıtlar şu kadar gün sonra silinir: ', expire)),
-    h('div', { class: 'form-row' }, h('label', {}, 'En fazla kayıt sayısı (sabitlenenler hariç): ', max)),
-    h('label', {}, 'Kaydedilmeyecek uygulamalar (her satıra bir exe adı):'),
-    excl,
-    h('div', { class: 'toolbar' }, saveBtn, msg),
-    h('h3', {}, 'Chrome eklentisini bağla'),
-    h(
-      'p',
-      { class: 'muted' },
-      'Eklentinin verileri bu uygulamanın veritabanında (%APPDATA%\\LifeTools\\lifetools.db) saklanabilir. Önce burada bağla, sonra eklentide "Verileri masaüstüne taşı" düğmesine bas. Bağlantıdan sonra Chrome\'u yeniden başlatmak gerekmez.'
-    ),
-    h('div', { class: 'toolbar' }, nativeConnect, nativeRemove),
-    nativeStatus,
-    h('h3', {}, 'Kısayollar'),
-    h(
-      'ul',
-      {},
-      h('li', {}, 'Ctrl+Shift+V — pano seçici'),
-      h('li', {}, 'Ctrl+Alt+T — etkin pencereyi üstte tut / bırak'),
-      h('li', {}, 'Ctrl+Shift+Space — şablon seçici')
-    )
+    h('div', { class: 'card settings-card' }, h('h3', {}, 'Başlangıç'),
+      h('label', { class: 'settings-row' }, 'Windows açılışında başlat', autostart),
+      h('label', { class: 'settings-row' }, 'Pil %20 altına düşünce bildir', battNotify)),
+    h('div', { class: 'card settings-card' }, h('h3', {}, 'Kısayollar'),
+      h('div', { class: 'settings-row' }, 'Pano seçici', h('span', { class: 'chip chip-mono' }, 'Ctrl+Shift+V')),
+      h('div', { class: 'settings-row' }, 'Etkin pencereyi üstte tut / bırak', h('span', { class: 'chip chip-mono' }, 'Ctrl+Alt+T')),
+      h('div', { class: 'settings-row' }, 'Şablon seçici', h('span', { class: 'chip chip-mono' }, 'Ctrl+Shift+Space')),
+      h('label', { class: 'settings-row' }, 'Şablonu yalnızca panoya kopyala (otomatik yapıştırma yok)', copyOnly)),
+    h('div', { class: 'card settings-card' }, h('h3', {}, 'Chrome bağlantısı'),
+      h('p', { class: 'muted' }, 'Eklentinin verileri bu uygulamanın veritabanında (%APPDATA%\\LifeTools\\lifetools.db) saklanabilir. Önce burada bağla, sonra eklentide "Verileri masaüstüne taşı" düğmesine bas. Bağlantıdan sonra Chrome\'u yeniden başlatmak gerekmez.'),
+      h('div', { class: 'toolbar' }, nativeConnect, nativeRemove), nativeStatus),
+    h('div', { class: 'card settings-card' }, h('h3', {}, 'Görünüm'),
+      h('div', { class: 'settings-row' }, 'Tema', themeGroup)),
+    h('div', { class: 'card settings-card' }, h('h3', {}, 'Pano gizliliği'),
+      h('label', { class: 'settings-row' }, 'Sabitlenmemiş kayıtlar şu kadar gün sonra silinir', expire),
+      h('label', { class: 'settings-row' }, 'En fazla kayıt sayısı (sabitlenenler hariç)', max),
+      h('label', { class: 'field' }, 'Kaydedilmeyecek uygulamalar (her satıra bir exe adı)', excl),
+      h('div', { class: 'toolbar settings-save' }, saveBtn)),
+    msg
   );
 
   const savePrefs = async () => {

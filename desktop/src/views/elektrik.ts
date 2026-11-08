@@ -15,7 +15,7 @@ export function electricityView(): View {
   const rows = h('div', { class: 'comp-list' });
   const hours = h('input', { type: 'text', inputMode: 'decimal', size: 6 });
   const price = h('input', { type: 'text', inputMode: 'decimal', size: 8, placeholder: 'ör. 2,50' });
-  const result = h('div', { class: 'result' });
+  const result = h('div', { class: 'electricity-results' });
   const presetBar = h('div', { class: 'toolbar' });
 
   const el = h(
@@ -27,16 +27,15 @@ export function electricityView(): View {
       { class: 'banner' },
       'Bu değerler yalnızca tahmindir. Gerçek tüketim yük durumuna göre değişir; kesin sonuç için prize takılan bir watt ölçer gerekir.'
     ),
-    h('h3', {}, 'Bileşenler (tahmini watt)'),
-    rows,
-    presetBar,
     h(
-      'div',
-      { class: 'form-row' },
-      h('label', {}, 'Günlük kullanım (saat) ', hours),
-      h('label', {}, 'Birim fiyat (TL/kWh) ', price)
+      'div', { class: 'electricity-layout' },
+      h('div', { class: 'card electricity-form' },
+        h('h3', {}, 'Bileşenler (tahmini watt)'), rows, presetBar,
+        h('div', { class: 'electricity-fields' },
+          h('label', { class: 'field' }, 'Günlük kullanım (saat)', hours),
+          h('label', { class: 'field' }, 'Birim fiyat (TL/kWh)', price))),
+      h('div', { class: 'card electricity-result-card' }, h('h3', {}, 'Tahmini tüketim ve tutar'), result)
     ),
-    result
   );
 
   const save = debounce(() => void api.elecSave(data).catch(() => undefined), 400);
@@ -46,16 +45,12 @@ export function electricityView(): View {
     try {
       const e: Estimate = await api.elecEstimate(data);
       const line = (label: string, kwh: number, tl: number) =>
-        h('tr', {}, h('th', {}, label), h('td', {}, `${nf.format(kwh)} kWh`), h('td', {}, `${nf.format(tl)} TL`));
+        h('div', { class: 'electricity-result-row' }, h('span', {}, label),
+          h('span', { class: 'muted' }, `${nf.format(kwh)} kWh`), h('strong', {}, `${nf.format(tl)} TL`));
       result.append(
-        h(
-          'table',
-          {},
-          h('tr', {}, h('th', {}, ''), h('th', {}, 'Tüketim'), h('th', {}, 'Tutar')),
           line('Günlük', e.daily_kwh, e.daily_tl),
           line('Aylık (30 gün)', e.monthly_kwh, e.monthly_tl),
           line('Yıllık (365 gün)', e.yearly_kwh, e.yearly_tl)
-        )
       );
     } catch (err) {
       result.append(h('div', { class: 'muted' }, errText(err)));
@@ -70,8 +65,8 @@ export function electricityView(): View {
   function renderRows(): void {
     rows.replaceChildren();
     data.components.forEach((c, i) => {
-      const name = h('input', { type: 'text', value: c.name, class: 'grow' });
-      const watts = h('input', { type: 'text', inputMode: 'decimal', value: String(c.watts), size: 6 });
+      const name = h('input', { type: 'text', value: c.name, class: 'grow', 'aria-label': 'Bileşen adı' });
+      const watts = h('input', { type: 'text', inputMode: 'decimal', value: String(c.watts), size: 6, 'aria-label': 'Güç (W)' });
       name.addEventListener('input', () => {
         c.name = name.value;
         changed();
