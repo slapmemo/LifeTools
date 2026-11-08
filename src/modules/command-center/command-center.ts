@@ -28,7 +28,7 @@ type TabItem = SearchTab & { tab: chrome.tabs.Tab };
 const input = document.querySelector('#query') as HTMLInputElement;
 const results = document.querySelector('#results') as HTMLElement;
 const status = document.querySelector('#status') as HTMLElement;
-const notesRepo = createNotesRepo(popupDb), tasksRepo = createTasksRepo(popupDb), snippetsRepo = createSnippetsRepo(popupDb);
+const notesRepo = createNotesRepo(popupDb), tasksRepo = createTasksRepo(popupDb, Date.now, () => { void chrome.runtime.sendMessage({ type: 'quick-tasks:reschedule' }).catch(() => {}); }), snippetsRepo = createSnippetsRepo(popupDb);
 
 let actions: ActionInfo[] = [];
 let tabItems: TabItem[] = [];

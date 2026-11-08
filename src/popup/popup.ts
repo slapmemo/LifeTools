@@ -18,7 +18,7 @@ const text = el<HTMLTextAreaElement>('text');
 const results = el('results');
 const feedback = el('feedback');
 const notes = createNotesRepo(popupDb);
-const tasks = createTasksRepo(popupDb);
+const tasks = createTasksRepo(popupDb, Date.now, () => { void chrome.runtime.sendMessage({ type: 'quick-tasks:reschedule' }).catch(() => {}); });
 const snippets = createSnippetsRepo(popupDb);
 
 async function openPanelAsync(hash = ''): Promise<void> {
