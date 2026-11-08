@@ -20,7 +20,8 @@
     "notifications",
     "favicon",
     "downloads",
-    "nativeMessaging"
+    "nativeMessaging",
+    "declarativeNetRequestWithHostAccess"
   ],
   "commands": {
     "toggle-pip": {

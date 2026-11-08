@@ -1,4 +1,5 @@
-const GLOBAL_TRACKING_EXACT = new Set([
+export const TRACKING_PARAMS = [
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id', 'utm_name',
   'fbclid',
   'gclid',
   'gclsrc',
@@ -23,7 +24,9 @@ const GLOBAL_TRACKING_EXACT = new Set([
   'oly_enc_id',
   'oly_anon_id',
   '_openstat'
-]);
+] as const;
+export const HOST_TRACKING_PARAMS = { social: ['s', 't'], media: ['si'], amazon: ['ref', 'ref_'] } as const;
+const GLOBAL_TRACKING_EXACT = new Set<string>(TRACKING_PARAMS);
 
 function isTrackingParam(nameLower: string, hostname: string): boolean {
   if (nameLower.startsWith('utm_')) {

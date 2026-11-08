@@ -1,5 +1,6 @@
 import { showToast } from '../../panel/ui';
 import { cleanUrl } from './clean';
+import { AUTO_CLEAN_KEY, AUTO_CLEAN_ORIGINS } from './rules';
 
 type Result = ReturnType<typeof cleanUrl>;
 
@@ -14,6 +15,15 @@ export function initLinkCleanerPanel(): { render(): Promise<void> } {
   const activeCopy = document.querySelector('#cleaner-active-copy') as HTMLButtonElement;
   const inputCopy = document.querySelector('#cleaner-input-copy') as HTMLButtonElement;
   const feedback = document.querySelector('#cleaner-feedback') as HTMLElement;
+  const autoToggle = document.querySelector('#cleaner-auto-enabled') as HTMLInputElement;
+  autoToggle.addEventListener('change', () => {
+    const enabled = autoToggle.checked;
+    const permission = enabled ? chrome.permissions.request({ origins: AUTO_CLEAN_ORIGINS }) : Promise.resolve(true);
+    void permission.then(async granted => {
+      if (!granted) { autoToggle.checked = false; showToast('Site izni verilmedi.', 'error'); return; }
+      await chrome.storage.local.set({ [AUTO_CLEAN_KEY]: enabled });
+    }).catch(() => { autoToggle.checked = !enabled; showToast('Ayar kaydedilemedi.', 'error'); });
+  });
   let active: Result = null;
   let pasted: Result = null;
 
@@ -79,6 +89,8 @@ export function initLinkCleanerPanel(): { render(): Promise<void> } {
 
   return {
     async render() {
+      const settings = await chrome.storage.local.get({ [AUTO_CLEAN_KEY]: false });
+      autoToggle.checked = settings[AUTO_CLEAN_KEY] === true && await chrome.permissions.contains({ origins: AUTO_CLEAN_ORIGINS });
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         active = cleanUrl(tab?.url ?? '');
