@@ -65,6 +65,7 @@
     }
   },
   "host_permissions": [
+    "https://translate.googleapis.com/*",
     "https://video.twimg.com/*",
     "*://x.com/*",
     "*://www.x.com/*",

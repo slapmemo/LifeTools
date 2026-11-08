@@ -2,8 +2,7 @@ import { MODULE_FLAGS_KEY, resolveEnabled } from '../../core/module-state';
 import { pageToast } from '../../core/page-toast';
 import { PAGE_THEME } from '../../core/page-theme';
 import { cleanUrl } from '../link-cleaner/clean';
-import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, bubbleButtons, bubblePosition, selectionUrl, shouldShowBubble, translationTarget, languageName, translationText, translationAvailabilityState } from './bubble-logic';
-import { getTranslator } from './translate';
+import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, bubbleButtons, bubblePosition, selectionUrl, shouldShowBubble, languageName, translationText } from './bubble-logic';
 import { datedTask, looksLikeAddress } from './bubble-logic';
 
 let enabled = false;
@@ -108,7 +107,7 @@ function show(): void {
     }
     pill.append(close);
   }));
-  if ('Translator' in self) pill.append(button('🌐', 'Çevir', () => {
+  pill.append(button('🌐', 'Çevir', () => {
     shadow.querySelector('.translation')?.remove();
     panelOpen = true;
     const panel = document.createElement('div'); panel.className = 'translation';
@@ -123,23 +122,13 @@ function show(): void {
     if (bounds.right > innerWidth - 8) panel.style.transform = `translateX(${innerWidth - 8 - bounds.right}px)`;
     if (bounds.bottom > innerHeight - 8) panel.style.marginTop = `${Math.min(4, innerHeight - 8 - bounds.bottom + 4)}px`;
     void (async () => {
-      const input = translationText(text);
-      let source = 'en';
-      if ('LanguageDetector' in self) {
-        try {
-          const detected = (await (await LanguageDetector.create()).detect(input))[0];
-          if (detected && detected.confidence >= 0.5 && detected.detectedLanguage) source = detected.detectedLanguage;
-        } catch { /* Dil algılanamazsa İngilizce kullanılır. */ }
+      const response = await chrome.runtime.sendMessage({ type: 'translate:text', text: translationText(text) });
+      if (!response?.ok) {
+        content.textContent = response?.error === 'network' ? 'Çeviri yapılamadı, internet bağlantını kontrol et' : response?.error === 'rate' ? 'Google çeviriyi geçici olarak engelledi, biraz sonra tekrar dene' : 'Çeviri yapılamadı';
+        return;
       }
-      const target = translationTarget(source);
-      heading.textContent = `${languageName(source)} → ${languageName(target)}`;
-      const pair = { sourceLanguage: source, targetLanguage: target };
-      const state = translationAvailabilityState(await Translator.availability(pair));
-      if (state === 'unsupported') { content.textContent = 'Bu dil çifti bu cihazda desteklenmiyor'; return; }
-      content.textContent = state === 'downloading' ? 'Dil modeli indiriliyor… %0' : 'Çevriliyor…';
-      const translator = await getTranslator(pair, loaded => { content.textContent = `Dil modeli indiriliyor… %${Math.round(Math.max(0, Math.min(1, loaded)) * 100)}`; });
-      content.textContent = 'Çevriliyor…';
-      const result = await translator.translate(input);
+      heading.textContent = `${languageName(response.source)} → ${languageName(response.target)}`;
+      const result: string = response.text;
       content.textContent = result;
       const actions = document.createElement('div'); actions.className = 'actions';
       const copy = document.createElement('button'); copy.type = 'button'; copy.textContent = 'Kopyala';
@@ -150,7 +139,7 @@ function show(): void {
           .then(response => pageToast(response?.ok ? response : { ok: false })).catch(() => pageToast({ ok: false }));
       });
       actions.append(copy, saveTranslation); panel.append(actions);
-    })().catch(() => { content.textContent = 'Çeviri yapılamadı'; });
+    })().catch(() => { content.textContent = 'Çeviri yapılamadı, internet bağlantını kontrol et'; });
   }));
   pill.append(close); shadow.append(style, pill); (document.body || document.documentElement).append(host);
   const size = host.getBoundingClientRect();

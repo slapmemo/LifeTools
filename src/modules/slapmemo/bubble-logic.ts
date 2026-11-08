@@ -21,9 +21,6 @@ export function languageName(code: string): string {
   return names[code.toLowerCase().split('-')[0]] ?? code;
 }
 export function translationText(text: string): string { return text.trim().slice(0, 5000); }
-export function translationAvailabilityState(availability: 'unavailable' | 'downloadable' | 'downloading' | 'available'): 'unsupported' | 'downloading' | 'translating' {
-  return availability === 'unavailable' ? 'unsupported' : availability === 'available' ? 'translating' : 'downloading';
-}
 
 export function selectionUrl(text: string): string | null {
   const value = text.trim();

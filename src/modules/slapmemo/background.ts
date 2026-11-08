@@ -11,6 +11,7 @@ import { createNotesRepo } from './repo';
 import { normalizeNoteUrl } from './repo';
 import { NOTE_HINT_ENABLED_KEY, noteCountText, showNoteHint } from './page-hint';
 import { PAGE_COPY_KEY } from './settings';
+import { translateText } from './translate';
 
 export const SLAPMEMO_ID = 'slapmemo';
 const repo = createNotesRepo(backgroundDb);
@@ -156,6 +157,11 @@ export function initSlapMemoBackground(): void {
   setContextMenuContributions(SLAPMEMO_ID, slapMemoMenuContributions());
   chrome.commands.onCommand.addListener((command, tab) => { void handleCommand(command, tab); });
   chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+    if (msg?.type === 'translate:text') {
+      if (!sender.tab || typeof msg.text !== 'string' || !msg.text.trim() || msg.text.length > MAX_TEXT) { respond({ ok: false, error: 'parse' }); return; }
+      void translateText(msg.text).then(respond);
+      return true;
+    }
     if (msg?.type === 'slapmemo:open-panel') {
       if (!sender.tab || sender.tab.incognito || !sender.tab.url || !/^https?:\/\//i.test(sender.tab.url)) return;
       void (async () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { languageName, translationAvailabilityState, translationTarget, translationText } from '../src/modules/slapmemo/bubble-logic';
+import { languageName, translationTarget, translationText } from '../src/modules/slapmemo/bubble-logic';
+import { buildTranslationRequest, parseTranslation } from '../src/modules/slapmemo/translate';
 
 describe('translation helpers', () => {
   it('chooses English for Turkish and Turkish for other languages', () => {
@@ -15,10 +16,17 @@ describe('translation helpers', () => {
     expect(translationText('  hello  ')).toBe('hello');
     expect(translationText(` ${'a'.repeat(5001)} `)).toHaveLength(5000);
   });
-  it('maps each availability state', () => {
-    expect(translationAvailabilityState('unavailable')).toBe('unsupported');
-    expect(translationAvailabilityState('downloadable')).toBe('downloading');
-    expect(translationAvailabilityState('downloading')).toBe('downloading');
-    expect(translationAvailabilityState('available')).toBe('translating');
+  it('parses segments and rejects malformed responses', () => {
+    expect(parseTranslation([[['Merhaba', 'Hello'], [' dünya', ' world']], null, 'en'])).toEqual({ text: 'Merhaba dünya', source: 'en' });
+    for (const value of [null, [], [[], null, 'en'], [[['x']], null], [[[null]], null, 'tr']]) expect(parseTranslation(value)).toBeNull();
+  });
+  it('encodes GET and POST requests', () => {
+    const get = buildTranslationRequest('çığ şü', 'tr');
+    expect(new URL(get.url).searchParams.get('q')).toBe('çığ şü');
+    expect(get.init.credentials).toBe('omit');
+    const post = buildTranslationRequest('çığ şü'.repeat(400), 'en');
+    expect(post.init.method).toBe('POST');
+    expect(new URL(post.url).searchParams.has('q')).toBe(false);
+    expect(new URLSearchParams(post.init.body as string).get('q')).toBe('çığ şü'.repeat(400));
   });
 });
