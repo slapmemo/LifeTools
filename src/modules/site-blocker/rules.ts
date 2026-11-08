@@ -16,6 +16,27 @@ export const RESERVED_ROUTES: ReadonlySet<string> = new Set([
 
 const HANDLE_RE = /^[a-zA-Z0-9_]{1,15}$/;
 export const MAX_HANDLES = 500;
+export const ALLOW_KEY = 'siteBlockerAllowUntil';
+
+export function isAllowedUntil(value: unknown, now = Date.now()): boolean {
+  return typeof value === 'number' && Number.isFinite(value) && value > now;
+}
+
+export function profilePageHandle(rawUrl: string): string | null {
+  try {
+    const url = new URL(rawUrl);
+    if (!ALLOWED_HOSTS.has(url.hostname.toLowerCase()) || !['http:', 'https:'].includes(url.protocol)) return null;
+    const parts = url.pathname.split('/').filter(Boolean);
+    return parts.length === 1 ? normalizeHandle(parts[0]) : null;
+  } catch { return null; }
+}
+
+export function safeOriginalUrl(rawUrl: string, handle: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    return url.protocol === 'https:' && !url.username && !url.password && !url.port && extractProfileHandle(rawUrl) === handle;
+  } catch { return false; }
+}
 
 /**
  * @username, username, x.com/username veya tam X profil bağlantısını alır.

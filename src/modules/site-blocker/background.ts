@@ -1,5 +1,5 @@
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
-import { isBlockedUrl } from './rules';
+import { ALLOW_KEY, extractProfileHandle, isAllowedUntil, isBlockedUrl, MAX_HANDLES, normalizeHandle, profilePageHandle } from './rules';
 import { loadSettings } from './settings';
 
 export const SITE_BLOCKER_ID = 'site-blocker';
@@ -13,6 +13,7 @@ const URL_FILTERS: chrome.events.UrlFilter[] = [
 ];
 
 const closingTabIds = new Set<number>();
+const recentAdds = new Map<string, number>();
 
 async function inspectTab(tabId: number, url: string | undefined): Promise<void> {
   if (tabId < 0 || !url || closingTabIds.has(tabId)) return;
@@ -22,15 +23,22 @@ async function inspectTab(tabId: number, url: string | undefined): Promise<void>
     if (!(await isModuleEnabled(SITE_BLOCKER_ID))) return;
     const settings = await loadSettings();
     if (!settings.enabled || !isBlockedUrl(url, settings.blockedHandles)) return;
+    const handle = extractProfileHandle(url);
+    if (!handle) return;
+    const session = await chrome.storage.session.get({ [ALLOW_KEY]: {} });
+    if (isAllowedUntil(session[ALLOW_KEY]?.[handle])) return;
 
     // Asenkron okuma sırasında sekme başka bir adrese geçmiş olabilir.
     // onBeforeNavigate aşamasında eski URL görünebildiğinden hem URL hem pendingUrl kontrol edilir.
     const tab = await chrome.tabs.get(tabId);
     const candidates = [tab.url, tab.pendingUrl].filter((v): v is string => Boolean(v));
-    if (!candidates.some(value => isBlockedUrl(value, settings.blockedHandles))) return;
+    if (!candidates.includes(url)) return;
 
     closingTabIds.add(tabId);
-    await chrome.tabs.remove(tabId);
+    const target = new URL(chrome.runtime.getURL('blocked.html'));
+    target.searchParams.set('handle', handle);
+    target.searchParams.set('url', url);
+    await chrome.tabs.update(tabId, { url: target.href });
   } catch (err) {
     // Kapatılmış/geçersiz bir sekmede işlem yapmaya gerek yok.
     console.debug('[Site Engelleyici] Sekme işlenemedi:', err);
@@ -60,6 +68,29 @@ async function inspectOpenTabs(): Promise<void> {
 
 /** Dinleyicileri kaydeder (service worker üst düzeyinde çağrılmalı). */
 export function initSiteBlockerBackground(): void {
+  chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+    if (!['site-blocker:add', 'site-blocker:remove'].includes(msg?.type) || !sender.tab || !sender.url) return;
+    void (async () => {
+      const handle = normalizeHandle(msg.handle);
+      if (!handle || msg.handle !== handle || profilePageHandle(sender.url!) !== handle || !(await isModuleEnabled(SITE_BLOCKER_ID))) return { ok: false };
+      const settings = await loadSettings();
+      const toggle = await chrome.storage.local.get({ siteBlockerButtonEnabled: false });
+      if (!settings.enabled || toggle.siteBlockerButtonEnabled !== true) return { ok: false };
+      if (msg.type === 'site-blocker:add') {
+        if (settings.blockedHandles.includes(handle) || settings.blockedHandles.length >= MAX_HANDLES) return { ok: false };
+        await chrome.storage.local.set({ blockedHandles: [handle, ...settings.blockedHandles] });
+        recentAdds.set(`${sender.tab!.id}:${handle}`, Date.now());
+      } else {
+        const key = `${sender.tab!.id}:${handle}`;
+        const created = recentAdds.get(key);
+        if (!created || Date.now() - created > 120000) return { ok: false };
+        await chrome.storage.local.set({ blockedHandles: settings.blockedHandles.filter(item => item !== handle) });
+        recentAdds.delete(key);
+      }
+      return { ok: true };
+    })().then(respond).catch(() => respond({ ok: false }));
+    return true;
+  });
   // Dış bağlantıdan veya adres çubuğundan giriş.
   chrome.webNavigation.onBeforeNavigate.addListener(handleNavigation, { url: URL_FILTERS });
   chrome.webNavigation.onCommitted.addListener(handleNavigation, { url: URL_FILTERS });
@@ -74,7 +105,7 @@ export function initSiteBlockerBackground(): void {
 
   // Engelleme etkinleştirildiğinde veya liste değiştiğinde açık sekmeleri de kontrol et.
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && (changes.enabled || changes.blockedHandles || changes[MODULE_FLAGS_KEY])) {
+    if (area === 'local' && (changes.enabled || changes[MODULE_FLAGS_KEY])) {
       void inspectOpenTabs();
     }
   });

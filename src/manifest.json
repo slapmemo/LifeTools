@@ -116,7 +116,8 @@
         "*://www.twitter.com/*"
       ],
       "js": [
-        "x-video-ui.js"
+        "x-video-ui.js",
+        "site-blocker-content.js"
       ],
       "run_at": "document_start"
     }

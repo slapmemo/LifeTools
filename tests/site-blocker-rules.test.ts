@@ -1,11 +1,25 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import {
+  profilePageHandle, isAllowedUntil, safeOriginalUrl,
   extractProfileHandle,
   isBlockedUrl,
   normalizeHandle,
   normalizeHandleList
 } from '../src/modules/site-blocker/rules';
+
+test('profil sayfası ve geçici izin doğrulanır', () => {
+  assert.equal(profilePageHandle('https://x.com/Example'), 'example');
+  assert.equal(profilePageHandle('https://x.com/home'), null);
+  assert.equal(profilePageHandle('https://x.com/example/status/123'), null);
+  assert.equal(profilePageHandle('https://evil.com/example'), null);
+  assert.equal(isAllowedUntil(101, 100), true);
+  assert.equal(isAllowedUntil(100, 100), false);
+  assert.equal(isAllowedUntil('101', 100), false);
+  assert.equal(safeOriginalUrl('https://twitter.com/example', 'example'), true);
+  assert.equal(safeOriginalUrl('https://x.com.evil.com/example', 'example'), false);
+  assert.equal(safeOriginalUrl('http://x.com/example', 'example'), false);
+});
 
 test('normal kullanıcı adları ve bağlantılar kabul edilir', () => {
   for (const input of ['@OrNeK_1', 'ornek_1', 'https://x.com/Ornek_1', 'www.twitter.com/Ornek_1/status/123']) {

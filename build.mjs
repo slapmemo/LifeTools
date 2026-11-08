@@ -18,6 +18,8 @@ await build({
     'site-toolbar-content': 'src/modules/site-toolbar/content.ts',
     'slapmemo-bubble': 'src/modules/slapmemo/bubble-content.ts',
     'watchlist-page-button': 'src/modules/watchlist/page-button.ts',
+    blocked: 'src/modules/site-blocker/blocked.ts',
+    'site-blocker-content': 'src/modules/site-blocker/content.ts',
     switcher: 'src/modules/tab-switcher/switcher.ts',
     'command-center': 'src/modules/command-center/command-center.ts',
     offscreen: 'src/db/offscreen.ts',
@@ -48,6 +50,8 @@ copyFileSync('src/panel/panel.css', join(dist, 'panel.css'));
 copyFileSync('src/popup/popup.html', join(dist, 'popup.html'));
 copyFileSync('src/popup/popup.css', join(dist, 'popup.css'));
 copyFileSync('src/db/offscreen.html', join(dist, 'offscreen.html'));
+copyFileSync('src/modules/site-blocker/blocked.html', join(dist, 'blocked.html'));
+copyFileSync('src/modules/site-blocker/blocked.css', join(dist, 'blocked.css'));
 cpSync('legacy-x-prototype/icons', join(dist, 'icons'), { recursive: true });
 
 function findFile(dir, name) {

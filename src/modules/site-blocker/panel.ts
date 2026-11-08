@@ -10,6 +10,7 @@ function $<T extends HTMLElement>(selector: string): T {
 export function initBlockerPanel(): { render(): Promise<void> } {
   const dom = {
     enabled: $<HTMLInputElement>('#blocker-enabled'),
+    buttonEnabled: $<HTMLInputElement>('#blocker-button-enabled'),
     pill: $<HTMLElement>('#state-pill'),
     pillText: $<HTMLElement>('#state-pill-text'),
     statusTitle: $<HTMLElement>('#status-title'),
@@ -40,11 +41,13 @@ export function initBlockerPanel(): { render(): Promise<void> } {
     try {
       const { enabled, blockedHandles } = await loadSettings();
       dom.enabled.checked = enabled;
+      const buttonSetting = await chrome.storage.local.get({ siteBlockerButtonEnabled: false });
+      dom.buttonEnabled.checked = buttonSetting.siteBlockerButtonEnabled === true;
       dom.pill.classList.toggle('paused', !enabled);
       dom.pillText.textContent = enabled ? 'Aktif' : 'Duraklatıldı';
       dom.statusTitle.textContent = enabled ? 'Koruma açık' : 'Koruma kapalı';
       dom.statusDescription.textContent = enabled
-        ? 'Engellediğin profiller otomatik kapanır.'
+        ? 'Engellediğin profiller engel sayfasında açılır.'
         : 'Engelli profillere geçici olarak girebilirsin.';
       dom.count.textContent = String(blockedHandles.length);
       dom.empty.hidden = blockedHandles.length > 0;
@@ -147,6 +150,8 @@ export function initBlockerPanel(): { render(): Promise<void> } {
       await render();
     }
   });
+
+  dom.buttonEnabled.addEventListener('change', () => { void chrome.storage.local.set({ siteBlockerButtonEnabled: dom.buttonEnabled.checked }); });
 
   return { render };
 }
