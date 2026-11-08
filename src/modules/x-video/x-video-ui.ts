@@ -1,4 +1,4 @@
-﻿import type { VideoMedia, Variant } from './extract';
+import type { VideoMedia, Variant } from './extract';
 import { CHANNEL, X_VIDEO_ID, SETTINGS_KEY, defaults, label, sortVariants, selectVariant, validUrl, type Settings } from './shared';
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { computeMenuPosition } from './menu-position';
@@ -33,8 +33,29 @@ async function refreshSettings(): Promise<void> {
   schedule();
 }
 function schedule(): void { if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); }); }
-function download(m: VideoMedia, v: Variant): void {
-  void chrome.runtime.sendMessage({ channel: CHANNEL, action: 'download', url: v.url, screenName: m.screenName, tweetId: m.tweetId, res: label(v) }).catch(() => {});
+async function download(m: VideoMedia, v: Variant): Promise<boolean> {
+  try {
+    const response = await chrome.runtime.sendMessage({ channel: CHANNEL, action: 'download', url: v.url, screenName: m.screenName, tweetId: m.tweetId, res: label(v), mediaIndex: (m.mediaCount ?? 0) > 1 ? m.mediaIndex : undefined });
+    return response?.ok === true;
+  } catch { return false; }
+}
+function showSuccess(button: HTMLButtonElement): void {
+  const svg = button.querySelector('svg'); if (svg) { const old = svg.innerHTML; svg.innerHTML = '<path d="m5 12 4 4L19 6"/>'; setTimeout(() => { svg.innerHTML = old; }, 1200); }
+}
+async function downloadAll(button: HTMLButtonElement, items: VideoMedia[]): Promise<void> {
+  const original = button.innerHTML;
+  button.disabled = true;
+  let succeeded = true;
+  try {
+    for (let i = 0; i < items.length; i++) {
+      button.textContent = `${i + 1}/${items.length}`;
+      const variant = selectVariant(items[i].variants, 'highest');
+      if (!variant || !await download(items[i], variant)) succeeded = false;
+    }
+  } finally {
+    button.innerHTML = original; button.disabled = false;
+  }
+  if (succeeded) showSuccess(button); else button.title = 'Bazı videolar indirilemedi';
 }
 function closeMenu(restore = false): void {
   shadow.querySelector('.menu')?.remove();
@@ -55,13 +76,18 @@ function openMenu(button: HTMLButtonElement, items: VideoMedia[]): void {
   menu.style.background = light ? '#fff' : (rgb && (rgb[3] === undefined || rgb[3] > 0) ? background : '#000');
   menu.style.color = light ? '#0f1419' : '#e7e9ea';
   const title = document.createElement('div'); title.className = 'title'; title.textContent = 'Kalite seç'; menu.append(title);
+  if (items.length > 1) {
+    const row = document.createElement('button'); row.type = 'button'; row.className = 'row'; row.setAttribute('role', 'menuitem');
+    row.textContent = `Hepsini indir (${items.length})`;
+    row.addEventListener('click', () => { closeMenu(true); void downloadAll(button, items); }); menu.append(row);
+  }
   for (const { m, v, index } of variants) {
     const row = document.createElement('button'); row.type = 'button'; row.className = 'row'; row.setAttribute('role', 'menuitem');
     const name = document.createElement('span'); name.textContent = `${items.length > 1 ? `${index + 1}. video — ` : ''}${label(v)}`; row.append(name);
     if (m.durationMs && v.bitrate) {
       const hint = document.createElement('span'); hint.className = 'hint'; hint.textContent = `~${(m.durationMs * v.bitrate / 8000 / 1024 / 1024).toFixed(1)} MB`; row.append(hint);
     }
-    row.addEventListener('click', () => { download(m, v); closeMenu(true); }); menu.append(row);
+    row.addEventListener('click', () => { void download(m, v); closeMenu(true); }); menu.append(row);
   }
   menu.addEventListener('keydown', event => {
     const rows = Array.from(menu.querySelectorAll<HTMLButtonElement>('.row'));
@@ -87,8 +113,8 @@ function makeButton(bar: HTMLElement, id: string): void {
     if (settings.oneClick && items.length === 1) {
       const variant = selectVariant(items[0].variants, settings.quality);
       if (variant) {
-        closeMenu(); download(items[0], variant);
-        const svg = button.querySelector('svg'); if (svg) { const old = svg.innerHTML; svg.innerHTML = '<path d="m5 12 4 4L19 6"/>'; setTimeout(() => { svg.innerHTML = old; }, 1200); }
+        closeMenu(); void download(items[0], variant);
+        showSuccess(button);
       } else button.title = 'Bu video indirilemiyor (yalnızca akış)';
       return;
     }
@@ -113,7 +139,7 @@ window.addEventListener('message', e => {
   const m = e.data.media as VideoMedia; if (!m || !/^\d+$/.test(m.tweetId) || !Array.isArray(m.variants)) return;
   m.variants = m.variants.filter(v => v && v.contentType === 'video/mp4' && typeof v.url === 'string' && validUrl(v.url));
   const list = media.get(m.tweetId) ?? []; const index = list.findIndex(x => x.mediaKey === m.mediaKey);
-  if (index < 0) list.push(m); else list[index] = m; media.set(m.tweetId, list); schedule();
+  if (index < 0) list.push(m); else list[index] = m; list.sort((a, b) => (a.mediaIndex ?? 0) - (b.mediaIndex ?? 0)); media.set(m.tweetId, list); schedule();
 });
 new MutationObserver(records => {
   if (records.some(r => [...r.addedNodes, ...r.removedNodes].some(n => !(n instanceof Element) || !n.closest('[data-lifetools-x-video]') && !n.hasAttribute('data-lifetools-x-video')))) schedule();
