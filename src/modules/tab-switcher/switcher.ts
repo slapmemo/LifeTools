@@ -14,7 +14,7 @@ void applyTheme();
 type Item = SearchTab & { tab: chrome.tabs.Tab; site: string };
 const search = document.querySelector('#search') as HTMLInputElement, cards = document.querySelector('#cards') as HTMLElement, empty = document.querySelector('#empty') as HTMLElement, message = document.querySelector('#message') as HTMLElement;
 const button = (id: string): HTMLButtonElement => document.querySelector(`#${id}`) as HTMLButtonElement;
-let all: Item[] = [], visible: Item[] = [], selected = 0, zombies = false, zombieIds = new Set<number>(), editing: number | undefined;
+let all: Item[] = [], visible: Item[] = [], selected = 0, zombies = new URLSearchParams(location.search).has('zombies'), duplicates = new URLSearchParams(location.search).has('duplicates'), zombieIds = new Set<number>(), duplicateIds = new Set<number>(), editing: number | undefined;
 let labelsEnabled = false, notesEnabled = false;
 async function load(): Promise<void> {
  const [tabs, labels, notes, data, session, titleEnabled, lifeEnabled, zombieEnabled, labelFlag, noteFlag] = await Promise.all([chrome.tabs.query({}), createTabLabelsRepo(popupDb).list(), createTabNotesRepo(popupDb).list(), chrome.storage.local.get({ [TITLE_RULES_KEY]: {}, [ZOMBIE_HOURS_KEY]: DEFAULT_HOURS }), chrome.storage.session.get({ [MRU_KEY]: [], [LAST_ACTIVE_KEY]: {} }), isModuleEnabled(TITLE_CLEANER_ID), isModuleEnabled('life-browser'), isModuleEnabled('zombie-tabs'), isModuleEnabled('tab-labels'), isModuleEnabled('tab-notes')]);
@@ -23,12 +23,14 @@ async function load(): Promise<void> {
  button('zombies').hidden = !zombieEnabled; if (!zombieEnabled) zombies = false;
  const own = (await chrome.tabs.getCurrent())?.id;
  zombieIds = new Set(selectZombies(tabs, session[LAST_ACTIVE_KEY] as Record<string, number>, Date.now(), normalizeHours(data[ZOMBIE_HOURS_KEY])).map(x => x.tab.id as number));
+ duplicateIds = new Set(findDuplicates(tabs).flatMap(x => x.close)); if (!lifeEnabled) duplicates = false;
  const lm = new Map(labels.map(x => [x.url,x.label])), nm = new Map(notes.map(x => [x.url,x.note]));
  const mru = Array.isArray(session[MRU_KEY]) ? session[MRU_KEY] as number[] : [];
  all = sortByMru(tabs.filter(tab => tab.id !== own && tab.id !== undefined), mru).map(tab => { const url = tab.url || tab.pendingUrl || ''; let site = url; try { site = new URL(url).hostname || url; } catch {} const title = tab.title || url || 'Yeni sekme'; return { tab, url, title: titleEnabled ? cleanTitle(title,url,data[TITLE_RULES_KEY] as TitleRules) : title, site, label: labelFlag ? lm.get(normalizeUrl(url)) || '' : '', note: noteFlag ? nm.get(normalizeUrl(url)) || '' : '' }; }); render();
 }
 function render(): void {
- visible = filterTabs(all.filter(item => !zombies || zombieIds.has(item.tab.id as number)), search.value); selected = Math.min(selected, Math.max(0,visible.length - 1)); cards.replaceChildren(); empty.hidden = visible.length > 0;
+ button('zombies').setAttribute('aria-pressed', String(zombies));
+ visible = filterTabs(all.filter(item => (!zombies || zombieIds.has(item.tab.id as number)) && (!duplicates || duplicateIds.has(item.tab.id as number))), search.value); selected = Math.min(selected, Math.max(0,visible.length - 1)); cards.replaceChildren(); empty.hidden = visible.length > 0;
  visible.forEach((item,i) => { const el = document.createElement('div'); el.className = 'card' + (i === selected ? ' selected' : ''); el.tabIndex = 0; el.setAttribute('role','option'); el.setAttribute('aria-selected', String(i === selected));
  if (item.tab.favIconUrl) { const img = document.createElement('img'); img.src = chrome.runtime.getURL('_favicon/') + '?pageUrl=' + encodeURIComponent(item.url) + '&size=32'; img.alt = ''; el.append(img); }
  const title = document.createElement('strong'); title.textContent = item.title; const site = document.createElement('p'); site.className = 'site'; site.textContent = item.site; el.append(title,site);
@@ -57,5 +59,5 @@ document.addEventListener('keydown', event => { if (editing !== undefined || (ev
 button('group').addEventListener('click', () => { void (async () => { const win = await chrome.windows.getCurrent(); if (win.id === undefined) return; const count = await groupWindowBySite(win.id); message.textContent = count ? `${count} grup oluşturuldu` : 'Aynı siteden 2+ sekme yok'; await load(); })().catch(report); });
 button('duplicates').addEventListener('click', () => { void (async () => { const own = (await chrome.tabs.getCurrent())?.id; const tabs = (await chrome.tabs.query({currentWindow:true})).filter(t => t.id !== own); const ids = findDuplicates(tabs).flatMap(x => x.close); if (ids.length) await chrome.tabs.remove(ids); message.textContent = `${ids.length} kopya kapatıldı`; await load(); })().catch(report); });
 button('session').addEventListener('click', () => { void (async () => { const own = (await chrome.tabs.getCurrent())?.id; const tabs = (await chrome.tabs.query({currentWindow:true})).filter(t => t.id !== own); const name = new Date().toLocaleString('tr-TR'); await createSessionsRepo(popupDb).save(name, await describeTabs(tabs)); message.textContent = `Oturum kaydedildi: ${name}`; })().catch(report); });
-button('zombies').addEventListener('click', () => { zombies = !zombies; button('zombies').setAttribute('aria-pressed', String(zombies)); selected = 0; void load().catch(report); });
+button('zombies').addEventListener('click', () => { zombies = !zombies; duplicates = false; button('zombies').setAttribute('aria-pressed', String(zombies)); selected = 0; void load().catch(report); });
 void load().catch(report);

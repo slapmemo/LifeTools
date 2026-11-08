@@ -1,4 +1,4 @@
-﻿/** Manifest komut adı -> eylem kimliği (önerilen tuşu olmayan, kullanıcının atayabileceği komutlar). */
+/** Manifest komut adı -> eylem kimliği (önerilen tuşu olmayan, kullanıcının atayabileceği komutlar). */
 export const COMMAND_ACTIONS: Readonly<Record<string, string>> = {
   'action-link-copy': 'link.copyPage',
   'action-task-page': 'task.addPage',
@@ -8,7 +8,8 @@ export const COMMAND_ACTIONS: Readonly<Record<string, string>> = {
 };
 
 export interface CommandBinding { name?: string; shortcut?: string; description?: string }
-export interface CommandRow { name: string; description: string; shortcut: string; assigned: boolean; duplicate: boolean }
+export interface CommandRow { name: string; description: string; shortcut: string; assigned: boolean; duplicate: boolean; differs: boolean }
+export const SUGGESTED: Readonly<Record<string, string>> = { 'open-command-center': 'Alt+K', 'save-selection': 'Alt+S', 'open-switcher': 'Alt+Q', 'toggle-pip': 'Alt+P' };
 
 /** Kısayol listesi satırları: atanmamışları ve LifeTools içinde çakışanları işaretler. */
 export function describeCommands(commands: readonly CommandBinding[]): CommandRow[] {
@@ -16,7 +17,7 @@ export function describeCommands(commands: readonly CommandBinding[]): CommandRo
   return commands.filter(c => c.name).map(c => {
     const name = c.name as string;
     const shortcut = c.shortcut?.trim() ?? '';
-    return { name, description: c.description || (name === '_execute_action' ? 'Eklenti simgesini aç' : name), shortcut, assigned: shortcut !== '', duplicate: dup.has(name) };
+    return { name, description: c.description || (name === '_execute_action' ? 'Eklenti simgesini aç' : name), shortcut, assigned: shortcut !== '', duplicate: dup.has(name), differs: !!SUGGESTED[name] && shortcut.toLowerCase() !== SUGGESTED[name].toLowerCase() };
   });
 }
 

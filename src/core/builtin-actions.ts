@@ -18,6 +18,7 @@ import { describeTabs, groupWindowBySite } from '../modules/life-browser/browser
 import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
 import { TAB_SWITCHER_ID } from '../modules/tab-switcher/background';
 import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
+import { parseTurkishDue } from '../modules/command-center/search';
 
 const notes = createNotesRepo(backgroundDb);
 const tasks = createTasksRepo(backgroundDb);
@@ -37,7 +38,7 @@ registerAction({
   id: 'note.add', title: 'Not ekle: <metin>', keywords: ['not', 'slapmemo', 'hızlı not'], moduleId: SLAPMEMO_ID, takesArg: true, argPrefix: 'not ',
   async run({ arg, tab }) {
     const { duplicate } = await notes.addNote({ category: 'note', text: (arg ?? '').slice(0, 5000), url: tab?.url ?? null, pageTitle: tab?.title ?? null });
-    return duplicate ? 'Not zaten kayıtlı.' : 'Not kaydedildi.';
+    return duplicate ? 'Not zaten kayıtlı.' : `Not kaydedildi: ${(arg ?? '').slice(0, 120)}`;
   }
 });
 
@@ -55,7 +56,7 @@ registerAction({
 
 registerAction({
   id: 'task.add', title: 'Görev ekle: <metin>', keywords: ['görev', 'gorev', 'yapılacak', 'todo'], moduleId: QUICK_TASKS_ID, takesArg: true, argPrefix: 'görev ',
-  async run({ arg }) { await tasks.add({ title: (arg ?? '').slice(0, 300) }); return 'Görev eklendi.'; }
+  async run({ arg }) { const parsed = parseTurkishDue(arg ?? '', new Date()); await tasks.add({ title: parsed.title.slice(0, 300), due_date: parsed.due?.slice(0, 10), note: parsed.due?.slice(11) ? `Saat: ${parsed.due.slice(11)}` : null }); return `Görev eklendi: ${parsed.title}${parsed.due ? ` — ${parsed.due}` : ''}`; }
 });
 
 registerAction({
@@ -90,10 +91,10 @@ registerAction({
 
 registerAction({
   id: 'session.save', title: 'Oturumu kaydet', keywords: ['oturum', 'lifebrowser', 'sekmeleri kaydet'], moduleId: LIFE_BROWSER_ID, toolbar: true,
-  async run({ tab }) {
+  async run({ tab, arg }) {
     const active = needTab(tab);
     const tabs = await chrome.tabs.query({ windowId: active.windowId });
-    const name = `Oturum ${new Date().toLocaleString('tr-TR')}`;
+    const name = arg?.slice(0, 200) || `Oturum ${new Date().toLocaleString('tr-TR')}`;
     await sessions.save(name, await describeTabs(tabs));
     return `${tabs.length} sekme kaydedildi.`;
   }
@@ -109,7 +110,7 @@ registerAction({
 
 registerAction({
   id: 'zombie.show', title: 'Zombi sekmeleri göster', keywords: ['zombi', 'eski sekmeler', 'temizle'], moduleId: ZOMBIE_TABS_ID,
-  async run() { await openPopupSection('zombie-tabs-panel'); }
+  async run() { await chrome.tabs.create({ url: chrome.runtime.getURL('switcher.html?zombies=1') }); }
 });
 
 registerAction({
@@ -128,5 +129,7 @@ registerAction({
 });
 
 registerAction({ id:'watch.addPage', title:'İzleme listesine ekle (sayfa)', keywords:['izleme','video','sayfa'], moduleId:WATCHLIST_ID, toolbar:true, async run({tab}) { const t=needTab(tab); const url=t.url ?? ''; await createWatchRepo(backgroundDb).add({title:(t.title || url || 'Sayfa').slice(0,300),kind:guessKind(url),url}); return 'İzleme listesine eklendi.'; } });
+registerAction({ id:'watch.add', title:'İzleme listesine ekle: <başlık>', keywords:['izle','izleme'], moduleId:WATCHLIST_ID, takesArg:true, argPrefix:'izle ', async run({arg}) { const title=(arg ?? '').slice(0,300); await createWatchRepo(backgroundDb).add({title,kind:'diger'}); return `İzleme listesine eklendi: ${title}`; } });
+registerAction({ id:'duplicates.show', title:'Kopya sekmeleri göster', keywords:['kopyalar','sekme'], moduleId:LIFE_BROWSER_ID, toolbar:true, async run() { await chrome.tabs.create({url:chrome.runtime.getURL('switcher.html?duplicates=1')}); } });
 registerAction({ id:'pip.toggle', title:'Resim içinde resim', keywords:['video','pip'], moduleId:PIP_ID, toolbar:true, async run({tab}) { return togglePip(needTab(tab).id); } });
 SLOT_IDS.forEach((slot,i)=>registerAction({id:'clip.copy'+slot,title:`Yuva ${slot}'yı kopyala`,keywords:['pano','yuva','kopyala',slot],moduleId:CLIP_SLOTS_ID,toolbar:true,async run(){const text=(await getSlots())[i].text; if(!text) throw new Error('Yuva boş.'); if(!await copyOffscreen(text)) throw new Error('Panoya kopyalanamadı.'); return `Yuva ${slot} kopyalandı.`;}}));

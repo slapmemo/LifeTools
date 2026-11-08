@@ -16,6 +16,11 @@ import { SMART_REPLIES_ID } from '../smart-replies/background';
 import { createSnippetsRepo } from '../smart-replies/repo';
 import { COMMAND_CENTER_TARGET_KEY } from './background';
 import { foldSearch, parsePrefix, rankActions } from './search';
+import { CLIP_SLOTS_ID } from '../clip-slots/background';
+import { getSlots, SLOT_IDS } from '../clip-slots/slots';
+import { TIME_TRACKER_ID } from '../time-tracker/background';
+import { createTimeTrackerRepo } from '../time-tracker/repo';
+import { localDay } from '../time-tracker/tracker';
 
 interface Row { group: string; title: string; sub?: string; run(): Promise<void> }
 type TabItem = SearchTab & { tab: chrome.tabs.Tab };
@@ -31,6 +36,13 @@ let targetTabId: number | undefined;
 let rows: Row[] = [];
 let selected = 0;
 let seq = 0;
+const HISTORY_KEY = 'commandCenterHistory';
+type HistoryItem = { id: string; arg: string };
+async function remember(id: string, arg: string): Promise<void> {
+  const data = await chrome.storage.local.get({ [HISTORY_KEY]: [] });
+  const old = Array.isArray(data[HISTORY_KEY]) ? data[HISTORY_KEY] as HistoryItem[] : [];
+  await chrome.storage.local.set({ [HISTORY_KEY]: [{ id, arg }, ...old.filter(x => x.id !== id || x.arg !== arg)].slice(0, 5) });
+}
 
 async function load(): Promise<void> {
   const stored = await chrome.storage.session.get({ [COMMAND_CENTER_TARGET_KEY]: null });
@@ -51,21 +63,21 @@ async function load(): Promise<void> {
   await refresh();
 }
 
-function actionRow(action: ActionInfo, arg: string): Row {
+function actionRow(action: ActionInfo, arg: string, group = 'Eylemler'): Row {
   const base = action.title.replace(/:.*$/, '');
   return {
-    group: 'Eylemler', title: action.takesArg && arg ? `${base}: ${arg}` : action.title,
+    group, title: action.takesArg && arg ? `${base}: ${arg}` : action.title,
     run: async () => {
       if (action.takesArg && !arg) { input.value = action.argPrefix ?? ''; input.focus(); await refresh(); return; }
       const res = await requestRunAction(action.id, arg || undefined, targetTabId);
-      if (res.ok) window.close();
+      if (res.ok) { await remember(action.id, arg); status.textContent = res.message || 'İşlem tamamlandı.'; }
       else status.textContent = res.message || 'İşlem başarısız.';
     }
   };
 }
 
 async function copy(text: string, okText: string): Promise<void> {
-  try { await navigator.clipboard.writeText(text); status.textContent = okText; window.close(); }
+  try { await navigator.clipboard.writeText(text); status.textContent = okText; }
   catch { status.textContent = 'Panoya kopyalanamadı.'; }
 }
 
@@ -73,6 +85,14 @@ async function build(query: string): Promise<Row[]> {
   const out: Row[] = [];
   const prefix = parsePrefix(query);
   if (prefix) {
+    if (prefix.id === 'slots.show' && await isModuleEnabled(CLIP_SLOTS_ID)) {
+      const slots = await getSlots();
+      return slots.map((slot, i) => ({ group: 'Yuvalar', title: `Yuva ${SLOT_IDS[i]}${slot.label ? ` — ${slot.label}` : ''}`, sub: slot.text || 'Boş', run: async () => { if (!slot.text) { status.textContent = 'Yuva boş.'; return; } await copy(slot.text, `Yuva ${SLOT_IDS[i]} kopyalandı.`); await remember(`clip.copy${SLOT_IDS[i]}`, ''); } }));
+    }
+    if (prefix.id === 'time.today' && await isModuleEnabled(TIME_TRACKER_ID)) {
+      const sites = await createTimeTrackerRepo(popupDb).getDay(localDay(Date.now()));
+      return sites.slice(0, 10).map(site => ({ group: 'Bugünkü süreler', title: site.domain, sub: `${Math.floor(site.seconds / 3600)} sa ${Math.floor(site.seconds % 3600 / 60)} dk`, run: async () => { await remember('time.today', ''); status.textContent = `${site.domain}: ${Math.floor(site.seconds / 60)} dk`; } }));
+    }
     const action = actions.find(a => a.id === prefix.id);
     if (action) out.push(actionRow(action, prefix.arg));
     return out;
@@ -83,9 +103,14 @@ async function build(query: string): Promise<Row[]> {
     if (match) { out.push(actionRow(match, split.arg)); return out; }
   }
   const q = query.trim();
+  if (!q) {
+    const data = await chrome.storage.local.get({ [HISTORY_KEY]: [] });
+    const history = Array.isArray(data[HISTORY_KEY]) ? data[HISTORY_KEY] as HistoryItem[] : [];
+    for (const item of history) { const action = actions.find(a => a.id === item.id); if (action && typeof item.arg === 'string') out.push(actionRow(action, item.arg, 'Son kullanılanlar')); }
+    return out;
+  }
   const ranked = rankActions(actions, q);
   for (const action of ranked.slice(0, q ? 6 : 10)) out.push(actionRow(action, ''));
-  if (!q) return out;
 
   for (const item of filterTabs(tabItems, q).slice(0, 5)) {
     out.push({ group: 'Sekmeler', title: item.title, sub: item.url, run: async () => {
@@ -121,7 +146,7 @@ function render(): void {
     results.append(el);
   });
   results.querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
-  if (!rows.length) status.textContent = input.value.trim() ? 'Sonuç bulunamadı.' : 'Eylem bulunamadı.';
+  if (!rows.length) status.textContent = input.value.trim() ? 'Sonuç bulunamadı.' : 'Son kullanılanlar henüz yok.';
 }
 
 async function refresh(): Promise<void> {

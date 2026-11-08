@@ -20,6 +20,7 @@ export function initShortcutsPanel(): { render(): Promise<void> } {
       ...rows.map(row => {
         if (isTableBody) {
           const tr = document.createElement('tr');
+          if (row.differs) tr.className = 'shortcut-differs';
           const tdDesc = document.createElement('td');
           tdDesc.textContent = row.description;
 
@@ -42,6 +43,7 @@ export function initShortcutsPanel(): { render(): Promise<void> } {
             dup.textContent = '⚠ Çakışıyor';
             tdKey.append(' ', dup);
           }
+          if (row.differs) { const hint = document.createElement('span'); hint.className = 'chip chip-danger'; hint.textContent = 'Önerilenden farklı'; tdKey.append(' ', hint); }
 
           tr.append(tdDesc, tdKey);
           return tr;
@@ -55,6 +57,7 @@ export function initShortcutsPanel(): { render(): Promise<void> } {
         keys.className = row.assigned ? 'chip chip-mono' : 'muted';
         keys.textContent = row.assigned ? row.shortcut : 'Atanmamış';
         if (row.duplicate) keys.textContent += ' · ⚠ Çakışıyor';
+        if (row.differs) { li.classList.add('shortcut-differs'); keys.textContent += ' · Önerilenden farklı'; }
         li.append(title, keys);
         return li;
       })
