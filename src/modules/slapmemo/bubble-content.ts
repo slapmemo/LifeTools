@@ -2,15 +2,17 @@ import { MODULE_FLAGS_KEY, resolveEnabled } from '../../core/module-state';
 import { pageToast } from '../../core/page-toast';
 import { PAGE_THEME } from '../../core/page-theme';
 import { cleanUrl } from '../link-cleaner/clean';
-import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, bubbleButtons, bubblePosition, selectionUrl, shouldShowBubble } from './bubble-logic';
+import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, bubbleButtons, bubblePosition, selectionUrl, shouldShowBubble, translationTarget, languageName, translationText, translationAvailabilityState } from './bubble-logic';
+import { getTranslator } from './translate';
 
 let enabled = false;
 let hiddenSites: string[] = [];
 let timer: ReturnType<typeof setTimeout> | undefined;
 let host: HTMLElement | undefined;
 let flags: unknown = {};
+let panelOpen = false;
 
-function hide(): void { clearTimeout(timer); host?.remove(); host = undefined; }
+function hide(): void { clearTimeout(timer); host?.remove(); host = undefined; panelOpen = false; }
 function editable(node: Node | null): boolean {
   const element = node instanceof Element ? node : node?.parentElement;
   return !!element?.closest('input, textarea, [contenteditable]:not([contenteditable="false"])');
@@ -41,6 +43,7 @@ function show(): void {
   const style = document.createElement('style');
   style.textContent = PAGE_THEME + `:host{position:fixed;z-index:2147483647} .pill{display:flex;align-items:center;white-space:nowrap;background:var(--lt-surface);color:var(--lt-text);border:1px solid var(--lt-border);border-radius:10px;box-shadow:var(--lt-shadow);padding:3px} button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;min-height:28px;padding:3px 8px;border-radius:8px} button:hover{background:var(--lt-sub)} button.primary{background:var(--lt-accent);color:var(--lt-on-accent)} button.primary:hover{opacity:.88} .close{font-size:16px;padding:2px 7px;color:var(--lt-muted)} @media(max-width:600px){.label{display:none}button{padding:3px 5px}}`;
   const pill = document.createElement('div'); pill.className = 'pill';
+  style.textContent += `.translation{box-sizing:border-box;width:min(420px,calc(100vw - 16px));max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;background:var(--lt-surface);color:var(--lt-text);border:1px solid var(--lt-border);border-radius:10px;box-shadow:var(--lt-shadow);padding:10px;margin-top:4px}.translation header{display:flex;align-items:center;justify-content:space-between;font-weight:600}.translation .actions{display:flex;flex-wrap:wrap;margin-top:8px}.translation .content{margin-top:6px}`;
   pill.addEventListener('mousedown', event => event.preventDefault());
   const save = document.createElement('button'); save.type = 'button'; save.textContent = '📝 Not';
   save.className = 'primary';
@@ -89,6 +92,50 @@ function show(): void {
     }
     pill.append(close);
   }));
+  if ('Translator' in self) pill.append(button('🌐', 'Çevir', () => {
+    shadow.querySelector('.translation')?.remove();
+    panelOpen = true;
+    const panel = document.createElement('div'); panel.className = 'translation';
+    const header = document.createElement('header');
+    const heading = document.createElement('span'); heading.textContent = 'Çevriliyor…';
+    const dismiss = document.createElement('button'); dismiss.type = 'button'; dismiss.className = 'close'; dismiss.textContent = '×'; dismiss.setAttribute('aria-label', 'Çeviriyi kapat');
+    dismiss.addEventListener('click', () => { panel.remove(); panelOpen = false; });
+    header.append(heading, dismiss);
+    const content = document.createElement('div'); content.className = 'content'; content.textContent = 'Çevriliyor…';
+    panel.append(header, content); shadow.append(panel);
+    const bounds = panel.getBoundingClientRect();
+    if (bounds.right > innerWidth - 8) panel.style.transform = `translateX(${innerWidth - 8 - bounds.right}px)`;
+    if (bounds.bottom > innerHeight - 8) panel.style.marginTop = `${Math.min(4, innerHeight - 8 - bounds.bottom + 4)}px`;
+    void (async () => {
+      const input = translationText(text);
+      let source = 'en';
+      if ('LanguageDetector' in self) {
+        try {
+          const detected = (await (await LanguageDetector.create()).detect(input))[0];
+          if (detected && detected.confidence >= 0.5 && detected.detectedLanguage) source = detected.detectedLanguage;
+        } catch { /* Dil algılanamazsa İngilizce kullanılır. */ }
+      }
+      const target = translationTarget(source);
+      heading.textContent = `${languageName(source)} → ${languageName(target)}`;
+      const pair = { sourceLanguage: source, targetLanguage: target };
+      const state = translationAvailabilityState(await Translator.availability(pair));
+      if (state === 'unsupported') { content.textContent = 'Bu dil çifti bu cihazda desteklenmiyor'; return; }
+      content.textContent = state === 'downloading' ? 'Dil modeli indiriliyor… %0' : 'Çevriliyor…';
+      const translator = await getTranslator(pair, loaded => { content.textContent = `Dil modeli indiriliyor… %${Math.round(Math.max(0, Math.min(1, loaded)) * 100)}`; });
+      content.textContent = 'Çevriliyor…';
+      const result = await translator.translate(input);
+      content.textContent = result;
+      const actions = document.createElement('div'); actions.className = 'actions';
+      const copy = document.createElement('button'); copy.type = 'button'; copy.textContent = 'Kopyala';
+      copy.addEventListener('click', () => { void navigator.clipboard.writeText(result).then(() => { copy.textContent = 'Kopyalandı ✓'; }).catch(() => pageToast({ ok: false })); });
+      const saveTranslation = document.createElement('button'); saveTranslation.type = 'button'; saveTranslation.textContent = 'Not olarak kaydet';
+      saveTranslation.addEventListener('click', () => {
+        void chrome.runtime.sendMessage({ type: 'slapmemo:save', text: result, url: location.href, title: document.title, category: 'note' })
+          .then(response => pageToast(response?.ok ? response : { ok: false })).catch(() => pageToast({ ok: false }));
+      });
+      actions.append(copy, saveTranslation); panel.append(actions);
+    })().catch(() => { content.textContent = 'Çeviri yapılamadı'; });
+  }));
   pill.append(close); shadow.append(style, pill); (document.body || document.documentElement).append(host);
   const size = host.getBoundingClientRect();
   const position = bubblePosition(rect, { width: innerWidth, height: innerHeight }, size);
@@ -96,8 +143,8 @@ function show(): void {
 }
 function schedule(): void { hide(); timer = setTimeout(show, 150); }
 document.addEventListener('mouseup', event => { if (!host || !event.composedPath().includes(host)) schedule(); });
-document.addEventListener('keyup', event => { if (event.shiftKey && event.key.startsWith('Arrow')) schedule(); });
+document.addEventListener('keyup', event => { if (!panelOpen && event.shiftKey && event.key.startsWith('Arrow')) schedule(); });
 document.addEventListener('pointerdown', event => { if (host && !event.composedPath().includes(host)) hide(); });
 document.addEventListener('keydown', event => { if (event.key === 'Escape') hide(); });
-document.addEventListener('selectionchange', () => { if (!window.getSelection()?.toString().trim()) hide(); });
-window.addEventListener('scroll', hide, true);
+document.addEventListener('selectionchange', () => { if (!panelOpen && !window.getSelection()?.toString().trim()) hide(); });
+window.addEventListener('scroll', event => { if (!host || !event.composedPath().includes(host)) hide(); }, true);

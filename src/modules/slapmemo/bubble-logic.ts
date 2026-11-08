@@ -2,6 +2,16 @@ export const BUBBLE_ENABLED_KEY = 'slapmemoBubbleEnabled';
 export const BUBBLE_HIDDEN_KEY = 'slapmemoBubbleHiddenSites';
 export const BUBBLE_ORIGINS = ['https://*/*', 'http://*/*'];
 
+export function translationTarget(source: string): string { return source.toLowerCase().split('-')[0] === 'tr' ? 'en' : 'tr'; }
+export function languageName(code: string): string {
+  const names: Record<string, string> = { en: 'İngilizce', tr: 'Türkçe', de: 'Almanca', fr: 'Fransızca', es: 'İspanyolca', it: 'İtalyanca', ru: 'Rusça', ar: 'Arapça', ja: 'Japonca', zh: 'Çince', ko: 'Korece', pt: 'Portekizce', nl: 'Felemenkçe' };
+  return names[code.toLowerCase().split('-')[0]] ?? code;
+}
+export function translationText(text: string): string { return text.trim().slice(0, 5000); }
+export function translationAvailabilityState(availability: 'unavailable' | 'downloadable' | 'downloading' | 'available'): 'unsupported' | 'downloading' | 'translating' {
+  return availability === 'unavailable' ? 'unsupported' : availability === 'available' ? 'translating' : 'downloading';
+}
+
 export function selectionUrl(text: string): string | null {
   const value = text.trim();
   if (!value || /\s/.test(value)) return null;
