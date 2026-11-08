@@ -1,6 +1,19 @@
 export const BUBBLE_ENABLED_KEY = 'slapmemoBubbleEnabled';
 export const BUBBLE_HIDDEN_KEY = 'slapmemoBubbleHiddenSites';
 export const BUBBLE_ORIGINS = ['https://*/*', 'http://*/*'];
+import { parseTurkishDue } from '../command-center/search';
+
+const provinces = 'adana|adıyaman|afyonkarahisar|ağrı|amasya|ankara|antalya|artvin|aydın|balıkesir|bilecik|bingöl|bitlis|bolu|burdur|bursa|çanakkale|çankırı|çorum|denizli|diyarbakır|edirne|elazığ|erzincan|erzurum|eskişehir|gaziantep|giresun|gümüşhane|hakkari|hatay|ısparta|mersin|istanbul|izmir|kars|kastamonu|kayseri|kırklareli|kırşehir|kocaeli|konya|kütahya|malatya|manisa|kahramanmaraş|mardin|muğla|muş|nevşehir|niğde|ordu|rize|sakarya|samsun|siirt|sinop|sivas|tekirdağ|tokat|trabzon|tunceli|şanlıurfa|uşak|van|yozgat|zonguldak|aksaray|bayburt|karaman|kırıkkale|batman|şırnak|bartın|ardahan|ığdır|yalova|karabük|kilis|osmaniye|düzce';
+export function looksLikeAddress(text: string): boolean {
+  const value = text.trim().toLocaleLowerCase('tr-TR');
+  if (value.length < 10 || value.length > 200) return false;
+  if (/(?:^|[^\p{L}])(?:mah(?:allesi)?|cad(?:desi)?|sok(?:ak)?|bulvarı|blv|apt)(?:\.|(?=$|[^\p{L}]))|(?:^|[^\p{L}])no\s*[:.]/u.test(value)) return true;
+  return /(?:^|\D)\d{5}(?:\D|$)/.test(value) && new RegExp(`(?:^|[^\\p{L}])(?:${provinces})(?:$|[^\\p{L}])`, 'u').test(value);
+}
+export function datedTask(text: string, now: Date): { title: string; due: string } | null {
+  const parsed = parseTurkishDue(text, now);
+  return parsed.due ? { title: parsed.title.slice(0, 300), due: parsed.due } : null;
+}
 
 export function translationTarget(source: string): string { return source.toLowerCase().split('-')[0] === 'tr' ? 'en' : 'tr'; }
 export function languageName(code: string): string {

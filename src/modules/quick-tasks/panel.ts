@@ -96,7 +96,7 @@ export function initQuickTasksPanel(db: Executor = popupDb): { render(): Promise
 
       const editDate = document.createElement('input');
       editDate.type = 'date';
-      editDate.value = task.due_date ?? '';
+      editDate.value = task.due_date?.slice(0, 10) ?? '';
       editDate.setAttribute('aria-label', 'Son tarih');
 
       row.append(editTitle, editDate);
@@ -122,7 +122,7 @@ export function initQuickTasksPanel(db: Executor = popupDb): { render(): Promise
         void act(async () => {
           await repo.update(task.id, {
             title: editTitle.value,
-            due_date: editDate.value || null,
+            due_date: editDate.value ? (task.due_date?.slice(0, 10) === editDate.value ? task.due_date : editDate.value) : null,
             note: task.note,
             url: task.url
           });

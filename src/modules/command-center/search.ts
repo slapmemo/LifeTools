@@ -43,12 +43,18 @@ export function parseTurkishDue(text: string, now: Date): { title: string; due: 
     time = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
     title = title.slice(0, timeMatch.index).trim();
   }
-  const match = /(?:^|\s)([^\s]+)$/.exec(title);
-  const token = match ? foldSearch(match[1]) : '';
+  const match = /(?:^|\s)(?:(\d{1,2})\s+)?([^\s]+)$/.exec(title);
+  const token = match ? foldSearch(match[2]) : '';
   const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const days = ['pazar', 'pazartesi', 'sali', 'carsamba', 'persembe', 'cuma', 'cumartesi'];
   let found = true;
-  if (token === 'yarin') date.setDate(date.getDate() + 1);
+  const months = ['ocak', 'subat', 'mart', 'nisan', 'mayis', 'haziran', 'temmuz', 'agustos', 'eylul', 'ekim', 'kasim', 'aralik'];
+  if (match?.[1] && months.includes(token)) {
+    const day = Number(match[1]), month = months.indexOf(token);
+    date.setFullYear(now.getFullYear(), month, day);
+    if (date.getMonth() !== month || date.getDate() !== day) found = false;
+    else if (date < new Date(now.getFullYear(), now.getMonth(), now.getDate())) date.setFullYear(date.getFullYear() + 1);
+  } else if (token === 'yarin') date.setDate(date.getDate() + 1);
   else if (token === 'bugun') { /* today */ }
   else if (days.includes(token)) date.setDate(date.getDate() + ((days.indexOf(token) - date.getDay() + 7) % 7 || 7));
   else if (/^\d{1,2}\.\d{1,2}$/.test(token)) {
@@ -57,9 +63,10 @@ export function parseTurkishDue(text: string, now: Date): { title: string; due: 
     if (date.getMonth() !== month - 1 || date.getDate() !== day) { found = false; date.setFullYear(now.getFullYear(), now.getMonth(), now.getDate()); }
     else if (date < new Date(now.getFullYear(), now.getMonth(), now.getDate())) date.setFullYear(date.getFullYear() + 1);
   } else found = false;
-  if (found && match && title.slice(0, match.index).trim()) title = title.slice(0, match.index).trim();
-  else if (!time || !title) return { title: text.trim(), due: null };
+  if (found && match) title = title.slice(0, match.index).trim() || text.trim();
+  else if (!time) return { title: text.trim(), due: null };
   if (!found && !time) return { title: text.trim(), due: null };
+  if (!title) title = text.trim();
   const due = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   return { title, due: due + (time ? ` ${time}` : '') };
 }

@@ -4,6 +4,7 @@ import { PAGE_THEME } from '../../core/page-theme';
 import { cleanUrl } from '../link-cleaner/clean';
 import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, bubbleButtons, bubblePosition, selectionUrl, shouldShowBubble, translationTarget, languageName, translationText, translationAvailabilityState } from './bubble-logic';
 import { getTranslator } from './translate';
+import { datedTask, looksLikeAddress } from './bubble-logic';
 
 let enabled = false;
 let hiddenSites: string[] = [];
@@ -76,6 +77,21 @@ function show(): void {
     void chrome.runtime.sendMessage({ type: `${id}:add`, title: text.slice(0, 300), url: location.href })
       .then(result => pageToast(result?.ok ? { ...result, title: success, undoType: `${id}:undo` } : { ok: false })).catch(() => pageToast({ ok: false }));
   }));
+  const dueTask = visible.includes('quick-tasks') ? datedTask(text, new Date()) : null;
+  if (dueTask) pill.append(button('📅', 'Görev (tarihli)', () => {
+    hide();
+    const [date, time] = dueTask.due.split(' ');
+    const [year, month, day] = date.split('-').map(Number);
+    const label = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long' }).format(new Date(year, month - 1, day)) + (time ? ` ${time}` : '');
+    void chrome.runtime.sendMessage({ type: 'quick-tasks:add', title: dueTask.title, due_date: dueTask.due, url: location.href })
+      .then(result => pageToast(result?.ok ? { ...result, title: `Görev eklendi: ${label} ✓`, undoType: 'quick-tasks:undo' } : { ok: false })).catch(() => pageToast({ ok: false }));
+  }));
+  const openSearch = (kind: 'search' | 'maps') => {
+    hide();
+    void chrome.runtime.sendMessage({ type: 'slapmemo:open-search', kind, text }).then(result => { if (!result?.ok) pageToast({ ok: false }); }).catch(() => pageToast({ ok: false }));
+  };
+  if (text.length <= 300) pill.append(button('🔎', 'Ara', () => openSearch('search')));
+  if (looksLikeAddress(text)) pill.append(button('📍', 'Haritada aç', () => openSearch('maps')));
   if (visible.includes('link-cleaner')) pill.append(button('🔗', 'Temiz link', () => {
     const cleaned = cleanUrl(selectionUrl(text) ?? '');
     if (!cleaned) { hide(); pageToast({ ok: false }); return; }

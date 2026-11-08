@@ -60,7 +60,7 @@ async function dueAlarm(id: number): Promise<void> {
   const fired = data[FIRED_KEY] as Fired;
   fired[String(id)] = { due: task.due_date };
   await chrome.storage.local.set({ [FIRED_KEY]: fired });
-  const label = task.due_date === localToday(Date.now()) ? 'Bugün' : `${task.due_date.slice(8, 10)}.${task.due_date.slice(5, 7)} 09:00`;
+  const label = `${task.due_date.slice(8, 10)}.${task.due_date.slice(5, 7)} ${task.due_date.slice(11) || '09:00'}`;
   await chrome.notifications.create(PREFIX + id, { type: 'basic', iconUrl: 'icons/icon128.png', title: task.title, message: `Son tarih: ${label}`, buttons: [{ title: 'Bitti' }, { title: '1 saat ertele' }] });
   await syncReminders();
 }
@@ -137,7 +137,8 @@ export function initQuickTasksBackground(): void {
         for (const [id, time] of recent) if (now - time > 120_000) recent.delete(id);
         if (msg.type === 'quick-tasks:add') {
           if (typeof msg.title !== 'string' || !msg.title.trim() || msg.title.length > 300 || typeof msg.url !== 'string' || msg.url.length > 10000) return { ok: false };
-          const item = await repo.add({ title: msg.title, url: msg.url }); recent.set(item.id, Date.now());
+          if (msg.due_date !== undefined && (typeof msg.due_date !== 'string' || msg.due_date.length > 16)) return { ok: false };
+          const item = await repo.add({ title: msg.title, url: msg.url, due_date: msg.due_date }); recent.set(item.id, Date.now());
           return { ok: true, id: item.id };
         }
         if (!Number.isSafeInteger(msg.id) || !recent.has(msg.id)) return { ok: false };

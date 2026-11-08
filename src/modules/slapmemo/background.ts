@@ -95,6 +95,17 @@ export function initSlapMemoBackground(): void {
   setContextMenuContributions(SLAPMEMO_ID, slapMemoMenuContributions());
   chrome.commands.onCommand.addListener((command, tab) => { void handleCommand(command, tab); });
   chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+    if (msg?.type === 'slapmemo:open-search') {
+      if (!sender.tab || !Number.isInteger(sender.tab.id) || !Number.isInteger(sender.tab.index) || typeof msg.text !== 'string' || !msg.text.trim() || msg.text.length > 300 || !['search', 'maps'].includes(msg.kind)) return;
+      void (async () => {
+        if (!(await isModuleEnabled(SLAPMEMO_ID))) return { ok: false };
+        const query = encodeURIComponent(msg.text);
+        const url = msg.kind === 'maps' ? `https://www.google.com/maps/search/?api=1&query=${query}` : `https://www.google.com/search?q=${query}`;
+        await chrome.tabs.create({ url, index: sender.tab!.index + 1, openerTabId: sender.tab!.id });
+        return { ok: true };
+      })().then(respond).catch(() => respond({ ok: false }));
+      return true;
+    }
     if (!sender.tab || !['slapmemo:save', 'slapmemo:update', 'slapmemo:undo'].includes(msg?.type)) return;
     void (async () => {
       try {

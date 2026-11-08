@@ -8,6 +8,8 @@ test('yerel tarih için 09:00 veya bugün geçmişse bir dakika sonrası seçili
   expect(reminderTime('2026-11-08', morning)).toBe(new Date(2026, 10, 8, 9).getTime());
   expect(reminderTime('2026-11-08', noon)).toBe(noon + 60_000);
   expect(reminderTime('2026-11-09', noon)).toBe(new Date(2026, 10, 9, 9).getTime());
+  expect(reminderTime('2026-11-09 15:30', noon)).toBe(new Date(2026, 10, 9, 15, 30).getTime());
+  expect(reminderTime('2026-11-09 25:00', noon)).toBeNull();
   expect(reminderTime('2026-11-07', noon)).toBeNull();
   expect(reminderTime('2026-02-30', noon)).toBeNull();
   expect(reminderTime(null, noon)).toBeNull();
