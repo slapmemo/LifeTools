@@ -246,6 +246,10 @@ export function createKebabMenu(items: readonly KebabMenuItem[], ariaLabel = 'İ
       wrap.classList.add('open');
       trigger.setAttribute('aria-expanded', 'true');
       popover.hidden = false;
+      popover.style.right = '0px';
+      const bounds = popover.getBoundingClientRect();
+      if (bounds.left < 0) popover.style.right = `${bounds.left}px`;
+      else if (bounds.right > window.innerWidth) popover.style.right = `${bounds.right - window.innerWidth}px`;
     }
   });
 
