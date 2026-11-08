@@ -19,6 +19,7 @@ import { pinnedGuardModule } from './pinned-guard';
 import { commandCenterModule } from './command-center';
 import { shortcutsModule } from './shortcuts';
 import { siteToolbarModule } from './site-toolbar';
+import { tabManagerModule } from './tab-manager';
 
 /** Tüm araçların kaydı. Yeni araç buraya eklenir. */
-export const modules: readonly LifeModule[] = [xVideoModule, watchlistModule, pipModule, clipSlotsModule, timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule, tabLabelsModule, tabNotesModule, tabSwitcherModule, titleCleanerModule, commandCenterModule, shortcutsModule, siteToolbarModule];
+export const modules: readonly LifeModule[] = [xVideoModule, watchlistModule, pipModule, clipSlotsModule, timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule, tabLabelsModule, tabNotesModule, tabSwitcherModule, tabManagerModule, titleCleanerModule, commandCenterModule, shortcutsModule, siteToolbarModule];

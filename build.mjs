@@ -26,6 +26,7 @@ await build({
     panel: 'src/panel/panel.ts',
     blocked: 'src/modules/site-blocker/blocked.ts',
     switcher: 'src/modules/tab-switcher/switcher.ts',
+    tabs: 'src/modules/tab-manager/tabs.ts',
     'command-center': 'src/modules/command-center/command-center.ts',
     offscreen: 'src/db/offscreen.ts',
     'db-worker': 'src/db/worker.ts'
@@ -53,6 +54,8 @@ else console.warn('src/manifest.key.txt bulunamadı; eklenti sabit kimlik olmada
 writeFileSync(join(dist, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 copyFileSync('src/modules/tab-switcher/switcher.html', join(dist, 'switcher.html'));
 copyFileSync('src/modules/tab-switcher/switcher.css', join(dist, 'switcher.css'));
+copyFileSync('src/modules/tab-manager/tabs.html', join(dist, 'tabs.html'));
+copyFileSync('src/modules/tab-manager/tabs.css', join(dist, 'tabs.css'));
 copyFileSync('src/modules/command-center/command-center.html', join(dist, 'command-center.html'));
 copyFileSync('src/modules/command-center/command-center.css', join(dist, 'command-center.css'));
 copyFileSync('design/tokens.css', join(dist, 'tokens.css'));

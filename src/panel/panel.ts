@@ -105,6 +105,7 @@ const siteToolbar = initSiteToolbarPanel();
 const tabToolsSection = document.querySelector('#tab-tools') as HTMLElement;
 const tabTools = initTabToolsPanel();
 const lifeBrowserSection = document.querySelector('#life-browser-panel') as HTMLElement;
+document.querySelector('#open-tab-manager')?.addEventListener('click', () => { void chrome.tabs.create({ url: chrome.runtime.getURL('tabs.html') }); });
 const lifeBrowser = initLifeBrowserPanel();
 const temizlikSection = document.querySelector('#sekmeler-temizlik') as HTMLElement;
 const zombieSection = document.querySelector('#zombie-tabs-panel') as HTMLElement;
