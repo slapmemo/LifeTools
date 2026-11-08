@@ -12,12 +12,21 @@ import { cleanTitle, TITLE_RULES_KEY, type TitleRules } from '../title-cleaner/c
 import { TITLE_CLEANER_ID } from '../title-cleaner';
 import { DEFAULT_HOURS, LAST_ACTIVE_KEY, ZOMBIE_HOURS_KEY, normalizeHours, selectZombies } from '../zombie-tabs/zombie';
 import { filterTabs, sortByMru, nextLabel, MRU_KEY, type SearchTab } from './filter';
+import { pills, workspaceForKey, ws, type WorkspaceState } from '../tab-manager/workspace-ui';
 void applyTheme();
 type Item = SearchTab & { tab: chrome.tabs.Tab; site: string };
 const search = document.querySelector('#search') as HTMLInputElement, cards = document.querySelector('#cards') as HTMLElement, empty = document.querySelector('#empty') as HTMLElement, message = document.querySelector('#message') as HTMLElement;
 const button = (id: string): HTMLButtonElement => document.querySelector(`#${id}`) as HTMLButtonElement;
 let all: Item[] = [], visible: Item[] = [], selected = 0, zombies = new URLSearchParams(location.search).has('zombies'), duplicates = new URLSearchParams(location.search).has('duplicates'), zombieIds = new Set<number>(), duplicateIds = new Set<number>(), editing: number | undefined;
 let labelsEnabled = false, notesEnabled = false;
+let workspaceState: WorkspaceState | undefined, workspaceWindow: number | undefined;
+async function loadWorkspaces(): Promise<void> {
+ workspaceState = await ws<WorkspaceState>({type:'ws:list'}); workspaceWindow = (await chrome.windows.getCurrent()).id;
+ const bar = document.querySelector('#workspace-bar') as HTMLElement; bar.replaceChildren();
+ if (workspaceState.mode !== 'workspaces') return;
+ for (const item of pills(workspaceState.workspaces, workspaceWindow === undefined ? undefined : workspaceState.activeByWindow[workspaceWindow])) { const b = document.createElement('button'); b.textContent = `${item.name} · ${item.count}`; b.setAttribute('aria-pressed', String(item.active)); const dot = document.createElement('span'); dot.className = 'workspace-dot'; dot.style.background = item.hex; b.prepend(dot); b.addEventListener('click', () => { void switchWorkspace(item.id).catch(report); }); bar.append(b); }
+}
+async function switchWorkspace(id: string): Promise<void> { if (workspaceWindow === undefined) return; message.textContent = 'Geçiliyor…'; await ws({type:'ws:switch',windowId:workspaceWindow,id}); message.textContent = 'Çalışma alanına geçildi.'; await load(); await loadWorkspaces(); }
 async function load(): Promise<void> {
  const [tabs, labels, notes, data, session, titleEnabled, lifeEnabled, zombieEnabled, labelFlag, noteFlag] = await Promise.all([chrome.tabs.query({}), createTabLabelsRepo(popupDb).list(), createTabNotesRepo(popupDb).list(), chrome.storage.local.get({ [TITLE_RULES_KEY]: {}, [ZOMBIE_HOURS_KEY]: DEFAULT_HOURS }), chrome.storage.session.get({ [MRU_KEY]: [], [LAST_ACTIVE_KEY]: {} }), isModuleEnabled(TITLE_CLEANER_ID), isModuleEnabled('life-browser'), isModuleEnabled('zombie-tabs'), isModuleEnabled('tab-labels'), isModuleEnabled('tab-notes')]);
  labelsEnabled = labelFlag; notesEnabled = noteFlag;
@@ -55,6 +64,7 @@ async function rowAction(key: string, item: Item): Promise<void> {
 }
 search.addEventListener('input', () => { selected=0; render(); });
 document.addEventListener('keydown', event => { if (editing !== undefined || (event.target instanceof HTMLElement && event.target.closest('#toolbar'))) return; const item = visible[selected];
+ if (workspaceState?.mode === 'workspaces' && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement) && !(event.target instanceof HTMLElement && event.target.isContentEditable) && !event.ctrlKey && !event.altKey && !event.metaKey) { const target = workspaceForKey(workspaceState.workspaces,event.key); if (target) { event.preventDefault(); void switchWorkspace(target.id).catch(report); return; } }
  if (['ArrowDown','ArrowRight','ArrowUp','ArrowLeft'].includes(event.key)) { event.preventDefault(); if (visible.length) selected = (selected + (event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1) + visible.length) % visible.length; render(); }
  else if(event.key === 'Enter' && item) { event.preventDefault(); void activate(item).catch(report); }
  else if (item && (event.target !== search || event.altKey)) { const key = event.key === 'Delete' ? 'Delete' : event.key.toLocaleLowerCase('tr-TR'); if (['e','n','s','Delete'].includes(key)) { event.preventDefault(); void rowAction(key,item).catch(report); } }
@@ -65,3 +75,5 @@ button('session').addEventListener('click', () => { void (async () => { const ow
 button('zombies').addEventListener('click', () => { zombies = !zombies; duplicates = false; button('zombies').setAttribute('aria-pressed', String(zombies)); selected = 0; void load().catch(report); });
 button('manager').addEventListener('click', () => { void openTabManager().catch(report); });
 void load().catch(report);
+void loadWorkspaces().catch(report);
+chrome.storage.onChanged.addListener((changes, area) => { if ((area === 'local' && (changes.workspaces || changes.workspaceMode)) || (area === 'session' && changes.windowWorkspace)) void loadWorkspaces().catch(report); });
