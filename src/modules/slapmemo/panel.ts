@@ -14,6 +14,7 @@ import { CATEGORY_LABELS, isNoteCategory, NOTE_CATEGORIES } from './categories';
 import type { Note } from './repo';
 import { createNotesRepo } from './repo';
 import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, BUBBLE_ORIGINS } from './bubble-logic';
+import { NOTE_HINT_ENABLED_KEY } from './page-hint';
 
 const LIST_LIMIT = 50;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -55,6 +56,15 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
   const bubbleToggle = document.querySelector<HTMLInputElement>('#memo-bubble-enabled');
+  const hintToggle = document.querySelector<HTMLInputElement>('#memo-hint-enabled');
+  hintToggle?.addEventListener('change', () => {
+    const requested = hintToggle.checked;
+    const permission = requested ? chrome.permissions.request({ origins: BUBBLE_ORIGINS }) : Promise.resolve(true);
+    void permission.then(async granted => {
+      if (!granted) { hintToggle.checked = false; notify('Site izni verilmedi.', 'error'); return; }
+      await chrome.storage.local.set({ [NOTE_HINT_ENABLED_KEY]: requested });
+    }).catch(() => { hintToggle.checked = !requested; notify('Ayar kaydedilemedi.', 'error'); });
+  });
   const bubbleSites = document.querySelector<HTMLElement>('#memo-bubble-sites');
   const bubbleEmpty = document.querySelector<HTMLElement>('#memo-bubble-empty');
   async function renderBubbleSettings(): Promise<void> {
@@ -299,6 +309,7 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
 
   async function render(): Promise<void> {
     void renderBubbleSettings().catch(() => {});
+    if (hintToggle) void chrome.storage.local.get({ [NOTE_HINT_ENABLED_KEY]: false }).then(async data => { hintToggle.checked = data[NOTE_HINT_ENABLED_KEY] === true && await chrome.permissions.contains({ origins: BUBBLE_ORIGINS }); }).catch(() => {});
     const seq = ++renderSeq;
     for (const [key, button] of tabButtons) {
       const active = (key === 'all' ? null : key) === filter;

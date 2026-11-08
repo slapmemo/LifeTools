@@ -8,6 +8,8 @@ import { PAGE_THEME } from '../../core/page-theme';
 import { backgroundDb } from '../../db/host';
 import { isNoteCategory, type NoteCategory } from './categories';
 import { createNotesRepo } from './repo';
+import { normalizeNoteUrl } from './repo';
+import { NOTE_HINT_ENABLED_KEY, noteCountText, showNoteHint } from './page-hint';
 
 export const SLAPMEMO_ID = 'slapmemo';
 const repo = createNotesRepo(backgroundDb);
@@ -79,6 +81,19 @@ function recentId(id: unknown): id is number {
 }
 
 export function initSlapMemoBackground(): void {
+  chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
+    if (change.status !== 'complete' || tab.incognito || !tab.url || !/^https?:\/\//i.test(tab.url)) return;
+    const url = tab.url;
+    void (async () => {
+      const settings = await chrome.storage.local.get({ [NOTE_HINT_ENABLED_KEY]: false });
+      if (settings[NOTE_HINT_ENABLED_KEY] !== true || !(await isModuleEnabled(SLAPMEMO_ID)) || !(await chrome.permissions.contains({ origins: BUBBLE_ORIGINS }))) return;
+      const notes = await repo.notesForUrl(url);
+      if (!notes.length) return;
+      const current = await chrome.tabs.get(tabId);
+      if (current.incognito || !current.url || normalizeNoteUrl(current.url) !== normalizeNoteUrl(url)) return;
+      await chrome.scripting.executeScript({ target: { tabId }, func: showNoteHint, args: [{ label: noteCountText(notes.length), notes: notes.slice(0, 5).map(({ text, created_at }) => ({ text, created_at })) }, PAGE_THEME] });
+    })().catch(() => {});
+  });
   let queue: Promise<void> = Promise.resolve();
   const refresh = () => {
     queue = queue.then(async () => {
@@ -95,6 +110,15 @@ export function initSlapMemoBackground(): void {
   setContextMenuContributions(SLAPMEMO_ID, slapMemoMenuContributions());
   chrome.commands.onCommand.addListener((command, tab) => { void handleCommand(command, tab); });
   chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+    if (msg?.type === 'slapmemo:open-panel') {
+      if (!sender.tab || sender.tab.incognito || !sender.tab.url || !/^https?:\/\//i.test(sender.tab.url)) return;
+      void (async () => {
+        const settings = await chrome.storage.local.get({ [NOTE_HINT_ENABLED_KEY]: false });
+        if (settings[NOTE_HINT_ENABLED_KEY] !== true || !(await isModuleEnabled(SLAPMEMO_ID)) || !(await chrome.permissions.contains({ origins: BUBBLE_ORIGINS }))) return;
+        await chrome.tabs.create({ url: chrome.runtime.getURL('panel.html#notlar') });
+      })().catch(() => {});
+      return;
+    }
     if (msg?.type === 'slapmemo:open-search') {
       if (!sender.tab || !Number.isInteger(sender.tab.id) || !Number.isInteger(sender.tab.index) || typeof msg.text !== 'string' || !msg.text.trim() || msg.text.length > 300 || !['search', 'maps'].includes(msg.kind)) return;
       void (async () => {

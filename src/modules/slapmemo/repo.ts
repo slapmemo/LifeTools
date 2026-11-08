@@ -33,6 +33,13 @@ export interface ListOptions {
 
 const SEARCH_LIMIT = 100;
 
+export function normalizeNoteUrl(url: string): string {
+  const withoutHash = url.split('#', 1)[0];
+  const query = withoutHash.indexOf('?');
+  const path = query < 0 ? withoutHash : withoutHash.slice(0, query);
+  return path.replace(/\/$/, '') + (query < 0 ? '' : withoutHash.slice(query));
+}
+
 /** unicode61 Türkçe noktasız ı'yı i'ye indirgemez; hem dizinleme (SQL) hem sorgu tarafında yapılır. */
 export function foldTurkish(input: string): string {
   return input.replace(/ı/g, 'i').replace(/İ/g, 'I');
@@ -54,6 +61,11 @@ export function createNotesRepo(ex: Executor, now: () => number = Date.now) {
   }
 
   return {
+    async notesForUrl(url: string): Promise<Note[]> {
+      const notes = await ex.query<Note>('SELECT * FROM notes WHERE url IS NOT NULL ORDER BY created_at DESC, id DESC');
+      const normalized = normalizeNoteUrl(url);
+      return notes.filter(note => note.url !== null && normalizeNoteUrl(note.url) === normalized);
+    },
     async addNote(input: NewNote): Promise<AddResult> {
       const text = input.text.trim();
       if (!text) throw new Error('Not metni boş olamaz');
