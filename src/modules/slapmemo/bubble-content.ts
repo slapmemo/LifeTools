@@ -43,6 +43,7 @@ function show(): void {
   const style = document.createElement('style');
   style.textContent = PAGE_THEME + `:host{position:fixed;z-index:2147483647} .pill{display:flex;align-items:center;white-space:nowrap;background:var(--lt-surface);color:var(--lt-text);border:1px solid var(--lt-border);border-radius:10px;box-shadow:var(--lt-shadow);padding:3px} button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;min-height:28px;padding:3px 8px;border-radius:8px} button:hover{background:var(--lt-sub)} button.primary{background:var(--lt-accent);color:var(--lt-on-accent)} button.primary:hover{opacity:.88} .close{font-size:16px;padding:2px 7px;color:var(--lt-muted)} @media(max-width:600px){.label{display:none}button{padding:3px 5px}}`;
   const pill = document.createElement('div'); pill.className = 'pill';
+  style.textContent += `.more-wrap{position:relative}.menu{position:absolute;right:0;top:100%;z-index:1;background:var(--lt-surface);color:var(--lt-text);border:1px solid var(--lt-border);border-radius:8px;box-shadow:var(--lt-shadow);padding:3px}.menu button{height:28px;white-space:nowrap}`;
   style.textContent += `.translation{box-sizing:border-box;width:min(420px,calc(100vw - 16px));max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;background:var(--lt-surface);color:var(--lt-text);border:1px solid var(--lt-border);border-radius:10px;box-shadow:var(--lt-shadow);padding:10px;margin-top:4px}.translation header{display:flex;align-items:center;justify-content:space-between;font-weight:600}.translation .actions{display:flex;flex-wrap:wrap;margin-top:8px}.translation .content{margin-top:6px}`;
   pill.addEventListener('mousedown', event => event.preventDefault());
   const save = document.createElement('button'); save.type = 'button'; save.textContent = '📝 Not';
@@ -52,15 +53,28 @@ function show(): void {
     void chrome.runtime.sendMessage({ type: 'slapmemo:save', text, url: location.href, title: document.title, category: 'note' })
       .then(result => pageToast(result?.ok ? result : { ok: false })).catch(() => pageToast({ ok: false }));
   });
-  const close = document.createElement('button'); close.type = 'button'; close.className = 'close'; close.textContent = '×'; close.title = 'Bu sitede gösterme'; close.setAttribute('aria-label', close.title);
-  close.addEventListener('click', () => {
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'close'; close.textContent = '×'; close.title = 'Kapat'; close.setAttribute('aria-label', close.title);
+  close.addEventListener('click', hide);
+  const moreWrap = document.createElement('div'); moreWrap.className = 'more-wrap';
+  const more = document.createElement('button'); more.type = 'button'; more.textContent = '⋯'; more.title = 'Diğer'; more.setAttribute('aria-label', more.title); more.setAttribute('aria-expanded', 'false');
+  const menu = document.createElement('div'); menu.className = 'menu'; menu.hidden = true;
+  const hideSite = document.createElement('button'); hideSite.type = 'button'; hideSite.textContent = 'Bu sitede gösterme';
+  more.addEventListener('click', () => { menu.hidden = !menu.hidden; more.setAttribute('aria-expanded', String(!menu.hidden)); });
+  hideSite.addEventListener('click', () => {
     hide();
     void (async () => {
+      const hostname = location.hostname;
       const data = await chrome.storage.local.get({ [BUBBLE_HIDDEN_KEY]: [] });
       const sites = Array.isArray(data[BUBBLE_HIDDEN_KEY]) ? data[BUBBLE_HIDDEN_KEY].filter((site: unknown): site is string => typeof site === 'string') : [];
-      await chrome.storage.local.set({ [BUBBLE_HIDDEN_KEY]: [...new Set([...sites, location.hostname])] });
-    })();
+      await chrome.storage.local.set({ [BUBBLE_HIDDEN_KEY]: [...new Set([...sites, hostname])] });
+      pageToast({ ok: true, title: `${hostname}'da gizlendi`, detail: "Panel › Notlar'dan tekrar açabilirsin", onUndo: async () => {
+        const current = await chrome.storage.local.get({ [BUBBLE_HIDDEN_KEY]: [] });
+        const saved = Array.isArray(current[BUBBLE_HIDDEN_KEY]) ? current[BUBBLE_HIDDEN_KEY].filter((site: unknown): site is string => typeof site === 'string') : [];
+        await chrome.storage.local.set({ [BUBBLE_HIDDEN_KEY]: saved.filter(site => site !== hostname) });
+      } });
+    })().catch(() => pageToast({ ok: false }));
   });
+  menu.append(hideSite); moreWrap.append(more, menu);
   const visible = bubbleButtons(text, flags);
   const button = (icon: string, label: string, click: () => void) => {
     const item = document.createElement('button'); item.type = 'button'; item.title = label; item.setAttribute('aria-label', label);
@@ -141,7 +155,7 @@ function show(): void {
       actions.append(copy, saveTranslation); panel.append(actions);
     })().catch(() => { content.textContent = 'Çeviri yapılamadı, internet bağlantını kontrol et'; });
   }));
-  pill.append(close); shadow.append(style, pill); (document.body || document.documentElement).append(host);
+  pill.append(moreWrap, close); shadow.append(style, pill); (document.body || document.documentElement).append(host);
   const size = host.getBoundingClientRect();
   const position = bubblePosition(rect, { width: innerWidth, height: innerHeight }, size);
   host.style.left = `${position.left}px`; host.style.top = `${position.top}px`;

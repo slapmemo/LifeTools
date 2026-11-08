@@ -1,7 +1,7 @@
 import { PAGE_THEME } from './page-theme';
 
 /** When injected with executeScript, pass the theme explicitly. */
-export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolean; category?: string; title?: string; detail?: string; undoType?: string; handle?: string }, theme: string = PAGE_THEME): void {
+export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolean; category?: string; title?: string; detail?: string; undoType?: string; handle?: string; onUndo?: () => Promise<void> | void }, theme: string = PAGE_THEME): void {
   document.getElementById('lifetools-slapmemo-toast')?.remove();
   const host = document.createElement('div');
   host.id = 'lifetools-slapmemo-toast';
@@ -27,7 +27,12 @@ export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolea
   const schedule = () => { clearTimeout(timer); timer = setTimeout(() => host.remove(), 4000); };
   box.addEventListener('mouseenter', () => clearTimeout(timer));
   box.addEventListener('mouseleave', schedule);
-  if (result.ok && result.undoType && (result.id !== undefined || result.handle !== undefined)) {
+  if (result.ok && result.onUndo) {
+    const actions = document.createElement('div'); actions.className = 'actions';
+    const undo = document.createElement('button'); undo.textContent = 'Geri al';
+    undo.addEventListener('click', () => { undo.disabled = true; void Promise.resolve().then(() => result.onUndo!()).then(() => host.remove()).catch(() => { undo.disabled = false; }); });
+    actions.append(undo); box.append(actions);
+  } else if (result.ok && result.undoType && (result.id !== undefined || result.handle !== undefined)) {
     const actions = document.createElement('div'); actions.className = 'actions';
     const undo = document.createElement('button'); undo.textContent = 'Geri al';
     undo.addEventListener('click', () => { void chrome.runtime.sendMessage({ type: result.undoType, id: result.id, handle: result.handle }).then(response => { if (response?.ok) { host.remove(); document.dispatchEvent(new CustomEvent('lifetools-toast-undo')); } }).catch(() => {}); });
