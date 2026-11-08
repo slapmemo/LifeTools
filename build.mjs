@@ -17,6 +17,7 @@ await build({
     panel: 'src/panel/panel.ts',
     'site-toolbar-content': 'src/modules/site-toolbar/content.ts',
     'slapmemo-bubble': 'src/modules/slapmemo/bubble-content.ts',
+    'watchlist-page-button': 'src/modules/watchlist/page-button.ts',
     switcher: 'src/modules/tab-switcher/switcher.ts',
     'command-center': 'src/modules/command-center/command-center.ts',
     offscreen: 'src/db/offscreen.ts',

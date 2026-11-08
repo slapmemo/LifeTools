@@ -26,7 +26,7 @@ export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolea
   if (result.ok && result.undoType && result.id !== undefined) {
     const actions = document.createElement('div'); actions.className = 'actions';
     const undo = document.createElement('button'); undo.textContent = 'Geri al';
-    undo.addEventListener('click', () => { void chrome.runtime.sendMessage({ type: result.undoType, id: result.id }).then(response => { if (response?.ok) host.remove(); }).catch(() => {}); });
+    undo.addEventListener('click', () => { void chrome.runtime.sendMessage({ type: result.undoType, id: result.id }).then(response => { if (response?.ok) { host.remove(); document.dispatchEvent(new CustomEvent('lifetools-toast-undo')); } }).catch(() => {}); });
     actions.append(undo); box.append(actions);
   } else if (result.ok && !result.title && !result.duplicate && result.id !== undefined) {
     const actions = document.createElement('div'); actions.className = 'actions';

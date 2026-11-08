@@ -8,6 +8,7 @@ import {
   type KebabMenuItem
 } from '../../panel/ui';
 import { createWatchRepo, type Kind, type Status, type WatchItem } from './repo';
+import { PAGE_BUTTON_KEY, PAGE_ORIGINS } from './page-logic';
 
 const STATUS_LABELS: Record<Status, string> = {
   izlenecek: 'İzlenecek',
@@ -43,6 +44,20 @@ export function initWatchlistPanel(): { render(): Promise<void>; openNewForm(): 
   const list = root.querySelector('#watch-list') as HTMLElement;
   const empty = root.querySelector<HTMLElement>('#watch-empty');
   const feedback = root.querySelector('#watch-feedback') as HTMLElement;
+  const pageToggle = root.querySelector<HTMLInputElement>('#watch-page-button-enabled');
+  if (pageToggle) {
+    void chrome.storage.local.get({ [PAGE_BUTTON_KEY]: false }).then(async data => {
+      pageToggle.checked = data[PAGE_BUTTON_KEY] === true && await chrome.permissions.contains({ origins: PAGE_ORIGINS });
+    });
+    pageToggle.addEventListener('change', () => {
+      const requested = pageToggle.checked;
+      const permission = requested ? chrome.permissions.request({ origins: PAGE_ORIGINS }) : Promise.resolve(true);
+      void permission.then(async granted => {
+        if (!granted) { pageToggle.checked = false; notify('Site izni verilmedi.', true); return; }
+        await chrome.storage.local.set({ [PAGE_BUTTON_KEY]: requested });
+      }).catch(() => { pageToggle.checked = !requested; notify('Ayar kaydedilemedi.', true); });
+    });
+  }
 
   function notify(message: string, isError = false): void {
     feedback.textContent = message;
