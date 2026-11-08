@@ -101,6 +101,15 @@ test('updateUserNote günceller, boş değer temizler, olmayan kayıt null döne
   assert.equal(await repo.updateUserNote(9999, 'y'), null);
 });
 
+test('setCategory kategoriyi ve güncelleme zamanını değiştirir', async () => {
+  const { repo } = await setup();
+  const { note } = await repo.addNote({ category: 'note', text: 'örnek' });
+  const updated = await repo.setCategory(note.id, 'watch');
+  assert.equal(updated?.category, 'watch');
+  assert.ok((updated?.updated_at ?? 0) > note.updated_at);
+  assert.equal(await repo.setCategory(9999, 'read'), null);
+});
+
 test('deleteNote listeden ve aramadan kaldırır', async () => {
   const { repo } = await setup();
   const { note } = await repo.addNote({ category: 'note', text: 'silinecek kayıt' });

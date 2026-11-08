@@ -100,6 +100,11 @@ export function createNotesRepo(ex: Executor, now: () => number = Date.now) {
       return ex.query<Note>(sql, params);
     },
 
+    async setCategory(id: number, category: NoteCategory): Promise<Note | null> {
+      await ex.exec('UPDATE notes SET category = ?, updated_at = ? WHERE id = ?', [category, now(), id]);
+      return getById(id);
+    },
+
     /** Boş metin "notum"u temizler. Kayıt yoksa null döner. */
     async updateUserNote(id: number, text: string): Promise<Note | null> {
       const value = text.trim();

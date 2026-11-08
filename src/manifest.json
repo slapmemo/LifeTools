@@ -31,9 +31,9 @@
     },
     "save-selection": {
       "suggested_key": {
-        "default": "Alt+Shift+S"
+        "default": "Alt+S"
       },
-      "description": "Seçili metni SlapMemo'ya kaydet"
+      "description": "Seçimi veya sayfayı SlapMemo'ya kaydet"
     },
     "open-switcher": {
       "suggested_key": {

@@ -136,7 +136,7 @@ describe('arayüz', () => {
     });
 
     expect(visibleTopItemsForContext(tree, 'selection').map(i => i.title)).toEqual([
-      "SlapMemo'ya kaydet",
+      'Not olarak kaydet',
       'Görev olarak ekle',
       'Yuvaya kaydet'
     ]);
@@ -145,11 +145,12 @@ describe('arayüz', () => {
       'Yuvadan yapıştır'
     ]);
     expect(visibleTopItemsForContext(tree, 'link').map(i => i.title)).toEqual([
+      'Not olarak kaydet',
       'Temiz linki kopyala',
       'İzleme listesine ekle'
     ]);
     expect(visibleTopItemsForContext(tree, 'page').map(i => i.title)).toEqual([
-      "SlapMemo'ya kaydet",
+      'Not olarak kaydet',
       'Görev olarak ekle',
       'Bu sayfanın temiz linki',
       'İzleme listesine ekle',
