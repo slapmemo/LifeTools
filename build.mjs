@@ -16,6 +16,7 @@ await build({
     popup: 'src/popup/popup.ts',
     panel: 'src/panel/panel.ts',
     'site-toolbar-content': 'src/modules/site-toolbar/content.ts',
+    'slapmemo-bubble': 'src/modules/slapmemo/bubble-content.ts',
     switcher: 'src/modules/tab-switcher/switcher.ts',
     'command-center': 'src/modules/command-center/command-center.ts',
     offscreen: 'src/db/offscreen.ts',

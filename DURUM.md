@@ -20,6 +20,8 @@ Kullanıcı eklentiyi Chrome'da denedi: popup çok karışıktı → U1/U2 bu y�
 
 ## 2. Sıradaki adımlar
 
+> **8 Kasım:** Yeni yol haritası `../LifeTools_Ozellik_Rehberi_2026-11-08.md` (K1–K6: her araç X indirici gibi sayfa içinde, tek tık, görünür mesaj). **K1 bitti** (SlapMemo: tek kat sağ tık, Alt+S, sayfa mesajı + Geri al, seçim baloncuğu). Sırada K2 (baloncuğa Görev / İzle / Temiz link / Yuva). Kullanıcı K1'i Chrome'da deneyecek.
+
 1. Kullanıcı U2'yi Chrome'da açık ve koyu temada dener; ekran görüntüsüyle geri bildirim verir.
 2. Geri bildirim düzeltmeleri.
 3. **U3** — masaüstü, küçük görevlere bölündü (kullanıcı tek büyük görevin yavaşlığından rahatsız oldu):
@@ -52,7 +54,7 @@ Kullanıcı eklentiyi Chrome'da denedi: popup çok karışıktı → U1/U2 bu y�
 
 | Tuş | İşlem |
 |---|---|
-| Alt+Shift+S | Seçimi SlapMemo'ya kaydet |
+| Alt+S | Seçimi (yoksa sayfayı) SlapMemo'ya kaydet |
 | Alt+Shift+Space | Görsel sekme değiştirici |
 | Alt+Shift+K | Command Center (değiştirilebilir: Panel › Ayarlar › Kısayollar) |
 | Alt+Shift+P | Resim içinde resim |

@@ -1,6 +1,8 @@
 import { flashBadge } from '../../core/badge';
 import { setContextMenuContributions, type ContextMenuContribution } from '../../core/context-menu';
-import { isModuleEnabled, resolveEnabled } from '../../core/module-state';
+import { isModuleEnabled, resolveEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
+import { replaceSiteScript } from '../../core/site-scripts';
+import { BUBBLE_ENABLED_KEY, BUBBLE_ORIGINS } from './bubble-logic';
 import { pageToast } from '../../core/page-toast';
 import { backgroundDb } from '../../db/host';
 import { isNoteCategory, type NoteCategory } from './categories';
@@ -76,6 +78,19 @@ function recentId(id: unknown): id is number {
 }
 
 export function initSlapMemoBackground(): void {
+  let queue: Promise<void> = Promise.resolve();
+  const refresh = () => {
+    queue = queue.then(async () => {
+      const data = await chrome.storage.local.get({ [BUBBLE_ENABLED_KEY]: false });
+      const active = data[BUBBLE_ENABLED_KEY] === true && await isModuleEnabled(SLAPMEMO_ID);
+      await replaceSiteScript('slapmemo-bubble', active ? BUBBLE_ORIGINS : [], 'slapmemo-bubble.js', false);
+    }).catch(err => { console.debug('[SlapMemo]', err); });
+  };
+  chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && (changes[BUBBLE_ENABLED_KEY] || changes[MODULE_FLAGS_KEY])) refresh(); });
+  chrome.permissions.onRemoved.addListener(refresh);
+  chrome.runtime.onInstalled.addListener(refresh);
+  chrome.runtime.onStartup.addListener(refresh);
+  refresh();
   setContextMenuContributions(SLAPMEMO_ID, slapMemoMenuContributions());
   chrome.commands.onCommand.addListener((command, tab) => { void handleCommand(command, tab); });
   chrome.runtime.onMessage.addListener((msg, sender, respond) => {

@@ -13,6 +13,7 @@ import type { NoteCategory } from './categories';
 import { CATEGORY_LABELS, isNoteCategory, NOTE_CATEGORIES } from './categories';
 import type { Note } from './repo';
 import { createNotesRepo } from './repo';
+import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, BUBBLE_ORIGINS } from './bubble-logic';
 
 const LIST_LIMIT = 50;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -52,6 +53,38 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
   let editingId: number | null = null;
   let renderSeq = 0;
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const bubbleToggle = document.querySelector<HTMLInputElement>('#memo-bubble-enabled');
+  const bubbleSites = document.querySelector<HTMLElement>('#memo-bubble-sites');
+  const bubbleEmpty = document.querySelector<HTMLElement>('#memo-bubble-empty');
+  async function renderBubbleSettings(): Promise<void> {
+    if (!bubbleToggle || !bubbleSites || !bubbleEmpty) return;
+    const data = await chrome.storage.local.get({ [BUBBLE_ENABLED_KEY]: false, [BUBBLE_HIDDEN_KEY]: [] });
+    bubbleToggle.checked = data[BUBBLE_ENABLED_KEY] === true && await chrome.permissions.contains({ origins: BUBBLE_ORIGINS });
+    const sites: string[] = Array.isArray(data[BUBBLE_HIDDEN_KEY]) ? data[BUBBLE_HIDDEN_KEY].filter((site: unknown): site is string => typeof site === 'string') : [];
+    bubbleEmpty.hidden = sites.length > 0;
+    bubbleSites.replaceChildren();
+    for (const site of sites) {
+      const item = document.createElement('li'); item.className = 'chip';
+      const label = document.createElement('span'); label.textContent = site;
+      const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×'; remove.setAttribute('aria-label', `${site} gizlemesini kaldır`);
+      remove.addEventListener('click', () => { void (async () => {
+        const current = await chrome.storage.local.get({ [BUBBLE_HIDDEN_KEY]: [] });
+        const list = Array.isArray(current[BUBBLE_HIDDEN_KEY]) ? current[BUBBLE_HIDDEN_KEY] : [];
+        await chrome.storage.local.set({ [BUBBLE_HIDDEN_KEY]: list.filter((value: unknown) => value !== site) });
+        await renderBubbleSettings();
+      })().catch(() => notify('Site kaldırılamadı.', 'error')); });
+      item.append(label, remove); bubbleSites.append(item);
+    }
+  }
+  bubbleToggle?.addEventListener('change', () => {
+    const requested = bubbleToggle.checked;
+    const permission = requested ? chrome.permissions.request({ origins: BUBBLE_ORIGINS }) : Promise.resolve(true);
+    void permission.then(async granted => {
+      if (!granted) { bubbleToggle.checked = false; notify('Site izni verilmedi.', 'error'); return; }
+      await chrome.storage.local.set({ [BUBBLE_ENABLED_KEY]: requested });
+    }).catch(() => { bubbleToggle.checked = !requested; notify('Ayar kaydedilemedi.', 'error'); });
+  });
 
   function notify(message: string, type: 'error' | 'success' = 'success'): void {
     dom.feedback.textContent = message;
@@ -265,6 +298,7 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
   }
 
   async function render(): Promise<void> {
+    void renderBubbleSettings().catch(() => {});
     const seq = ++renderSeq;
     for (const [key, button] of tabButtons) {
       const active = (key === 'all' ? null : key) === filter;

@@ -34,6 +34,11 @@
       </div>
 
       <div id="slapmemo-panel">
+        <div class="card stack-card">
+          <label class="setting-row"><span>Metin seçince not baloncuğu göster (tüm sitelerde)</span><span class="switch"><input id="memo-bubble-enabled" type="checkbox" /><span class="switch-track"></span></span></label>
+          <p id="memo-bubble-empty" class="hint">Gizlenen site yok.</p>
+          <ul id="memo-bubble-sites" class="chip-list" aria-label="Gizlenen siteler"></ul>
+        </div>
         <form id="memo-form" class="card inline-form-card" novalidate hidden>
           <label class="sr-only" for="memo-text">Not metni</label>
           <textarea id="memo-text" rows="3" maxlength="5000" placeholder="Hızlı not yaz… (Enter ile kaydet, Shift+Enter yeni satır)"></textarea>

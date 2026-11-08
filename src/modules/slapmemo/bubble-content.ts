@@ -1,0 +1,67 @@
+import { MODULE_FLAGS_KEY, resolveEnabled } from '../../core/module-state';
+import { pageToast } from '../../core/page-toast';
+import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, bubblePosition, shouldShowBubble } from './bubble-logic';
+
+let enabled = false;
+let hiddenSites: string[] = [];
+let timer: ReturnType<typeof setTimeout> | undefined;
+let host: HTMLElement | undefined;
+
+function hide(): void { clearTimeout(timer); host?.remove(); host = undefined; }
+function editable(node: Node | null): boolean {
+  const element = node instanceof Element ? node : node?.parentElement;
+  return !!element?.closest('input, textarea, [contenteditable]:not([contenteditable="false"])');
+}
+async function loadSettings(): Promise<void> {
+  const data = await chrome.storage.local.get({ [BUBBLE_ENABLED_KEY]: false, [BUBBLE_HIDDEN_KEY]: [], [MODULE_FLAGS_KEY]: {} });
+  enabled = data[BUBBLE_ENABLED_KEY] === true && resolveEnabled(data[MODULE_FLAGS_KEY], 'slapmemo');
+  hiddenSites = Array.isArray(data[BUBBLE_HIDDEN_KEY]) ? data[BUBBLE_HIDDEN_KEY].filter((site: unknown): site is string => typeof site === 'string') : [];
+  if (!enabled || hiddenSites.includes(location.hostname)) hide();
+}
+void loadSettings();
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && (changes[BUBBLE_ENABLED_KEY] || changes[BUBBLE_HIDDEN_KEY] || changes[MODULE_FLAGS_KEY])) void loadSettings();
+});
+
+function show(): void {
+  hide();
+  const selection = window.getSelection();
+  const text = selection?.toString().trim() ?? '';
+  if (!selection || !selection.rangeCount || !shouldShowBubble(text, editable(selection.anchorNode) || editable(selection.focusNode) || editable(document.activeElement), location.hostname, hiddenSites, enabled)) return;
+  const range = selection.getRangeAt(0).cloneRange();
+  range.collapse(false);
+  let rect = range.getBoundingClientRect();
+  if (!rect.width && !rect.height) rect = selection.getRangeAt(0).getBoundingClientRect();
+  host = document.createElement('div');
+  const shadow = host.attachShadow({ mode: 'closed' });
+  const style = document.createElement('style');
+  style.textContent = `:host{all:initial;position:fixed;z-index:2147483647;font:13px system-ui,sans-serif} .pill{display:flex;align-items:center;background:white;color:#20242b;border:1px solid #ccd2d9;border-radius:20px;box-shadow:0 3px 14px #0003;padding:2px} button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;padding:5px 8px;border-radius:16px} button:hover{background:#e8edf2} .close{font-size:16px;padding:2px 7px} @media(prefers-color-scheme:dark){.pill{background:#252a31;color:#f2f4f6;border-color:#59616a}button:hover{background:#424a55}}`;
+  const pill = document.createElement('div'); pill.className = 'pill';
+  pill.addEventListener('mousedown', event => event.preventDefault());
+  const save = document.createElement('button'); save.type = 'button'; save.textContent = '📝 Not';
+  save.addEventListener('click', () => {
+    hide();
+    void chrome.runtime.sendMessage({ type: 'slapmemo:save', text, url: location.href, title: document.title, category: 'note' })
+      .then(result => pageToast(result?.ok ? result : { ok: false })).catch(() => pageToast({ ok: false }));
+  });
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'close'; close.textContent = '×'; close.title = 'Bu sitede gösterme'; close.setAttribute('aria-label', close.title);
+  close.addEventListener('click', () => {
+    hide();
+    void (async () => {
+      const data = await chrome.storage.local.get({ [BUBBLE_HIDDEN_KEY]: [] });
+      const sites = Array.isArray(data[BUBBLE_HIDDEN_KEY]) ? data[BUBBLE_HIDDEN_KEY].filter((site: unknown): site is string => typeof site === 'string') : [];
+      await chrome.storage.local.set({ [BUBBLE_HIDDEN_KEY]: [...new Set([...sites, location.hostname])] });
+    })();
+  });
+  pill.append(save, close); shadow.append(style, pill); (document.body || document.documentElement).append(host);
+  const size = host.getBoundingClientRect();
+  const position = bubblePosition(rect, { width: innerWidth, height: innerHeight }, size);
+  host.style.left = `${position.left}px`; host.style.top = `${position.top}px`;
+}
+function schedule(): void { hide(); timer = setTimeout(show, 150); }
+document.addEventListener('mouseup', event => { if (!host || !event.composedPath().includes(host)) schedule(); });
+document.addEventListener('keyup', event => { if (event.shiftKey && event.key.startsWith('Arrow')) schedule(); });
+document.addEventListener('pointerdown', event => { if (host && !event.composedPath().includes(host)) hide(); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape') hide(); });
+document.addEventListener('selectionchange', () => { if (!window.getSelection()?.toString().trim()) hide(); });
+window.addEventListener('scroll', hide, true);
