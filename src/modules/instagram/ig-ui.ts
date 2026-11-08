@@ -2,6 +2,7 @@ import type { InstagramVideo } from './extract';
 import { CHANNEL, INSTAGRAM_ID, SETTINGS_KEY, defaults, validUrl, type Settings } from './shared';
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { PAGE_THEME } from '../../core/page-theme';
+import { setSeekBarsEnabled } from './seek-bar';
 const byCode = new Map<string, InstagramVideo[]>();
 const byFilename = new Map<string, InstagramVideo>();
 const hosts = new Map<HTMLVideoElement, HTMLElement>();
@@ -46,5 +47,5 @@ window.addEventListener('message', e => { if (e.source !== window || e.origin !=
   const list = byCode.get(m.code) ?? []; const index = list.findIndex(x => x.index === m.index && x.pk === m.pk); if (index < 0) list.push(m); else list[index] = m; list.sort((a, b) => (a.index ?? 0) - (b.index ?? 0)); byCode.set(m.code, list); const name = new URL(m.url).pathname.split('/').pop(); if (name) byFilename.set(name, m); schedule(); });
 new MutationObserver(records => { if (records.some(r => [...r.addedNodes, ...r.removedNodes].some(n => !(n instanceof Element) || !n.hasAttribute('data-lifetools-instagram')))) schedule(); }).observe(document, { childList: true, subtree: true });
 window.addEventListener('scroll', schedule, true); window.addEventListener('resize', schedule); window.addEventListener('popstate', schedule);
-async function refresh(): Promise<void> { enabled = await isModuleEnabled(INSTAGRAM_ID); const data = await chrome.storage.local.get({ [SETTINGS_KEY]: defaults }); settings = { ...defaults, ...data[SETTINGS_KEY] }; schedule(); }
+async function refresh(): Promise<void> { enabled = await isModuleEnabled(INSTAGRAM_ID); const data = await chrome.storage.local.get({ [SETTINGS_KEY]: defaults }); settings = { ...defaults, ...data[SETTINGS_KEY] }; setSeekBarsEnabled(enabled && settings.seekBar); schedule(); }
 chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && (changes[MODULE_FLAGS_KEY] || changes[SETTINGS_KEY])) void refresh(); }); void refresh();
