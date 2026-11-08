@@ -1,5 +1,6 @@
 import { api, errText } from '../api';
 import { debounce, fmtTime, h, type View } from '../dom';
+import { emptyState, rowMenu } from '../view-components';
 
 export function clipboardView(): View {
   const search = h('input', { type: 'search', class: 'grow', placeholder: 'Panoda ara…' });
@@ -7,7 +8,7 @@ export function clipboardView(): View {
   const clearBtn = h('button', { class: 'danger' }, 'Tümünü temizle');
   const banner = h('div', { class: 'banner', hidden: true }, 'Pano kaydı duraklatıldı. Kopyaladıkların kaydedilmiyor.');
   const status = h('div', { class: 'muted status' });
-  const list = h('div', { class: 'list' });
+  const list = h('div', { class: 'card list-card' });
   const el = h(
     'section',
     {},
@@ -35,53 +36,23 @@ export function clipboardView(): View {
     banner.hidden = !paused;
     list.replaceChildren();
     if (items.length === 0) {
-      list.append(h('div', { class: 'empty' }, search.value ? 'Eşleşen kayıt yok.' : 'Henüz kayıt yok.'));
+      list.append(emptyState(search.value ? 'Sonuç yok' : 'Pano geçmişi boş', search.value ? 'Başka bir arama deneyin.' : 'Kopyaladığınız metinler burada görünür.'));
       return;
     }
     for (const it of items) {
-      const pin = h(
-        'button',
-        {
-          class: 'small',
-          onClick: async (e: Event) => {
-            e.stopPropagation();
-            await api.clipPin(it.id, !it.pinned);
-            await refresh();
-          }
-        },
-        it.pinned ? 'Sabit ✓' : 'Sabitle'
-      );
-      const del = h(
-        'button',
-        {
-          class: 'small danger',
-          onClick: async (e: Event) => {
-            e.stopPropagation();
-            await api.clipDelete(it.id);
-            await refresh();
-          }
-        },
-        'Sil'
-      );
-      list.append(
-        h(
-          'div',
-          {
-            class: 'row' + (it.pinned ? ' pinned' : ''),
-            title: 'Tıkla: panoya kopyala',
-            onClick: async () => {
-              try {
-                await api.clipCopy(it.id);
-                flash('Panoya kopyalandı.');
-              } catch (e) {
-                flash(errText(e));
-              }
-            }
-          },
-          h('div', { class: 'txt' }, it.text + (it.truncated ? '…' : '')),
-          h('div', { class: 'meta' }, h('span', { class: 'muted' }, fmtTime(it.created_at)), pin, del)
-        )
-      );
+      const copy = async () => {
+        try { await api.clipCopy(it.id); flash('Panoya kopyaland?.'); }
+        catch (e) { flash(errText(e)); }
+      };
+      const menu = rowMenu([
+        { label: 'Kopyala', run: copy },
+        { label: it.pinned ? 'Sabitlemeyi kaldır' : 'Sabitle', run: async () => { await api.clipPin(it.id, !it.pinned); await refresh(); } },
+        { label: 'Sil', danger: true, run: async () => { await api.clipDelete(it.id); await refresh(); } }
+      ]);
+      list.append(h('div', { class: 'list-row clickable', title: 'Tıkla: panoya kopyala', onClick: copy },
+        h('div', { class: 'list-row-content clamp-2' }, it.text + (it.truncated ? '?' : '')),
+        h('div', { class: 'list-row-meta' }, it.pinned ? h('span', { class: 'chip' }, 'Sabit') : null, h('span', { class: 'muted' }, fmtTime(it.created_at))),
+        h('div', { class: 'list-row-actions' }, menu)));
     }
   }
 

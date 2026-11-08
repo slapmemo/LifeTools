@@ -1,10 +1,11 @@
 import { listen } from '@tauri-apps/api/event';
 import { api, type ClipItem } from './api';
 import { h } from './dom';
+import { emptyState } from './view-components';
 
 export function mountPicker(root: HTMLElement): void {
   const search = h('input', { type: 'search', placeholder: 'Pano geçmişinde ara… (Enter: kopyala, Esc: kapat)' });
-  const list = h('div', { class: 'list picker-list' });
+  const list = h('div', { class: 'card list-card picker-list' });
   root.append(h('div', { class: 'picker' }, search, list));
 
   let items: ClipItem[] = [];
@@ -30,7 +31,7 @@ export function mountPicker(root: HTMLElement): void {
       list.append(
         h(
           'div',
-          { class: 'row' + (i === sel ? ' selected' : '') + (it.pinned ? ' pinned' : ''), onClick: () => void choose(i) },
+          { class: 'list-row clickable picker-row' + (i === sel ? ' selected' : ''), onClick: () => void choose(i) },
           h('div', { class: 'txt' }, it.text + (it.truncated ? '…' : ''))
         )
       );
@@ -54,7 +55,7 @@ export function mountPicker(root: HTMLElement): void {
       void api.pickerHide();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      sel = Math.min(sel + 1, items.length - 1);
+      sel = Math.min(sel + 1, Math.max(0, items.length - 1));
       render();
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -73,4 +74,5 @@ export function mountPicker(root: HTMLElement): void {
     search.focus();
   });
   void load();
+  search.focus();
 }

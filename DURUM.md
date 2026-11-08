@@ -1,6 +1,6 @@
 # LifeTools — Kaldığımız Yer
 
-> **Son güncelleme:** 7 Kasım 2026 · son commit `91b7e7e` (dal: `master`)
+> **Son güncelleme:** 8 Kasım 2026 · son commit `91b7e7e` (dal: `master`)
 > Yeni bir sohbete/oturuma başlarken önce bu dosyayı, sonra iki planı oku:
 > `../LifeTools_Plan_v3_2026-11-06.md` (özellik yol haritası) ve `../LifeTools_Arayuz_Plani_2026-11-06.md` (arayüz düzenlemesi).
 
@@ -24,7 +24,7 @@ Kullanıcı eklentiyi Chrome'da denedi: popup çok karışıktı → U1/U2 bu y�
 2. Geri bildirim düzeltmeleri.
 3. **U3** — masaüstü, küçük görevlere bölündü (kullanıcı tek büyük görevin yavaşlığından rahatsız oldu):
    - **U3.1** Kabuk: tasarım dili bağlanır, ikonlu kenar çubuğu + katlanabilir "Diğer" (Pencereler, Piller, Elektrik), tema seçimi, `app.ts` → `desktop/src/views/*.ts`. ✅ bitti
-   - **U3.2** Pano + Şablonlar bölümleri ve Ctrl+Shift+V / Ctrl+Shift+Space seçicileri yeni bileşenlerle
+   - **U3.2** Pano + Şablonlar bölümleri ve Ctrl+Shift+V / Ctrl+Shift+Space seçicileri yeni bileşenlerle ✅ bitti
    - **U3.3** Ortam sesi (U5'e hazır kart düzeni), Piller, Pencereler, Elektrik, Ayarlar yeni bileşenlerle
    - **U3.4** Ana sayfa kartları (Rust tarafında özet komutu)
 4. **U4**, **U5** (planın 5.3 ve 5.4 bölümleri).
@@ -45,6 +45,7 @@ Kullanıcı eklentiyi Chrome'da denedi: popup çok karışıktı → U1/U2 bu y�
 - **Doğrulama komutlarında `!` kullanma** — doğrulayıcı `cmd.exe` ile çalışıyor. Koşulları bir bash betiğine koy (`bash script.sh`).
 - **Yeni migrasyon eklerken:** eski migrasyonlara dokunma; yeni tablolar `src/core/backup.ts` yedeğine eklenmeli. Şema sahibi eklentidir; masaüstü kendi sürümünü `desktop_schema_version` anahtarında tutar.
 - **Codex Terra bazen "geçti" deyip işi yarım bırakıyor** (yalnız yardımcı dosya yazıp hiçbir şeyi bağlamadı). Doğrulamaya bağlantı (wiring) kontrolleri koy: modül `src/modules/index.ts`'te mi, manifest/`build.mjs` güncel mi.
+- **Codex Terra Türkçe karakterleri bozabiliyor** (ç/ğ/ı/ş/ö/ü → `?`, U3.2'de oldu). Doğrulamaya `grep -E "[a-zA-Zçğışöü]\?[a-zA-Zçğışöü]"` kontrolü koy.
 - **Masaüstünde yazarken genişletme bilerek yok** (küresel klavye kancası = keylogger riski). Yerine Ctrl+Shift+Space şablon seçici.
 
 ## 5. Kısayollar (varsayılan)

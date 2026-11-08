@@ -54,3 +54,7 @@ body[data-view='toast'], body[data-view='picker'], body[data-view='snippets'] { 
 .bar { width: 120px; height: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-6); overflow: hidden; }
 .bar-fill { height: 100%; background: var(--accent); }
 .bar-fill.low { background: var(--danger); }
+
+.snippet-form { margin-bottom: var(--space-12); }
+.snippet-form textarea { width: 100%; margin-bottom: var(--space-8); }
+.picker-row.selected { background: var(--accent-soft); }
