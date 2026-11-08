@@ -44,6 +44,10 @@ export function createSessionsRepo(ex: Executor, now: () => number = Date.now) {
     async removeTab(sessionId: number, tabId: number): Promise<void> {
       await ex.exec('DELETE FROM session_tabs WHERE session_id = ? AND id = ?', [sessionId, tabId]);
     },
+    async removeHiddenTab(sessionId: number, tabId: number): Promise<void> {
+      await ex.exec('DELETE FROM session_tabs WHERE session_id = ? AND id = ? AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND substr(name, 1, ?) = ?)', [sessionId, tabId, sessionId, HIDDEN_PREFIX.length, HIDDEN_PREFIX]);
+      await ex.exec('DELETE FROM sessions WHERE id = ? AND substr(name, 1, ?) = ? AND NOT EXISTS (SELECT 1 FROM session_tabs WHERE session_id = ?)', [sessionId, HIDDEN_PREFIX.length, HIDDEN_PREFIX, sessionId]);
+    },
     async delete(sessionId: number): Promise<void> { await ex.exec('DELETE FROM sessions WHERE id = ?', [sessionId]); }
   };
 }

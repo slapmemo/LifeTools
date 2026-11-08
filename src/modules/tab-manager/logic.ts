@@ -7,6 +7,16 @@ export function hiddenGroupModel(session: Session, tabs: readonly SessionTab[]) 
   return { id: session.id, name: session.name.slice(HIDDEN_PREFIX.length), color: tabs[0].group_color || 'grey', count: tabs.length };
 }
 
+export function hiddenTabModel(tab: Pick<SessionTab, 'url' | 'title'>) {
+  let host: string;
+  try { host = new URL(tab.url).host; } catch { host = tab.url; }
+  return { title: tab.title || tab.url, host };
+}
+
+export function hiddenGroupCollapsed(stored: string | null, groupCount: number): boolean {
+  return stored === 'true' ? true : stored === 'false' ? false : groupCount > 3;
+}
+
 export const COLORS = GROUP_COLORS.map((color, i) => ({ color, label: ['Gri', 'Mavi', 'Kırmızı', 'Sarı', 'Yeşil', 'Pembe', 'Mor', 'Camgöbeği', 'Turuncu'][i] }));
 export interface ViewTab { id?: number; windowId: number; index: number; groupId: number; url?: string; pendingUrl?: string; title?: string }
 export interface ViewGroup { id: number; windowId: number }
