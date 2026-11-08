@@ -1,2 +1,19 @@
-body{font:16px system-ui;background:#f3f5f9;color:#172033}main{max-width:1000px;margin:40px auto;padding:0 20px}#search,.note-input{box-sizing:border-box;width:100%;padding:14px;border:1px solid #aab5c6;border-radius:10px;font:inherit}#toolbar{display:flex;flex-wrap:wrap;gap:8px}#toolbar button{padding:8px;border:1px solid #aab5c6;border-radius:8px;cursor:pointer}#toolbar button[aria-pressed=true]{background:#dce3ff}#message{min-height:1.4em}#cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:14px}.card{text-align:left;background:white;border:2px solid transparent;border-radius:10px;padding:16px;cursor:pointer;min-height:120px;overflow-wrap:anywhere}.card.selected{border-color:#4d63dd}.card img{width:18px;height:18px;vertical-align:middle;margin-right:8px}.site,.note{color:#5d6b7b;font-size:13px}.chip{background:#e5e9ff;border-radius:12px;padding:2px 7px}.note-input{padding:6px;margin-top:8px}footer{margin-top:20px;color:#5d6b7b;font-size:13px}
-#workspace-bar{display:flex;gap:8px;flex-wrap:wrap}#workspace-bar button[aria-pressed=true]{outline:2px solid #4d63dd}.workspace-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+body { margin: 0; }
+main { max-width: 1000px; margin: var(--space-24) auto; padding: 0 var(--space-16); }
+h1 { font-size: var(--font-size-18); margin: var(--space-16) 0; }
+#search, .note-input { width: 100%; }
+#search { padding: var(--space-16); font-size: var(--font-size-15); background: var(--surface); }
+#toolbar, #workspace-bar { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+#toolbar button[aria-pressed=true], #workspace-bar button[aria-pressed=true] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+#workspace-bar button { border-radius: var(--radius-pill); }
+.workspace-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: var(--space-4); }
+#message { min-height: 1.4em; color: var(--muted); }
+#cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--space-8); margin-top: var(--space-12); }
+.card { text-align: left; min-height: 120px; cursor: pointer; overflow-wrap: anywhere; }
+.card:hover { background: var(--sub); }
+.card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.card img { width: 18px; height: 18px; vertical-align: middle; margin-right: var(--space-8); }
+.site, .note { color: var(--muted); font-size: var(--font-size-12); }
+.note-input { padding: var(--space-4); margin-top: var(--space-8); }
+footer { margin-top: var(--space-16); color: var(--muted); font-size: var(--font-size-12); }
+footer kbd { display: inline-block; padding: 2px var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-6); background: var(--surface); color: var(--text); font: inherit; }

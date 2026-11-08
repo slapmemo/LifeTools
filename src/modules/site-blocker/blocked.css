@@ -1,1 +1,8 @@
-body { font: 16px system-ui,sans-serif; background:#f4f7f5; color:#17251d; margin:0; display:grid; min-height:100vh; place-items:center } main { background:white; border-radius:16px; padding:32px; box-shadow:0 4px 24px #0002; max-width:440px } button { border:0; border-radius:20px; padding:10px 16px; margin:8px 8px 8px 0; cursor:pointer; background:#23694b; color:white; font:inherit } .link { background:none; color:#23694b; padding-left:0; text-decoration:underline } button:disabled { opacity:.5; cursor:default }
+body { margin: 0; display: grid; min-height: 100vh; place-items: center; padding: var(--space-24); }
+main { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-8); padding: var(--space-24); }
+h1 { margin: 0 0 var(--space-12); font-size: var(--font-size-18); }
+p { color: var(--muted); line-height: 1.5; }
+main > div { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+#allow { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+#allow:hover:not(:disabled) { background: var(--accent); filter: brightness(.95); }
+.link { margin-top: var(--space-8); padding-left: 0; background: transparent; border-color: transparent; color: var(--accent); text-decoration: underline; }

@@ -1,1 +1,17 @@
-body {width:360px;margin:0;font-size:var(--font-size-13)} main {padding:var(--space-16)} header {display:flex;align-items:center;gap:var(--space-4);margin-bottom:var(--space-12)} h1 {font-size:var(--font-size-18);margin:0;flex:1} h2 {font-size:var(--font-size-15);margin:var(--space-12) 0 var(--space-4)} #search,textarea {width:100%} textarea {resize:none;margin-top:var(--space-12)} .actions {display:flex;align-items:center;gap:var(--space-4);margin-top:var(--space-8)} .actions button,.actions select {padding:var(--space-4)} .actions label {white-space:nowrap;font-size:var(--font-size-12)} #category {max-width:92px} .summary {display:block;text-align:left;width:100%;border:0;background:transparent;padding:var(--space-4)} #feedback {margin:var(--space-4) 0;color:var(--muted)} #feedback:empty {display:none} #results button {width:100%;text-align:left;display:block} .banner {margin-top:var(--space-12);padding:var(--space-8)}
+body { width: 360px; margin: 0; }
+main { padding: var(--space-16); }
+header { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-12); }
+h1 { font-size: var(--font-size-18); margin: 0; flex: 1; }
+h2 { font-size: var(--font-size-15); margin: var(--space-12) 0 var(--space-4); }
+#tab-manager { width: 100%; justify-content: flex-start; margin-bottom: var(--space-8); }
+#search, textarea { width: 100%; }
+textarea { resize: none; margin-top: var(--space-12); }
+.actions { display: flex; align-items: center; gap: var(--space-4); margin-top: var(--space-8); }
+.actions button, .actions select { padding: var(--space-4); }
+.actions label { white-space: nowrap; font-size: var(--font-size-12); color: var(--muted); }
+#category { max-width: 92px; }
+.summary { display: block; text-align: left; width: 100%; border: 1px solid var(--border); background: var(--surface); padding: var(--space-8); }
+#feedback { margin: var(--space-4) 0; color: var(--muted); }
+#feedback:empty { display: none; }
+#results button { width: 100%; text-align: left; justify-content: flex-start; display: flex; }
+.banner { margin-top: var(--space-12); padding: var(--space-8); }
