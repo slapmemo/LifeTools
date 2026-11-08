@@ -1,7 +1,7 @@
 import { PAGE_THEME } from './page-theme';
 
 /** When injected with executeScript, pass the theme explicitly. */
-export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolean; category?: string; title?: string; undoType?: string; handle?: string }, theme: string = PAGE_THEME): void {
+export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolean; category?: string; title?: string; detail?: string; undoType?: string; handle?: string }, theme: string = PAGE_THEME): void {
   document.getElementById('lifetools-slapmemo-toast')?.remove();
   const host = document.createElement('div');
   host.id = 'lifetools-slapmemo-toast';
@@ -11,6 +11,7 @@ export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolea
     :host { position: fixed; right: 20px; bottom: 20px; z-index: 2147483647; }
     .toast { color: var(--lt-text); background: var(--lt-surface); border: 1px solid var(--lt-border); border-radius: 10px; box-shadow: var(--lt-shadow); padding: 14px; max-width: 340px; }
     strong { display: block; margin-bottom: 8px; } .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .detail { overflow-wrap: anywhere; white-space: pre-wrap; }
     button { font: inherit; color: var(--lt-text); background: transparent; border: 1px solid var(--lt-border); border-radius: 8px; min-height: 28px; padding: 3px 9px; cursor: pointer; }
     button:hover { background: var(--lt-sub); }
     button.selected { background: var(--lt-accent-soft); border-color: var(--lt-accent); color: var(--lt-text); }
@@ -21,6 +22,7 @@ export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolea
   const title = document.createElement('strong');
   title.textContent = result.title ?? (!result.ok ? 'Kaydedilemedi' : result.duplicate ? 'Bu not zaten kayıtlı' : 'Not kaydedildi ✓');
   box.append(title);
+  if (result.detail) { const detail = document.createElement('div'); detail.className = 'detail'; detail.textContent = result.detail; box.append(detail); }
   let timer: ReturnType<typeof setTimeout>;
   const schedule = () => { clearTimeout(timer); timer = setTimeout(() => host.remove(), 4000); };
   box.addEventListener('mouseenter', () => clearTimeout(timer));

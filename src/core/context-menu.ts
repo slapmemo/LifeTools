@@ -9,6 +9,7 @@ export interface ContextMenuContribution {
   id: string;
   title: string;
   contexts: readonly MenuContext[];
+  targetUrlPatterns?: readonly string[];
   parent?: string;
   moduleId?: string;
   enabled: (flags?: unknown) => boolean;
@@ -20,6 +21,7 @@ export interface ContextMenuItemSpec {
   title: string;
   parentId?: string;
   contexts: MenuContext[];
+  targetUrlPatterns?: string[];
 }
 
 const CANONICAL_CONTEXT_ORDER: readonly MenuContext[] = ['selection', 'editable', 'link', 'page'];
@@ -118,7 +120,8 @@ export function buildContextMenuTree(
       id: top.id,
       title: top.title,
       parentId: CONTEXT_MENU_ROOT_ID,
-      contexts: [...top.contexts]
+      contexts: [...top.contexts],
+      ...(top.targetUrlPatterns ? { targetUrlPatterns: [...top.targetUrlPatterns] } : {})
     });
     const children = childrenByParent.get(top.id) ?? [];
     for (const child of children) {
@@ -126,7 +129,8 @@ export function buildContextMenuTree(
         id: child.id,
         title: child.title,
         parentId: top.id,
-        contexts: [...child.contexts]
+        contexts: [...child.contexts],
+        ...(child.targetUrlPatterns ? { targetUrlPatterns: [...child.targetUrlPatterns] } : {})
       });
     }
   }
@@ -219,6 +223,7 @@ function createMenuItem(spec: ContextMenuItemSpec): Promise<void> {
       id: spec.id,
       title: spec.title,
       contexts: spec.contexts as [chrome.contextMenus.ContextType, ...chrome.contextMenus.ContextType[]],
+      ...(spec.targetUrlPatterns ? { targetUrlPatterns: spec.targetUrlPatterns } : {}),
       ...(spec.parentId ? { parentId: spec.parentId } : {})
     };
     chrome.contextMenus.create(props, () => {
