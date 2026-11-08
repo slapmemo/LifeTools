@@ -1,10 +1,22 @@
 import { expect, test } from 'vitest';
-import { DEFAULT_HOURS, normalizeHours, selectZombies, type ZombieTabLike } from '../src/modules/zombie-tabs/zombie';
+import { DEFAULT_HOURS, normalizeHours, selectZombies, pickTabsToDiscard, weeklyDue, type ZombieTabLike } from '../src/modules/zombie-tabs/zombie';
 import { pushClosed, readClosed, type ClosedPinned } from '../src/modules/pinned-guard/guard';
 
 const HOUR = 3600 * 1000;
 const now = 1_000 * HOUR;
 const tab = (id: number, extra: Partial<ZombieTabLike> = {}): ZombieTabLike => ({ id, pinned: false, audible: false, active: false, ...extra });
+
+test('uyutma sadece uygun eski web sekmelerini seçer', () => {
+  const base = { lastAccessed: now - 25 * HOUR, url: 'https://example.com' };
+  expect(pickTabsToDiscard([tab(1, base), tab(2, { ...base, discarded: true }), tab(3, { ...base, autoDiscardable: false }), tab(4, { ...base, url: 'chrome://settings' }), tab(5, { ...base, active: true }), tab(6, { ...base, pinned: true }), tab(7, { ...base, audible: true }), tab(8, { ...base, lastAccessed: now - 24 * HOUR })], now, 24).map(t => t.id)).toEqual([1]);
+});
+
+test('haftalık hatırlatma son gösterimden yedi gün sonra tekrar gösterilir', () => {
+  expect(weeklyDue(null, now)).toBe(true);
+  expect(weeklyDue(now - 168 * HOUR + 1, now)).toBe(false);
+  expect(weeklyDue(now - 168 * HOUR, now)).toBe(true);
+  expect(weeklyDue(now + HOUR, now)).toBe(false);
+});
 
 test('zombi seçimi eşiği uygular; sabit, ses çalan ve etkin sekmeleri hariç tutar', () => {
   const last = { '1': now - 30 * HOUR, '2': now - 10 * HOUR, '3': now - 50 * HOUR, '4': now - 50 * HOUR, '5': now - 50 * HOUR, '7': now - 24 * HOUR };

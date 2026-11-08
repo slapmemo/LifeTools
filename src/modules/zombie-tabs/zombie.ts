@@ -6,7 +6,11 @@ export const DEFAULT_HOURS = 24;
 const MAX_HOURS = 24 * 365;
 const HOUR_MS = 3600 * 1000;
 
-export interface ZombieTabLike { id?: number; pinned: boolean; audible?: boolean; active: boolean; lastAccessed?: number }
+export const AUTO_SLEEP_KEY = 'zombieAutoSleep';
+export const WEEKLY_KEY = 'zombieWeekly';
+export const LAST_SLEEP_KEY = 'zombieLastSleep';
+export const LAST_WEEKLY_KEY = 'zombieLastWeekly';
+export interface ZombieTabLike { id?: number; pinned: boolean; audible?: boolean; active: boolean; lastAccessed?: number; url?: string; discarded?: boolean; autoDiscardable?: boolean }
 export interface Zombie<T extends ZombieTabLike = ZombieTabLike> { tab: T; lastActive: number }
 
 /** Geçersiz veya eksik ayarı varsayılana (24 saat) çeker. */
@@ -30,6 +34,16 @@ export function selectZombies<T extends ZombieTabLike>(tabs: readonly T[], lastA
     if (now - last > threshold) result.push({ tab, lastActive: last });
   }
   return result.sort((a, b) => a.lastActive - b.lastActive);
+}
+
+/** lastAccessed may be populated from the tracked activity map before selection. */
+export function pickTabsToDiscard<T extends ZombieTabLike>(tabs: readonly T[], now: number, hours: number): T[] {
+  return selectZombies(tabs, {}, now, hours).map(z => z.tab).filter(tab =>
+    !tab.discarded && tab.autoDiscardable !== false && /^https?:\/\//i.test(tab.url ?? ''));
+}
+
+export function weeklyDue(lastShown: unknown, now: number): boolean {
+  return typeof lastShown !== 'number' || !Number.isFinite(lastShown) || now - lastShown >= 7 * 24 * HOUR_MS;
 }
 
 /** "3 gün", "5 saat" gibi Türkçe süre metni. */

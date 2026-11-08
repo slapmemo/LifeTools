@@ -9,7 +9,7 @@ import {
 } from '../../panel/ui';
 import { moveTabsToSession } from '../life-browser/browser';
 import { createSessionsRepo } from '../life-browser/repo';
-import { formatAge, LAST_ACTIVE_KEY, normalizeHours, selectZombies, ZOMBIE_HOURS_KEY, type Zombie } from './zombie';
+import { AUTO_SLEEP_KEY, WEEKLY_KEY, LAST_SLEEP_KEY, formatAge, LAST_ACTIVE_KEY, normalizeHours, selectZombies, ZOMBIE_HOURS_KEY, type Zombie } from './zombie';
 
 function $<T extends HTMLElement>(selector: string): T {
   return document.querySelector(selector) as T;
@@ -27,6 +27,9 @@ export function initZombieTabsPanel(db: Executor = popupDb): { render(): Promise
   const feedback = $<HTMLElement>('#zombie-feedback');
   const closeAll = $<HTMLButtonElement>('#zombie-close-all');
   const moveAll = $<HTMLButtonElement>('#zombie-move-all');
+  const autoSleep = $<HTMLInputElement>('#zombie-auto-sleep');
+  const weekly = $<HTMLInputElement>('#zombie-weekly');
+  const lastSleep = $<HTMLElement>('#zombie-last-sleep');
 
   let zombies: Zombie<chrome.tabs.Tab>[] = [];
   let seq = 0;
@@ -148,12 +151,16 @@ export function initZombieTabsPanel(db: Executor = popupDb): { render(): Promise
     const current = ++seq;
     try {
       const [settings, session, tabs] = await Promise.all([
-        chrome.storage.local.get({ [ZOMBIE_HOURS_KEY]: null }),
+        chrome.storage.local.get({ [ZOMBIE_HOURS_KEY]: null, [AUTO_SLEEP_KEY]: false, [WEEKLY_KEY]: false, [LAST_SLEEP_KEY]: null }),
         chrome.storage.session.get({ [LAST_ACTIVE_KEY]: {} }),
         chrome.tabs.query({ windowType: 'normal' })
       ]);
       if (current !== seq) return;
       const hours = normalizeHours(settings[ZOMBIE_HOURS_KEY]);
+      autoSleep.checked = settings[AUTO_SLEEP_KEY] === true;
+      weekly.checked = settings[WEEKLY_KEY] === true;
+      const sleep = settings[LAST_SLEEP_KEY] as { count?: number; time?: number } | null;
+      lastSleep.textContent = sleep && typeof sleep.count === 'number' && typeof sleep.time === 'number' ? `Son uyutma: ${sleep.count} sekme · ${new Date(sleep.time).toLocaleString('tr-TR')}` : '';
       ensureSelectOption(hours);
       if (document.activeElement !== hoursInput) hoursInput.value = String(hours);
       const now = Date.now();
@@ -187,6 +194,8 @@ export function initZombieTabsPanel(db: Executor = popupDb): { render(): Promise
   }
 
   void PRESET_HOURS;
+  autoSleep.addEventListener('change', () => { void act(() => chrome.storage.local.set({ [AUTO_SLEEP_KEY]: autoSleep.checked })); });
+  weekly.addEventListener('change', () => { void act(() => chrome.storage.local.set({ [WEEKLY_KEY]: weekly.checked })); });
   hoursInput.addEventListener('change', () => {
     void act(saveThreshold);
   });
