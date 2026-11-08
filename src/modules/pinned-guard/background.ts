@@ -1,6 +1,7 @@
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { CLOSED_KEY, NOTIFICATION_PREFIX, PINNED_MAP_KEY, pushClosed, type PinnedInfo } from './guard';
 import { loadClosed, reopenPinned } from './restore';
+import { extensionBaseUrl, isInternalTabUrl } from '../../core/internal-tab';
 export const PINNED_GUARD_ID = 'pinned-guard';
 type PinnedMap = Record<string, PinnedInfo>;
 let queue = Promise.resolve();
@@ -23,7 +24,7 @@ async function removed(tabId: number, isWindowClosing: boolean): Promise<void> {
   if (!entry) return;
   delete map[String(tabId)];
   await saveMap(map);
-  if (isWindowClosing || !entry.url || !(await isModuleEnabled(PINNED_GUARD_ID))) return;
+  if (isWindowClosing || !entry.url || isInternalTabUrl(entry.url, extensionBaseUrl()) || !(await isModuleEnabled(PINNED_GUARD_ID))) return;
   const closedAt = Date.now();
   const key = `${tabId}-${closedAt}`;
   await chrome.storage.local.set({ [CLOSED_KEY]: pushClosed(await loadClosed(), { ...entry, key, closedAt }) });

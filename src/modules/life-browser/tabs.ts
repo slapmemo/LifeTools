@@ -1,4 +1,5 @@
 import { siteKey } from '../time-tracker/tracker';
+import { extensionBaseUrl, isInternalTabUrl } from '../../core/internal-tab';
 
 /** chrome.tabs.Tab'ın bu modülde kullanılan alt kümesi (saf fonksiyonlar için). */
 export interface TabLike { id?: number; url?: string; title?: string; pinned: boolean; groupId?: number; index?: number }
@@ -17,11 +18,11 @@ const ungrouped = (tab: TabLike): boolean => tab.groupId === undefined || tab.gr
 
 export type AutoGroupDecision = { action: 'none' } | { action: 'join'; groupId: number } | { action: 'create'; tabIds: [number, number]; title: string; color: GroupColor };
 export function decideAutoGroup(tab: TabLike, windowTabs: readonly TabLike[], groups: ReadonlyMap<number, GroupInfo>, recentlyUngrouped: ReadonlySet<number>): AutoGroupDecision {
-  if (tab.id === undefined || tab.pinned || !ungrouped(tab) || recentlyUngrouped.has(tab.id)) return { action: 'none' };
+  if (tab.id === undefined || tab.pinned || isInternalTabUrl(tab.url, extensionBaseUrl()) || !ungrouped(tab) || recentlyUngrouped.has(tab.id)) return { action: 'none' };
   const site = siteKey(tab.url ?? null);
   if (!site) return { action: 'none' };
   for (const [groupId, group] of groups) if (group.title === site) return { action: 'join', groupId };
-  const other = windowTabs.find(t => t.id !== undefined && t.id !== tab.id && !t.pinned && ungrouped(t) && !recentlyUngrouped.has(t.id) && siteKey(t.url ?? null) === site);
+  const other = windowTabs.find(t => t.id !== undefined && t.id !== tab.id && !t.pinned && !isInternalTabUrl(t.url, extensionBaseUrl()) && ungrouped(t) && !recentlyUngrouped.has(t.id) && siteKey(t.url ?? null) === site);
   if (!other || other.id === undefined) return { action: 'none' };
   let hash = 0;
   for (const char of site) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) >>> 0;
@@ -35,7 +36,7 @@ export function decideAutoGroup(tab: TabLike, windowTabs: readonly TabLike[], gr
 export function planGroupsBySite(tabs: readonly TabLike[]): GroupPlan[] {
   const bySite = new Map<string, number[]>();
   for (const tab of tabs) {
-    if (tab.id === undefined || tab.pinned || !ungrouped(tab)) continue;
+    if (tab.id === undefined || tab.pinned || isInternalTabUrl(tab.url, extensionBaseUrl()) || !ungrouped(tab)) continue;
     const site = siteKey(tab.url ?? null);
     if (!site) continue;
     const ids = bySite.get(site);
@@ -53,7 +54,7 @@ export function normalizeUrl(url: string): string {
 export function findDuplicates(tabs: readonly TabLike[]): DuplicateSet[] {
   const byUrl = new Map<string, TabLike[]>();
   for (const tab of tabs) {
-    if (tab.id === undefined || !tab.url) continue;
+    if (tab.id === undefined || !tab.url || isInternalTabUrl(tab.url, extensionBaseUrl())) continue;
     const key = normalizeUrl(tab.url);
     const list = byUrl.get(key);
     if (list) list.push(tab); else byUrl.set(key, [tab]);
@@ -69,7 +70,7 @@ export function findDuplicates(tabs: readonly TabLike[]): DuplicateSet[] {
 
 /** Pencere sekmelerini oturum kaydına çevirir (URL'si olmayanlar atlanır). */
 export function toSessionTabs(tabs: readonly TabLike[], groups: ReadonlyMap<number, GroupInfo>): SessionTabInput[] {
-  return [...tabs].sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).filter(tab => !!tab.url).map(tab => {
+  return [...tabs].sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).filter(tab => !!tab.url && !isInternalTabUrl(tab.url, extensionBaseUrl())).map(tab => {
     const group = !ungrouped(tab) ? groups.get(tab.groupId as number) : undefined;
     return { url: tab.url as string, title: tab.title || null, pinned: tab.pinned, group_title: group ? group.title ?? '' : null, group_color: group?.color ?? null };
   });

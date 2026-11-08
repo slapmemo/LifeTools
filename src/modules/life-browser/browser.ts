@@ -1,5 +1,6 @@
 import type { SessionsRepo, SessionTab } from './repo';
 import { isGroupColor, planGroupsBySite, toSessionTabs, type GroupInfo, type SessionTabInput } from './tabs';
+import { extensionBaseUrl, isInternalTabUrl } from '../../core/internal-tab';
 
 const NO_GROUP = -1;
 
@@ -17,7 +18,7 @@ export async function describeTabs(tabs: chrome.tabs.Tab[]): Promise<SessionTabI
 /** Verilen sekmeleri yeni bir oturuma kaydeder ve kapatır. */
 export async function moveTabsToSession(repo: SessionsRepo, name: string, tabs: chrome.tabs.Tab[]): Promise<number> {
   const id = await repo.save(name, await describeTabs(tabs));
-  const tabIds = tabs.map(tab => tab.id).filter((tabId): tabId is number => tabId !== undefined);
+  const tabIds = tabs.filter(tab => !isInternalTabUrl(tab.url || tab.pendingUrl, extensionBaseUrl())).map(tab => tab.id).filter((tabId): tabId is number => tabId !== undefined);
   if (tabIds.length) await chrome.tabs.remove(tabIds);
   return id;
 }

@@ -4,6 +4,7 @@ import { confirmSecondClick, createKebabMenu } from '../../panel/ui';
 import { groupWindowBySite, moveTabsToSession, openSession } from '../life-browser/browser';
 import { AUTO_PREFIX, createSessionsRepo } from '../life-browser/repo';
 import { buildViewModel, COLORS, selectRange } from './logic';
+import { PIN_MANAGER_KEY } from './settings';
 
 void applyTheme();
 const el = <T extends HTMLElement>(selector: string): T => document.querySelector(selector) as T;
@@ -15,6 +16,9 @@ const repo = createSessionsRepo(popupDb);
 let savedVersion = '', savedSequence = 0;
 let undoTimer: ReturnType<typeof setTimeout> | undefined;
 const report = (error: unknown): void => { message.textContent = error instanceof Error ? error.message : 'İşlem başarısız oldu.'; };
+const pinSetting = el<HTMLInputElement>('#pin-manager');
+void chrome.storage.local.get({ [PIN_MANAGER_KEY]: true }).then(data => { pinSetting.checked = data[PIN_MANAGER_KEY] === true; });
+pinSetting.addEventListener('change', () => { void chrome.storage.local.set({ [PIN_MANAGER_KEY]: pinSetting.checked }); });
 const run = (fn: () => Promise<void>): void => { void fn().catch(report); };
 const button = (label: string, action: () => void): HTMLButtonElement => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('click', action); return b; };
 const dot = (value: string): HTMLElement => { const d = document.createElement('span'); d.className = 'dot'; d.style.setProperty('--group-color', colorValue(value)); return d; };

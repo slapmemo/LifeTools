@@ -1,3 +1,4 @@
+import { extensionBaseUrl, isInternalTabUrl } from '../../core/internal-tab';
 /** Ayar: kaç saattir etkin olmayan sekme "zombi" sayılır (chrome.storage.local). */
 export const ZOMBIE_HOURS_KEY = 'zombieTabsHours';
 /** Sekme kimliği -> son etkin olma zamanı (ms) (chrome.storage.session). */
@@ -27,7 +28,7 @@ export function selectZombies<T extends ZombieTabLike>(tabs: readonly T[], lastA
   const threshold = hours * HOUR_MS;
   const result: Zombie<T>[] = [];
   for (const tab of tabs) {
-    if (tab.id === undefined || tab.pinned || tab.audible || tab.active) continue;
+    if (tab.id === undefined || tab.pinned || tab.audible || tab.active || isInternalTabUrl(tab.url, extensionBaseUrl())) continue;
     const tracked = lastActive[String(tab.id)];
     const last = typeof tracked === 'number' ? tracked : tab.lastAccessed;
     if (typeof last !== 'number' || !Number.isFinite(last)) continue;

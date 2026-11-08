@@ -7,10 +7,11 @@ import { createTimeTrackerRepo } from '../modules/time-tracker/repo';
 import { createSnippetsRepo } from '../modules/smart-replies/repo';
 import { foldSearch, parsePrefix, rankActions } from '../modules/command-center/search';
 import { requestActions, requestRunAction, splitArg } from '../core/actions';
-import { MODULE_FLAGS_KEY } from '../core/module-state';
+import { MODULE_FLAGS_KEY, resolveEnabled } from '../core/module-state';
 import { popupVisibility } from '../core/ui-visibility';
 import { applyTheme } from '../core/theme';
 import { todayTimeLine, formatTasks } from './summary';
+import { openTabManager } from '../modules/tab-manager/open';
 
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = el<HTMLInputElement>('search');
@@ -37,6 +38,7 @@ function openPanel(hash = ''): void {
 }
 
 el('panel').onclick = () => openPanel();
+el('tab-manager').onclick = () => { void openTabManager(); };
 el('settings').onclick = () => openPanel('#ayarlar');
 el('desktop-banner-switch').onclick = () => openPanel('#ayarlar');
 el('today-tasks').onclick = () => openPanel('#gorevler');
@@ -73,6 +75,7 @@ el('task').onclick = () => void save('task');
 async function summary(): Promise<void> {
   const flags = (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
   const visible = popupVisibility(flags);
+  el('tab-manager').hidden = !resolveEnabled(flags, 'tab-manager');
   el('note').hidden = el('category').hidden = !visible.notes;
   el('task').hidden = el('today-tasks').hidden = !visible.tasks;
   el('today-sites').hidden = !visible.sites;

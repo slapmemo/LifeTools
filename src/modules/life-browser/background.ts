@@ -4,6 +4,7 @@ import { describeTabs } from './browser';
 import { AUTO_PREFIX, createSessionsRepo, oldAutoSessionIds } from './repo';
 import { AUTO_GROUP_KEY, AUTO_SAVE_KEY } from './settings';
 import { decideAutoGroup, type SessionTabInput } from './tabs';
+import { extensionBaseUrl, isInternalTabUrl } from '../../core/internal-tab';
 
 export const LIFE_BROWSER_ID = 'life-browser';
 const snapshotKey = (id: number): string => `lifeBrowserWindow:${id}`;
@@ -60,7 +61,8 @@ async function saveClosed(windowId: number): Promise<void> {
   if (!await enabled(AUTO_SAVE_KEY)) return;
   const key = snapshotKey(windowId), marker = closedKey(windowId);
   const stored = await chrome.storage.session.get([key, marker]);
-  const tabs = stored[key] as SessionTabInput[] | undefined;
+  const raw = stored[key];
+  const tabs: SessionTabInput[] = Array.isArray(raw) ? (raw as SessionTabInput[]).filter(tab => !isInternalTabUrl(tab.url, extensionBaseUrl())) : [];
   if (stored[marker] || !Array.isArray(tabs) || tabs.length < 2) return;
   await chrome.storage.session.set({ [marker]: true });
   try {

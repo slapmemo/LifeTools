@@ -1,4 +1,6 @@
 import { applyTheme } from '../../core/theme';
+import { extensionBaseUrl, isInternalTabUrl } from '../../core/internal-tab';
+import { openTabManager } from '../tab-manager/open';
 import { popupDb } from '../../db/client';
 import { isModuleEnabled } from '../../core/module-state';
 import { normalizeUrl, findDuplicates } from '../life-browser/tabs';
@@ -19,6 +21,7 @@ let labelsEnabled = false, notesEnabled = false;
 async function load(): Promise<void> {
  const [tabs, labels, notes, data, session, titleEnabled, lifeEnabled, zombieEnabled, labelFlag, noteFlag] = await Promise.all([chrome.tabs.query({}), createTabLabelsRepo(popupDb).list(), createTabNotesRepo(popupDb).list(), chrome.storage.local.get({ [TITLE_RULES_KEY]: {}, [ZOMBIE_HOURS_KEY]: DEFAULT_HOURS }), chrome.storage.session.get({ [MRU_KEY]: [], [LAST_ACTIVE_KEY]: {} }), isModuleEnabled(TITLE_CLEANER_ID), isModuleEnabled('life-browser'), isModuleEnabled('zombie-tabs'), isModuleEnabled('tab-labels'), isModuleEnabled('tab-notes')]);
  labelsEnabled = labelFlag; notesEnabled = noteFlag;
+ button('manager').hidden = !await isModuleEnabled('tab-manager');
  for (const id of ['group', 'duplicates', 'session']) button(id).hidden = !lifeEnabled;
  button('zombies').hidden = !zombieEnabled; if (!zombieEnabled) zombies = false;
  const own = (await chrome.tabs.getCurrent())?.id;
@@ -26,7 +29,7 @@ async function load(): Promise<void> {
  duplicateIds = new Set(findDuplicates(tabs).flatMap(x => x.close)); if (!lifeEnabled) duplicates = false;
  const lm = new Map(labels.map(x => [x.url,x.label])), nm = new Map(notes.map(x => [x.url,x.note]));
  const mru = Array.isArray(session[MRU_KEY]) ? session[MRU_KEY] as number[] : [];
- all = sortByMru(tabs.filter(tab => tab.id !== own && tab.id !== undefined), mru).map(tab => { const url = tab.url || tab.pendingUrl || ''; let site = url; try { site = new URL(url).hostname || url; } catch {} const title = tab.title || url || 'Yeni sekme'; return { tab, url, title: titleEnabled ? cleanTitle(title,url,data[TITLE_RULES_KEY] as TitleRules) : title, site, label: labelFlag ? lm.get(normalizeUrl(url)) || '' : '', note: noteFlag ? nm.get(normalizeUrl(url)) || '' : '' }; }); render();
+ all = sortByMru(tabs.filter(tab => tab.id !== own && tab.id !== undefined && !isInternalTabUrl(tab.url || tab.pendingUrl, extensionBaseUrl())), mru).map(tab => { const url = tab.url || tab.pendingUrl || ''; let site = url; try { site = new URL(url).hostname || url; } catch {} const title = tab.title || url || 'Yeni sekme'; return { tab, url, title: titleEnabled ? cleanTitle(title,url,data[TITLE_RULES_KEY] as TitleRules) : title, site, label: labelFlag ? lm.get(normalizeUrl(url)) || '' : '', note: noteFlag ? nm.get(normalizeUrl(url)) || '' : '' }; }); render();
 }
 function render(): void {
  button('zombies').setAttribute('aria-pressed', String(zombies));
@@ -60,4 +63,5 @@ button('group').addEventListener('click', () => { void (async () => { const win 
 button('duplicates').addEventListener('click', () => { void (async () => { const own = (await chrome.tabs.getCurrent())?.id; const tabs = (await chrome.tabs.query({currentWindow:true})).filter(t => t.id !== own); const ids = findDuplicates(tabs).flatMap(x => x.close); if (ids.length) await chrome.tabs.remove(ids); message.textContent = `${ids.length} kopya kapatıldı`; await load(); })().catch(report); });
 button('session').addEventListener('click', () => { void (async () => { const own = (await chrome.tabs.getCurrent())?.id; const tabs = (await chrome.tabs.query({currentWindow:true})).filter(t => t.id !== own); const name = new Date().toLocaleString('tr-TR'); await createSessionsRepo(popupDb).save(name, await describeTabs(tabs)); message.textContent = `Oturum kaydedildi: ${name}`; })().catch(report); });
 button('zombies').addEventListener('click', () => { zombies = !zombies; duplicates = false; button('zombies').setAttribute('aria-pressed', String(zombies)); selected = 0; void load().catch(report); });
+button('manager').addEventListener('click', () => { void openTabManager().catch(report); });
 void load().catch(report);
