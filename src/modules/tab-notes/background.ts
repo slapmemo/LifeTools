@@ -6,6 +6,7 @@ import { transferTabNote } from './transfer';
 import { canInjectTabPage } from '../../core/tab-page-permission';
 import { normalizeUrl } from '../life-browser/tabs';
 import { showTabNote } from './note-page';
+import { PAGE_THEME } from '../../core/page-theme';
 export const TAB_NOTES_ID = 'tab-notes';
 export const TRANSFER_KEY = 'tabNotesTransferOnClose';
 export const SHOW_NOTE_KEY = 'tabNotesShowOnRevisit';
@@ -20,7 +21,7 @@ async function showNote(tab: chrome.tabs.Tab): Promise<void> {
   if (tab.id === undefined || !tab.url || !(await isModuleEnabled(TAB_NOTES_ID)) || !(await chrome.storage.local.get({ [SHOW_NOTE_KEY]: false }))[SHOW_NOTE_KEY] || !(await canInjectTabPage(tab.url))) return;
   const note = await createTabNotesRepo(backgroundDb).get(tab.url);
   if (!note) return;
-  try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: showTabNote, args: [tab.url, note.note] }); } catch { /* Sekme kapanmış veya kısıtlı olabilir. */ }
+  try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: showTabNote, args: [tab.url, note.note, PAGE_THEME] }); } catch { /* Sekme kapanmış veya kısıtlı olabilir. */ }
 }
 export function initTabNotesBackground(): void {
   chrome.tabs.onCreated.addListener(tab => schedule(() => remember(tab)));

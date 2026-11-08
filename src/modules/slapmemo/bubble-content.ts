@@ -1,5 +1,6 @@
 import { MODULE_FLAGS_KEY, resolveEnabled } from '../../core/module-state';
 import { pageToast } from '../../core/page-toast';
+import { PAGE_THEME } from '../../core/page-theme';
 import { cleanUrl } from '../link-cleaner/clean';
 import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, bubbleButtons, bubblePosition, selectionUrl, shouldShowBubble } from './bubble-logic';
 
@@ -38,10 +39,11 @@ function show(): void {
   host = document.createElement('div');
   const shadow = host.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
-  style.textContent = `:host{all:initial;position:fixed;z-index:2147483647;font:13px system-ui,sans-serif} .pill{display:flex;align-items:center;white-space:nowrap;background:white;color:#20242b;border:1px solid #ccd2d9;border-radius:20px;box-shadow:0 3px 14px #0003;padding:2px} button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;padding:5px 8px;border-radius:16px} button:hover{background:#e8edf2} .close{font-size:16px;padding:2px 7px} @media(max-width:600px){.label{display:none}button{padding:5px}} @media(prefers-color-scheme:dark){.pill{background:#252a31;color:#f2f4f6;border-color:#59616a}button:hover{background:#424a55}}`;
+  style.textContent = PAGE_THEME + `:host{position:fixed;z-index:2147483647} .pill{display:flex;align-items:center;white-space:nowrap;background:var(--lt-surface);color:var(--lt-text);border:1px solid var(--lt-border);border-radius:10px;box-shadow:var(--lt-shadow);padding:3px} button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;min-height:28px;padding:3px 8px;border-radius:8px} button:hover{background:var(--lt-sub)} button.primary{background:var(--lt-accent);color:var(--lt-on-accent)} button.primary:hover{opacity:.88} .close{font-size:16px;padding:2px 7px;color:var(--lt-muted)} @media(max-width:600px){.label{display:none}button{padding:3px 5px}}`;
   const pill = document.createElement('div'); pill.className = 'pill';
   pill.addEventListener('mousedown', event => event.preventDefault());
   const save = document.createElement('button'); save.type = 'button'; save.textContent = '📝 Not';
+  save.className = 'primary';
   save.addEventListener('click', () => {
     hide();
     void chrome.runtime.sendMessage({ type: 'slapmemo:save', text, url: location.href, title: document.title, category: 'note' })

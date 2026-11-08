@@ -2,6 +2,7 @@ import { flashBadge } from '../../core/badge';
 import { setContextMenuContributions, type ContextMenuContribution } from '../../core/context-menu';
 import { isModuleEnabled, resolveEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { pageToast } from '../../core/page-toast';
+import { PAGE_THEME } from '../../core/page-theme';
 import { copyOffscreen } from '../../db/host';
 import { cleanUrl } from './clean';
 import { AUTO_CLEAN_KEY, AUTO_CLEAN_ORIGINS, updateCleaningRules } from './rules';
@@ -21,7 +22,7 @@ async function copyCleaned(rawUrl: string, tabId?: number): Promise<void> {
     if (!(await copyOffscreen(result.url))) { flashBadge('!'); return; }
     try {
       if (tabId === undefined) throw new Error('Sekme yok');
-      await chrome.scripting.executeScript({ target: { tabId }, func: pageToast, args: [{ ok: true, title: result.removed.length ? 'Temiz link kopyalandı ✓' : 'Kaldırılacak takip parametresi yok — link kopyalandı' }] });
+      await chrome.scripting.executeScript({ target: { tabId }, func: pageToast, args: [{ ok: true, title: result.removed.length ? 'Temiz link kopyalandı ✓' : 'Kaldırılacak takip parametresi yok — link kopyalandı' }, PAGE_THEME] });
     } catch { flashBadge('✓'); }
   } catch {
     flashBadge('!');

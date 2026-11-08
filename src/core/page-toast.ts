@@ -1,18 +1,20 @@
-/** Runs in the target page's isolated world; keep this function self-contained. */
-export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolean; category?: string; title?: string; undoType?: string; handle?: string }): void {
+import { PAGE_THEME } from './page-theme';
+
+/** When injected with executeScript, pass the theme explicitly. */
+export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolean; category?: string; title?: string; undoType?: string; handle?: string }, theme: string = PAGE_THEME): void {
   document.getElementById('lifetools-slapmemo-toast')?.remove();
   const host = document.createElement('div');
   host.id = 'lifetools-slapmemo-toast';
   const shadow = host.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
-  style.textContent = `
-    :host { all: initial; position: fixed; right: 20px; bottom: 20px; z-index: 2147483647; font-family: system-ui, sans-serif; }
-    .toast { color: #20242b; background: #fff; border: 1px solid #d7dce2; border-radius: 12px; box-shadow: 0 5px 24px #0003; padding: 14px; max-width: 340px; font-size: 14px; }
+  style.textContent = theme + `
+    :host { position: fixed; right: 20px; bottom: 20px; z-index: 2147483647; }
+    .toast { color: var(--lt-text); background: var(--lt-surface); border: 1px solid var(--lt-border); border-radius: 10px; box-shadow: var(--lt-shadow); padding: 14px; max-width: 340px; }
     strong { display: block; margin-bottom: 8px; } .actions { display: flex; flex-wrap: wrap; gap: 6px; }
-    button { font: inherit; color: inherit; background: transparent; border: 1px solid #bbc2ca; border-radius: 20px; padding: 4px 9px; cursor: pointer; }
-    button.selected { background: #d7f5e9; border-color: #3a9f78; color: #123e30; }
-    input { font: inherit; color: inherit; background: transparent; border: 1px solid #888; border-radius: 6px; padding: 5px; width: 180px; }
-    @media (prefers-color-scheme: dark) { .toast { color: #f2f4f6; background: #252a31; border-color: #59616a; } button.selected { background: #225b49; color: #fff; } }
+    button { font: inherit; color: var(--lt-text); background: transparent; border: 1px solid var(--lt-border); border-radius: 8px; min-height: 28px; padding: 3px 9px; cursor: pointer; }
+    button:hover { background: var(--lt-sub); }
+    button.selected { background: var(--lt-accent-soft); border-color: var(--lt-accent); color: var(--lt-text); }
+    input { font: inherit; color: var(--lt-text); background: var(--lt-bg); border: 1px solid var(--lt-border); border-radius: 8px; padding: 5px; width: 180px; }
   `;
   shadow.append(style);
   const box = document.createElement('div'); box.className = 'toast';

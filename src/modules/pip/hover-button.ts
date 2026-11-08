@@ -1,4 +1,5 @@
 import { pageToast } from '../../core/page-toast';
+import { PAGE_THEME } from '../../core/page-theme';
 import { MODULE_FLAGS_KEY, resolveEnabled } from '../../core/module-state';
 import { PIP_HOVER_ENABLED_KEY, pipButtonPosition } from './hover-logic';
 
@@ -27,7 +28,7 @@ function show(v: HTMLVideoElement): void {
   host = document.createElement('div');
   const shadow = host.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
-  style.textContent = ':host{all:initial;position:fixed;z-index:2147483647}button{width:32px;height:32px;border:0;border-radius:50%;background:#20242bd9;color:white;font:22px system-ui;cursor:pointer;box-shadow:0 2px 8px #0006}button:hover{background:#000}';
+  style.textContent = PAGE_THEME + ':host{position:fixed;z-index:2147483647}button{width:28px;height:28px;border:1px solid var(--lt-border);border-radius:8px;background:var(--lt-surface);color:var(--lt-text);font:20px/1 system-ui;cursor:pointer;box-shadow:var(--lt-shadow)}button:hover{background:var(--lt-accent-soft);color:var(--lt-accent)}';
   const button = document.createElement('button'); button.type = 'button'; button.title = 'Resim içinde resim'; button.setAttribute('aria-label', button.title); button.textContent = '⧉';
   button.addEventListener('click', () => {
     const target = video;

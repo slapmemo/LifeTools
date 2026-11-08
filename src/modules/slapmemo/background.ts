@@ -4,6 +4,7 @@ import { isModuleEnabled, resolveEnabled, MODULE_FLAGS_KEY } from '../../core/mo
 import { replaceSiteScript } from '../../core/site-scripts';
 import { BUBBLE_ENABLED_KEY, BUBBLE_ORIGINS } from './bubble-logic';
 import { pageToast } from '../../core/page-toast';
+import { PAGE_THEME } from '../../core/page-theme';
 import { backgroundDb } from '../../db/host';
 import { isNoteCategory, type NoteCategory } from './categories';
 import { createNotesRepo } from './repo';
@@ -37,7 +38,7 @@ async function saveAndNotify(tabId: number | undefined, text: string, url: strin
   catch (err) { console.debug('[SlapMemo] Kaydedilemedi:', err); }
   try {
     if (tabId === undefined) throw new Error('Sekme yok');
-    await chrome.scripting.executeScript({ target: { tabId }, func: pageToast, args: [result ?? { ok: false }] });
+    await chrome.scripting.executeScript({ target: { tabId }, func: pageToast, args: [result ?? { ok: false }, PAGE_THEME] });
   } catch {
     flashBadge(!result ? '!' : result.duplicate ? '=' : '✓');
   }
