@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import { icon, type IconName } from '../../design/icons';
 import { h } from './dom';
 import * as ayarlar from './views/ayarlar';
+import * as anasayfa from './views/anasayfa';
 import * as elektrik from './views/elektrik';
 import * as ortam from './views/ortam';
 import * as pano from './views/pano';
@@ -59,7 +60,7 @@ function placeholderView(iconName: IconName, text: string): SectionModule {
 
 export function mountMain(root: HTMLElement): void {
   const views: Record<RouteId, SectionModule> = {
-    anasayfa: placeholderView('home', 'Ana sayfa bir sonraki adımda geliyor.'),
+    anasayfa: { mount: (container) => anasayfa.mount(container, show) },
     notlar: placeholderView('notebook-pen', 'Notlar eklentiyle ortak veritabanından gelecek.'),
     gorevler: placeholderView('list-checks', 'Görevler eklentiyle ortak veritabanından gelecek.'),
     izleme: placeholderView('clapperboard', 'İzleme listesi eklentiyle ortak veritabanından gelecek.'),

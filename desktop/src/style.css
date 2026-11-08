@@ -88,3 +88,8 @@ body[data-view='toast'], body[data-view='picker'], body[data-view='snippets'] { 
 .settings-card .field { margin-top: var(--space-12); }
 .settings-row input[type=number] { width: 100px; }
 .settings-save { margin: var(--space-12) 0 0; }
+.dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.dashboard-card { padding: 16px; min-width: 0; }
+.dashboard-card h3 { margin: 0 0 12px; }
+.dashboard-link { width: 100%; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.dashboard-row { padding: 6px 0; overflow-wrap: anywhere; }

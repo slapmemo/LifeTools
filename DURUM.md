@@ -11,10 +11,10 @@
 | Özellikler v0.1–v0.4 | **Yazıldı.** Eklentide 21 araç, masaüstünde 8 bölüm + eklenti köprüsü |
 | Arayüz U1 (tasarım dili, sade popup, Panel iskeleti) | **Bitti** |
 | Arayüz U2 (Panel kategorileri, tek kök sağ tık, kapalı araçlar gizli) | **Bitti** — Chrome'da henüz gözle kontrol edilmedi |
-| Arayüz U3 (masaüstü tasarımı + Ana sayfa) | Sırada |
+| Arayüz U3 (masaüstü tasarımı + Ana sayfa) | **Bitti** — gözle kontrol edilmedi |
 | Arayüz U4 (masaüstünde notlar/görevler/izleme listesi) | Bekliyor |
 | Arayüz U5 (gerçek CC0 ortam sesleri) | Bekliyor — önce aday listesi, kullanıcı dinleyip onaylayacak |
-| Testler | Eklenti **123** (vitest), masaüstü **52** (cargo test) — hepsi geçiyor |
+| Testler | Eklenti **123** (vitest), masaüstü **54** (cargo test) — hepsi geçiyor |
 
 Kullanıcı eklentiyi Chrome'da denedi: popup çok karışıktı → U1/U2 bu yüzden yapıldı. X video indirme butonu kötü duruyordu → `4c4c300` ile düzeltildi (ikon + gölge-DOM menü); düzeltme X'te henüz denenmedi.
 
@@ -25,8 +25,8 @@ Kullanıcı eklentiyi Chrome'da denedi: popup çok karışıktı → U1/U2 bu y�
 3. **U3** — masaüstü, küçük görevlere bölündü (kullanıcı tek büyük görevin yavaşlığından rahatsız oldu):
    - **U3.1** Kabuk: tasarım dili bağlanır, ikonlu kenar çubuğu + katlanabilir "Diğer" (Pencereler, Piller, Elektrik), tema seçimi, `app.ts` → `desktop/src/views/*.ts`. ✅ bitti
    - **U3.2** Pano + Şablonlar bölümleri ve Ctrl+Shift+V / Ctrl+Shift+Space seçicileri yeni bileşenlerle ✅ bitti
-   - **U3.3** Ortam sesi (U5'e hazır kart düzeni), Piller, Pencereler, Elektrik, Ayarlar yeni bileşenlerle
-   - **U3.4** Ana sayfa kartları (Rust tarafında özet komutu)
+   - **U3.3** Ortam sesi (U5'e hazır kart düzeni), Piller, Pencereler, Elektrik, Ayarlar yeni bileşenlerle ✅ bitti
+   - **U3.4** Ana sayfa kartları (Rust tarafında özet komutu) ✅ bitti
 4. **U4**, **U5** (planın 5.3 ve 5.4 bölümleri).
 
 ## 3. Nasıl çalıştırılır

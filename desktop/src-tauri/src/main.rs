@@ -267,6 +267,7 @@ fn main() {
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
+            commands::dashboard_summary,
             commands::clipboard_list,
             commands::clipboard_copy,
             commands::clipboard_pin,

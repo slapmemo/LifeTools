@@ -132,6 +132,52 @@ pub fn migrate(db: &mut Connection) -> Result<Vec<i64>> {
     migrate_with(db, MIGRATIONS)
 }
 
+#[derive(Serialize, Debug)]
+pub struct DashboardTask { pub id: i64, pub title: String, pub due: String }
+#[derive(Serialize, Debug)]
+pub struct DashboardNote { pub id: i64, pub title: String, pub updated_at: i64 }
+#[derive(Serialize, Debug)]
+pub struct DashboardSite { pub domain: String, pub seconds: i64 }
+#[derive(Serialize, Debug)]
+pub struct DashboardClip { pub id: i64, pub preview: String }
+#[derive(Serialize, Debug)]
+pub struct DashboardSummary {
+    pub tasks_available: bool, pub notes_available: bool, pub sites_available: bool,
+    pub open_count: i64, pub overdue_count: i64, pub today_tasks: Vec<DashboardTask>,
+    pub notes: Vec<DashboardNote>, pub sites: Vec<DashboardSite>, pub clipboard: Vec<DashboardClip>,
+    pub batteries: Vec<crate::battery::DeviceBattery>, pub ambient_playing: bool, pub ambient_active_count: usize,
+}
+
+fn table_exists(db: &Connection, name: &str) -> Result<bool> {
+    db.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)", [name], |r| r.get(0))
+}
+
+pub fn dashboard_summary(db: &Connection, today: &str) -> Result<DashboardSummary> {
+    let mut out = DashboardSummary {
+        tasks_available: table_exists(db, "tasks")?, notes_available: table_exists(db, "notes")?,
+        sites_available: table_exists(db, "site_time")?, open_count: 0, overdue_count: 0,
+        today_tasks: vec![], notes: vec![], sites: vec![], clipboard: vec![], batteries: vec![],
+        ambient_playing: false, ambient_active_count: 0,
+    };
+    if out.tasks_available {
+        out.open_count = db.query_row("SELECT count(*) FROM tasks WHERE done_at IS NULL", [], |r| r.get(0))?;
+        out.overdue_count = db.query_row("SELECT count(*) FROM tasks WHERE done_at IS NULL AND due_date IS NOT NULL AND substr(due_date,1,10) < ?1", [today], |r| r.get(0))?;
+        let mut st = db.prepare("SELECT id,title,due_date FROM tasks WHERE done_at IS NULL AND substr(due_date,1,10)=?1 ORDER BY due_date,id LIMIT 5")?;
+        out.today_tasks = st.query_map([today], |r| Ok(DashboardTask { id:r.get(0)?, title:r.get(1)?, due:r.get(2)? }))?.collect::<Result<_>>()?;
+    }
+    if out.notes_available {
+        let mut st = db.prepare("SELECT id,coalesce(nullif(trim(page_title),''),text),updated_at FROM notes ORDER BY updated_at DESC,id DESC LIMIT 5")?;
+        out.notes = st.query_map([], |r| { let text: String = r.get(1)?; Ok(DashboardNote { id:r.get(0)?, title:text.lines().next().unwrap_or("").chars().take(100).collect(), updated_at:r.get(2)? }) })?.collect::<Result<_>>()?;
+    }
+    if out.sites_available {
+        let mut st = db.prepare("SELECT domain,seconds FROM site_time WHERE day=?1 ORDER BY seconds DESC,domain LIMIT 5")?;
+        out.sites = st.query_map([today], |r| Ok(DashboardSite { domain:r.get(0)?, seconds:r.get(1)? }))?.collect::<Result<_>>()?;
+    }
+    let mut st = db.prepare("SELECT id,text FROM clipboard_items ORDER BY id DESC LIMIT 3")?;
+    out.clipboard = st.query_map([], |r| { let text: String = r.get(1)?; Ok(DashboardClip { id:r.get(0)?, preview:text.chars().take(100).collect() }) })?.collect::<Result<_>>()?;
+    Ok(out)
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Snippet {
     pub id: i64,
@@ -443,6 +489,34 @@ mod tests {
 
     fn count(d: &Connection) -> i64 {
         d.query_row("SELECT COUNT(*) FROM clipboard_items", [], |r| r.get(0)).unwrap()
+    }
+
+    #[test]
+    fn dashboard_handles_missing_extension_tables() {
+        let d = db();
+        let s = dashboard_summary(&d, "2026-11-08").unwrap();
+        assert!(!s.tasks_available && !s.notes_available && !s.sites_available);
+        assert_eq!((s.open_count, s.overdue_count), (0, 0));
+        assert!(s.today_tasks.is_empty() && s.notes.is_empty() && s.sites.is_empty());
+    }
+
+    #[test]
+    fn dashboard_orders_and_limits_shared_data() {
+        let d = db();
+        d.execute_batch("CREATE TABLE tasks(id INTEGER PRIMARY KEY,title TEXT,due_date TEXT,done_at INTEGER); CREATE TABLE notes(id INTEGER PRIMARY KEY,text TEXT,page_title TEXT,updated_at INTEGER); CREATE TABLE site_time(day TEXT,domain TEXT,seconds INTEGER);").unwrap();
+        for i in 1..=7 {
+            d.execute("INSERT INTO tasks VALUES(?1,?2,?3,NULL)", params![i, format!("task {i}"), if i == 1 { "2026-11-07" } else { "2026-11-08" }]).unwrap();
+            d.execute("INSERT INTO notes VALUES(?1,?2,NULL,?1)", params![i, format!("note {i}\nbody")]).unwrap();
+            d.execute("INSERT INTO site_time VALUES('2026-11-08',?1,?2)", params![format!("site{i}"), i]).unwrap();
+            insert_clip(&d, &format!("clip {i}"), i, 100).unwrap();
+        }
+        d.execute("INSERT INTO tasks VALUES(8,'done','2026-11-07',1)", []).unwrap();
+        let s = dashboard_summary(&d, "2026-11-08").unwrap();
+        assert_eq!((s.open_count, s.overdue_count, s.today_tasks.len()), (7, 1, 5));
+        assert_eq!(s.today_tasks[0].id, 2);
+        assert_eq!((s.notes.len(), s.notes[0].id, s.notes[0].title.as_str()), (5, 7, "note 7"));
+        assert_eq!((s.sites.len(), s.sites[0].domain.as_str()), (5, "site7"));
+        assert_eq!((s.clipboard.len(), s.clipboard[0].preview.as_str()), (3, "clip 7"));
     }
 
     #[test]

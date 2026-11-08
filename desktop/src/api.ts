@@ -64,6 +64,16 @@ export interface DeviceBattery {
   charging: boolean | null;
 }
 
+export interface DashboardSummary {
+  tasks_available: boolean; notes_available: boolean; sites_available: boolean;
+  open_count: number; overdue_count: number;
+  today_tasks: { id: number; title: string; due: string }[];
+  notes: { id: number; title: string; updated_at: number }[];
+  sites: { domain: string; seconds: number }[];
+  clipboard: { id: number; preview: string }[];
+  batteries: DeviceBattery[]; ambient_playing: boolean; ambient_active_count: number;
+}
+
 export interface NativeStatus {
   registered: boolean;
   path_matches: boolean;
@@ -80,6 +90,7 @@ export interface AmbientPreset {
 }
 
 export const api = {
+  dashboardSummary: () => invoke<DashboardSummary>('dashboard_summary'),
   snippetList: (query: string) => invoke<Snippet[]>('snippet_list', { query }),
   snippetSave: (id: number | null, trigger: string, title: string, body: string) =>
     invoke<number>('snippet_save', { id, trigger, title, body }),
