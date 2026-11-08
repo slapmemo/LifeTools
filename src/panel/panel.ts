@@ -1,7 +1,7 @@
 import { icon, type IconName } from '../../design/icons';
 import { requestRunAction } from '../core/actions';
 import { restoreData, validateBackup, type Backup } from '../core/backup';
-import { backupSettingKeys } from '../core/backup-settings';
+import { backupSettingKeys, settingsRestorePlan } from '../core/backup-settings';
 import { AUTO_BACKUP_ENABLED_KEY, LAST_AUTO_BACKUP_KEY } from '../core/auto-backup';
 import { isModuleEnabled, MODULE_FLAGS_KEY, resolveEnabled, setModuleEnabled } from '../core/module-state';
 import { applyTheme } from '../core/theme';
@@ -493,14 +493,14 @@ confirmSecondClick(
     try {
       const settings = selectedBackup.settings;
       await restoreData(popupDb, selectedBackup);
-      const keys = backupSettingKeys();
-      await chrome.storage.local.remove(keys);
-      await chrome.storage.local.set(
-        Object.fromEntries(
-          keys.filter(key => Object.prototype.hasOwnProperty.call(settings, key)).map(key => [key, settings[key]])
-        )
-      );
-      backupFeedback.textContent = 'Yedek geri yüklendi. Eklenti yeniden başlatılıyor…';
+      const plan = settingsRestorePlan(settings, backupSettingKeys());
+      if (plan.remove.length) {
+        await chrome.storage.local.remove(plan.remove);
+        await chrome.storage.local.set(plan.set);
+      }
+      backupFeedback.textContent = plan.remove.length
+        ? 'Yedek geri yüklendi. Eklenti yeniden başlatılıyor…'
+        : 'Yedek geri yüklendi (bu yedekte eklenti ayarı yok, mevcut ayarlar korundu). Eklenti yeniden başlatılıyor…';
       backupFeedback.className = 'feedback';
       backupFeedback.hidden = false;
       showToast('Yedek geri yüklendi.', 'info');
