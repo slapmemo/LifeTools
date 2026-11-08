@@ -1,5 +1,6 @@
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { PIN_MANAGER_KEY } from './settings';
+import { initWorkspaceEngine } from './workspace-engine';
 
 export const TAB_MANAGER_ID = 'tab-manager';
 const timers = new Map<number, ReturnType<typeof setTimeout>>();
@@ -35,6 +36,7 @@ function scheduleAll(): void {
   void chrome.windows.getAll({ windowTypes: ['normal'] }).then(wins => wins.forEach(w => { if (w.id !== undefined && !w.incognito) schedule(w.id); }));
 }
 export function initTabManagerBackground(): void {
+  initWorkspaceEngine();
   chrome.runtime.onStartup.addListener(scheduleAll);
   chrome.runtime.onInstalled.addListener(scheduleAll);
   chrome.windows.onCreated.addListener(win => { if (win.id !== undefined && win.type === 'normal' && !win.incognito) schedule(win.id); });

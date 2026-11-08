@@ -36,6 +36,7 @@ function scheduleSnapshot(windowId: number): void {
 }
 async function groupTab(tabId: number): Promise<void> {
   if (!await enabled(AUTO_GROUP_KEY)) return;
+  if ((await chrome.storage.local.get({ workspaceMode: 'workspaces' })).workspaceMode !== 'groups') return;
   try {
     const tab = await chrome.tabs.get(tabId);
     const win = await chrome.windows.get(tab.windowId);
