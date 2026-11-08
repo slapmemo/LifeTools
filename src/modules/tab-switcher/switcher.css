@@ -3,10 +3,8 @@ main { max-width: 1000px; margin: var(--space-24) auto; padding: 0 var(--space-1
 h1 { font-size: var(--font-size-18); margin: var(--space-16) 0; }
 #search, .note-input { width: 100%; }
 #search { padding: var(--space-16); font-size: var(--font-size-15); background: var(--surface); }
-#toolbar, #workspace-bar { display: flex; flex-wrap: wrap; gap: var(--space-4); }
-#toolbar button[aria-pressed=true], #workspace-bar button[aria-pressed=true] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
-#workspace-bar button { border-radius: var(--radius-pill); }
-.workspace-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: var(--space-4); }
+#toolbar { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+#toolbar button[aria-pressed=true] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 #message { min-height: 1.4em; color: var(--muted); }
 #cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--space-8); margin-top: var(--space-12); }
 .card { text-align: left; min-height: 120px; cursor: pointer; overflow-wrap: anywhere; }

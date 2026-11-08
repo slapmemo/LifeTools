@@ -6,7 +6,6 @@ import { AUTO_PREFIX, createSessionsRepo } from '../life-browser/repo';
 import { buildViewModel, COLORS, HIDDEN_PREFIX, hiddenGroupCollapsed, hiddenGroupModel, hiddenTabModel, selectRange } from './logic';
 import { isInternalTabUrl, extensionBaseUrl } from '../../core/internal-tab';
 import { PIN_MANAGER_KEY } from './settings';
-import { pills, ws, type WorkspaceState } from './workspace-ui';
 
 void applyTheme();
 const hiddenSection = document.createElement('section'); hiddenSection.id = 'hidden-section'; hiddenSection.hidden = true;
@@ -18,7 +17,6 @@ const windowsEl = el<HTMLElement>('#windows'), search = el<HTMLInputElement>('#s
 let tabs: chrome.tabs.Tab[] = [], groups: chrome.tabGroups.TabGroup[] = [], currentWindowId: number | undefined;
 let selected = new Set<number>(), anchor: number | undefined, anchorWindow: number | undefined, color: chrome.tabGroups.ColorEnum = 'grey';
 let timer: ReturnType<typeof setTimeout> | undefined;
-let workspaceState: WorkspaceState | undefined;
 const repo = createSessionsRepo(popupDb);
 let savedVersion = '', savedSequence = 0;
 const hiddenCollapseState = new Map<number, boolean>();
@@ -36,15 +34,12 @@ function swatches(value: string, onChange: (c: chrome.tabGroups.ColorEnum) => vo
   for (const item of COLORS) { const b = button('', () => onChange(item.color)); b.className = 'swatch'; b.title = item.label; b.setAttribute('aria-label', item.label); b.setAttribute('aria-pressed', String(item.color === value)); b.style.setProperty('--group-color', colorValue(item.color)); box.append(b); } return box;
 }
 async function load(): Promise<void> {
-  const [wins, allTabs, allGroups, own, current, state] = await Promise.all([chrome.windows.getAll({windowTypes:['normal']}), chrome.tabs.query({}), chrome.tabGroups.query({}), chrome.tabs.getCurrent(), chrome.windows.getCurrent(), ws<WorkspaceState>({type:'ws:list'})]);
-  workspaceState = state;
+  const [wins, allTabs, allGroups, own, current] = await Promise.all([chrome.windows.getAll({windowTypes:['normal']}), chrome.tabs.query({}), chrome.tabGroups.query({}), chrome.tabs.getCurrent(), chrome.windows.getCurrent()]);
   const ids = new Set(wins.map(w => w.id)); tabs = allTabs.filter(t => ids.has(t.windowId) && t.id !== own?.id); groups = allGroups.filter(g => ids.has(g.windowId)); currentWindowId = current.id;
   const existing = new Set(tabs.map(t => t.id)); selected = new Set([...selected].filter(id => existing.has(id))); render();
 }
 function render(): void {
-  renderWorkspaces();
-  const workspaceMode = workspaceState?.mode === 'workspaces';
-  const model = buildViewModel(workspaceMode ? tabs.filter(t => t.windowId === currentWindowId) : tabs, workspaceMode ? groups.filter(g => g.windowId === currentWindowId) : groups, chrome.runtime.getURL('tabs.html'), currentWindowId);
+  const model = buildViewModel(tabs, groups, chrome.runtime.getURL('tabs.html'), currentWindowId);
   const query = search.value.trim().toLocaleLowerCase('tr-TR');
   const matches = (t: chrome.tabs.Tab): boolean => `${t.title || ''} ${t.url || t.pendingUrl || ''}`.toLocaleLowerCase('tr-TR').includes(query);
   el('#counts').textContent = `${model.reduce((n,w) => n + w.tabs.length, 0)} sekme · ${model.reduce((n,w) => n + w.groups.length, 0)} grup`;
@@ -71,37 +66,13 @@ function render(): void {
       const name = button(card.group.title || 'Adsız grup', () => { const input = document.createElement('input'); input.value = card.group.title || ''; input.setAttribute('aria-label','Grup adı'); name.replaceWith(input); input.focus(); let saved = false; const save = (): void => { if (saved) return; saved = true; run(async () => { await chrome.tabGroups.update(card.group.id, {title:input.value}); await load(); }); }; input.addEventListener('blur', save); input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } }); }); name.className = 'ghost name'; header.append(name);
       const picker = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Renk'; const pop = swatches(card.group.color, c => run(async () => { await chrome.tabGroups.update(card.group.id,{color:c}); await load(); })); pop.classList.add('popover','card'); picker.append(summary,pop); header.append(picker);
       const hide = button('Gizle', () => run(() => hideGroup(card.tabs, card.group))); hide.title = 'Grubu kaydet ve sekme çubuğundan kaldır'; header.append(hide);
-      if (!workspaceMode) header.append(button(card.group.collapsed ? 'Genişlet' : 'Daralt', () => run(async () => { await chrome.tabGroups.update(card.group.id,{collapsed:!card.group.collapsed}); await load(); })));
-      const ids = card.tabs.map(t => t.id!).filter(id => id !== undefined); if (!workspaceMode) header.append(createKebabMenu([{label:'Grubu kaydet ve kapat',onSelect:() => run(() => saveAndClose(card.tabs, card.group.title?.trim() || 'Grup'))},{label:'Grubu çöz',onSelect:() => run(async () => { await chrome.tabs.ungroup(ids); await load(); })},{label:'Grubu kapat',danger:true,confirm:true,onSelect:() => run(async () => { await chrome.tabs.remove(ids); await load(); })}], 'Grup işlemleri'));
-      box.append(header); const list = document.createElement('ul'); list.className = 'rows'; if (workspaceMode || !card.group.collapsed || query) visible.forEach(t => list.append(row(t))); box.append(list); section.append(box);
+      header.append(button(card.group.collapsed ? 'Genişlet' : 'Daralt', () => run(async () => { await chrome.tabGroups.update(card.group.id,{collapsed:!card.group.collapsed}); await load(); })));
+      const ids = card.tabs.map(t => t.id!).filter(id => id !== undefined); header.append(createKebabMenu([{label:'Grubu kaydet ve kapat',onSelect:() => run(() => saveAndClose(card.tabs, card.group.title?.trim() || 'Grup'))},{label:'Grubu çöz',onSelect:() => run(async () => { await chrome.tabs.ungroup(ids); await load(); })},{label:'Grubu kapat',danger:true,confirm:true,onSelect:() => run(async () => { await chrome.tabs.remove(ids); await load(); })}], 'Grup işlemleri'));
+      box.append(header); const list = document.createElement('ul'); list.className = 'rows'; if (!card.group.collapsed || query) visible.forEach(t => list.append(row(t))); box.append(list); section.append(box);
     }
     const ungrouped = win.ungrouped.filter(matches); if (ungrouped.length) { const box = document.createElement('div'); box.className = 'card group'; const title = document.createElement('div'); title.className = 'group-header'; title.textContent = 'Grupsuz sekmeler'; const list = document.createElement('ul'); list.className = 'rows'; ungrouped.forEach(t => list.append(row(t))); box.append(title,list); section.append(box); } windowsEl.append(section);
   });
 }
-async function switchWorkspace(id: string): Promise<void> { if (currentWindowId === undefined) return; message.textContent = 'Geçiliyor…'; await ws({type:'ws:switch', windowId:currentWindowId, id}); message.textContent = 'Çalışma alanına geçildi.'; selected.clear(); await load(); }
-function renderWorkspaces(): void {
-  const state = workspaceState; if (!state) return;
-  const enabled = state.mode === 'workspaces', active = currentWindowId === undefined ? undefined : state.activeByWindow[currentWindowId];
-  for (const id of ['site','new-group','group-select','ungroup']) el(id === 'site' ? '#site' : `#${id}`).hidden = enabled;
-  el('#workspace-select').hidden = !enabled; if (enabled) el('#new-form').hidden = true;
-  document.querySelectorAll<HTMLButtonElement>('#mode button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode)));
-  const bar = el('#workspace-bar'), saved = el('#workspace-saved'), targets = el('#workspace-targets'); bar.replaceChildren(); saved.replaceChildren(); targets.replaceChildren();
-  el('#convert').hidden = !enabled || !groups.some(g => g.windowId === currentWindowId);
-  if (!enabled) return;
-  for (const w of pills(state.workspaces, active)) {
-    const wrap = document.createElement('div'); wrap.className = 'workspace-pill';
-    const select = button(`${w.name} · ${w.count}`, () => run(() => switchWorkspace(w.id))); select.prepend(dot(w.color)); select.setAttribute('aria-pressed', String(w.active)); wrap.append(select);
-    const menu = document.createElement('details'), summary = document.createElement('summary'); summary.textContent = '⋯'; summary.setAttribute('aria-label', `${w.name} işlemleri`); const panel = document.createElement('div'); panel.className = 'popover card';
-    panel.append(button('Yeniden adlandır', () => { const input = document.createElement('input'); input.value = w.name; input.setAttribute('aria-label','Çalışma alanı adı'); panel.replaceChildren(input); input.focus(); let done = false; const save = (): void => { if (done) return; done = true; run(async () => { await ws({type:'ws:update', id:w.id, name:input.value}); await load(); }); }; input.addEventListener('keydown', e => { if (e.key === 'Enter') save(); }); input.addEventListener('blur', save, {once:true}); }));
-    panel.append(button('Renk', () => { panel.replaceChildren(swatches(w.color, c => run(async () => { await ws({type:'ws:update',id:w.id,color:c}); await load(); }))); }));
-    panel.append(button('Sil', () => { const label = document.createElement('label'); label.textContent = 'Sekmeleri şuraya taşı:'; const target = document.createElement('select'); const none = document.createElement('option'); none.value = ''; none.textContent = 'Yok — kayıtlı sekmeleri sil'; target.append(none); for (const other of state.workspaces.filter(x => x.id !== w.id)) { const option = document.createElement('option'); option.value = other.id; option.textContent = other.name; target.append(option); } label.append(target); const del = button('Sil', () => {}); confirmSecondClick(del, () => run(async () => { await ws({type:'ws:delete',id:w.id,...(target.value ? {moveTo:target.value} : {})}); await load(); })); panel.replaceChildren(label,del); })); menu.append(summary,panel); wrap.append(menu); bar.append(wrap);
-    if (!w.active) { targets.append(button(w.name, () => run(async () => { await ws({type:'ws:move-tabs',tabIds:[...selected],id:w.id}); selected.clear(); await load(); }))); const details = document.createElement('details'); const heading = document.createElement('summary'); heading.textContent = `${w.name} · ${w.count} sekme`; details.append(heading); const list = document.createElement('ul'); list.className = 'rows'; for (const tab of w.tabs) { const li = document.createElement('li'); li.className = 'row'; const info = document.createElement('div'); const title = button(tab.title || tab.url, () => run(() => switchWorkspace(w.id))); title.className = 'ghost tab-title'; const host = document.createElement('div'); host.className = 'host muted'; try { host.textContent = new URL(tab.url).host; } catch { host.textContent = tab.url; } info.append(title,host); li.append(info); list.append(li); } details.append(list); saved.append(details); }
-  }
-  bar.append(button('＋ Yeni alan', () => { const form = document.createElement('form'); form.className = 'workspace-form'; const name = document.createElement('input'); name.placeholder = 'Alan adı'; name.setAttribute('aria-label','Alan adı'); let chosen: chrome.tabGroups.ColorEnum = 'grey'; const colors = document.createElement('div'); const update = (): void => colors.replaceChildren(swatches(chosen, c => { chosen = c; update(); })); update(); const submit = button('Oluştur', () => {}); submit.type = 'submit'; form.append(name,colors,submit); form.addEventListener('submit', e => { e.preventDefault(); run(async () => { const result = await ws<{id:string}>({type:'ws:create',name:name.value,color:chosen}); await switchWorkspace(result.id); }); }); bar.append(form); name.focus(); }));
-}
-document.querySelectorAll<HTMLButtonElement>('#mode button').forEach(b => b.addEventListener('click', () => run(async () => { await ws({type:'ws:set-mode',mode:b.dataset.mode}); await load(); })));
-el('#convert button').addEventListener('click', () => run(async () => { await ws({type:'ws:convert-groups',windowId:currentWindowId}); message.textContent = 'Gruplar dönüştürüldü.'; await load(); }));
-chrome.storage.onChanged.addListener((changes, area) => { if ((area === 'local' && (changes.workspaces || changes.workspaceMode)) || (area === 'session' && changes.windowWorkspace)) schedule(); });
 async function hideGroup(groupTabs: chrome.tabs.Tab[], group: chrome.tabGroups.TabGroup): Promise<void> {
   const name = group.title?.trim() || 'Adsız grup';
   if (groupTabs.some(t => t.id === undefined || !(t.url || t.pendingUrl) || isInternalTabUrl(t.url || t.pendingUrl, extensionBaseUrl()))) throw new Error('Bu gruptaki tüm sekmeler kaydedilemiyor.');

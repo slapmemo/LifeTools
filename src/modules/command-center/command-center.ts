@@ -21,7 +21,6 @@ import { getSlots, SLOT_IDS } from '../clip-slots/slots';
 import { TIME_TRACKER_ID } from '../time-tracker/background';
 import { createTimeTrackerRepo } from '../time-tracker/repo';
 import { localDay } from '../time-tracker/tracker';
-import { matchWorkspaces, ws, type WorkspaceState } from '../tab-manager/workspace-ui';
 
 interface Row { group: string; title: string; sub?: string; run(): Promise<void> }
 type TabItem = SearchTab & { tab: chrome.tabs.Tab };
@@ -84,12 +83,6 @@ async function copy(text: string, okText: string): Promise<void> {
 
 async function build(query: string): Promise<Row[]> {
   const out: Row[] = [];
-  const alan = /^alan(?:\s+(.*))?$/iu.exec(query.trim());
-  if (alan) {
-    const state = await ws<WorkspaceState>({type:'ws:list'});
-    if (state.mode !== 'workspaces') return [];
-    return matchWorkspaces(state.workspaces, alan[1] || '').map(w => ({ group:'Çalışma alanları', title:w.name, sub:`${w.count} sekme`, run: async () => { try { const tab = targetTabId === undefined ? undefined : await chrome.tabs.get(targetTabId); if (!tab) throw new Error('Hedef pencere bulunamadı.'); status.textContent = 'Geçiliyor…'; await ws({type:'ws:switch',windowId:tab.windowId,id:w.id}); status.textContent = 'Çalışma alanına geçildi.'; window.close(); } catch (error) { status.textContent = error instanceof Error ? error.message : 'İşlem başarısız.'; } } }));
-  }
   const prefix = parsePrefix(query);
   if (prefix) {
     if (prefix.id === 'slots.show' && await isModuleEnabled(CLIP_SLOTS_ID)) {
@@ -173,6 +166,5 @@ document.addEventListener('keydown', event => {
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes[MODULE_FLAGS_KEY]) void load();
-  if ((area === 'local' && (changes.workspaces || changes.workspaceMode)) || (area === 'session' && changes.windowWorkspace)) void refresh();
 });
 void load();
