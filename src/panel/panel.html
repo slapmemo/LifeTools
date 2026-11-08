@@ -438,6 +438,17 @@
         <ul id="time-list" class="card list-card" aria-label="Site süreleri"></ul>
 
         <div class="card stack-card">
+          <h3>Günlük limitler</h3>
+          <label><input id="time-limits-enabled" type="checkbox"> Limit bildirimlerini etkinleştir</label>
+          <form id="time-limit-form" class="inline-editor-row">
+            <input id="time-limit-domain" placeholder="ornek.com" aria-label="Limit uygulanacak site" required />
+            <input id="time-limit-minutes" type="number" min="5" max="1440" step="1" placeholder="Dakika" aria-label="Dakika" required />
+            <button type="submit">＋ Ekle</button>
+          </form>
+          <ul id="time-limits" class="chip-list" aria-label="Günlük limitler"></ul>
+        </div>
+
+        <div class="card stack-card">
           <h3>Hariç tutulan siteler</h3>
           <form id="time-form" class="inline-editor-row">
             <input id="time-domain" placeholder="ornek.com" aria-label="Hariç tutulacak site" required />

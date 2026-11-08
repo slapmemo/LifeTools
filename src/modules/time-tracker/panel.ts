@@ -8,6 +8,7 @@ import {
 import { EXCLUDED_KEY } from './background';
 import { createTimeTrackerRepo } from './repo';
 import { localDay, siteKey } from './tracker';
+import { LIMITS_KEY, LIMITS_ENABLED_KEY, type DailyLimits } from './limits';
 
 export function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -29,6 +30,8 @@ export function initTimeTrackerPanel(db: Executor = popupDb): { render(): Promis
   const del = $<HTMLButtonElement>('#time-delete');
   const heading = document.querySelector<HTMLElement>('#time-heading');
   const rangeBtns = document.querySelectorAll<HTMLButtonElement>('[data-time-range]');
+  const limitsList = $<HTMLElement>('#time-limits');
+  const limitToggle = $<HTMLInputElement>('#time-limits-enabled');
 
   let week = false;
 
@@ -108,6 +111,20 @@ export function initTimeTrackerPanel(db: Executor = popupDb): { render(): Promis
       }
 
       const values = (await chrome.storage.local.get({ [EXCLUDED_KEY]: [] }))[EXCLUDED_KEY] as string[];
+      const settings = await chrome.storage.local.get({ [LIMITS_KEY]: {}, [LIMITS_ENABLED_KEY]: false });
+      const limits = settings[LIMITS_KEY] as DailyLimits;
+      limitToggle.checked = settings[LIMITS_ENABLED_KEY] === true;
+      limitsList.replaceChildren();
+      if (!Object.keys(limits).length) {
+        const li = document.createElement('li'); li.className = 'muted'; li.textContent = 'Limit yok.'; limitsList.append(li);
+      }
+      for (const [domain, minutes] of Object.entries(limits)) {
+        const li = document.createElement('li'); li.className = 'chip';
+        const label = document.createElement('span'); label.textContent = `${domain} · ${minutes} dk`;
+        const button = document.createElement('button'); button.type = 'button'; button.className = 'chip-remove'; button.textContent = '×'; button.setAttribute('aria-label', `${domain} limitini kaldır`);
+        button.addEventListener('click', () => { void (async () => { const current = (await chrome.storage.local.get({ [LIMITS_KEY]: {} }))[LIMITS_KEY] as DailyLimits; delete current[domain]; await chrome.storage.local.set({ [LIMITS_KEY]: current }); await render(); })(); });
+        li.append(label, button); limitsList.append(li);
+      }
       exclusions.replaceChildren();
       if (values.length === 0) {
         const li = document.createElement('li');
@@ -150,6 +167,21 @@ export function initTimeTrackerPanel(db: Executor = popupDb): { render(): Promis
   });
 
   const legacyToggle = document.querySelector<HTMLButtonElement>('#time-toggle');
+  limitToggle.addEventListener('change', () => { void chrome.storage.local.set({ [LIMITS_ENABLED_KEY]: limitToggle.checked }); });
+  $('#time-limit-form').addEventListener('submit', e => {
+    e.preventDefault();
+    void (async () => {
+      const domainInput = $<HTMLInputElement>('#time-limit-domain');
+      const minuteInput = $<HTMLInputElement>('#time-limit-minutes');
+      const domain = siteKey(domainInput.value.includes('://') ? domainInput.value : 'https://' + domainInput.value);
+      const minutes = Number(minuteInput.value);
+      if (!domain || !Number.isInteger(minutes) || minutes < 5 || minutes > 1440) { say('Geçerli bir site ve 5–1440 dakika gir.', true); return; }
+      const limits = (await chrome.storage.local.get({ [LIMITS_KEY]: {} }))[LIMITS_KEY] as DailyLimits;
+      if (!(domain in limits) && Object.keys(limits).length >= 20) { say('En fazla 20 site eklenebilir.', true); return; }
+      await chrome.storage.local.set({ [LIMITS_KEY]: { ...limits, [domain]: minutes } });
+      domainInput.value = ''; minuteInput.value = ''; say(`${domain} limiti kaydedildi.`); await render();
+    })();
+  });
   legacyToggle?.addEventListener('click', () => {
     week = !week;
     void render();

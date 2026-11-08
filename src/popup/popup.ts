@@ -10,7 +10,7 @@ import { requestActions, requestRunAction, splitArg } from '../core/actions';
 import { MODULE_FLAGS_KEY } from '../core/module-state';
 import { popupVisibility } from '../core/ui-visibility';
 import { applyTheme } from '../core/theme';
-import { formatSites, formatTasks } from './summary';
+import { todayTimeLine, formatTasks } from './summary';
 
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = el<HTMLInputElement>('search');
@@ -83,7 +83,7 @@ async function summary(): Promise<void> {
   const actionsWrap = el('note').parentElement;
   if (actionsWrap) actionsWrap.hidden = !hasQuickInput;
   const todaySection = el('today-tasks').parentElement;
-  if (todaySection) todaySection.hidden = !(visible.tasks || visible.sites);
+  if (todaySection) todaySection.hidden = !visible.tasks;
 
   const today = localToday(Date.now());
   if (visible.tasks) {
@@ -94,7 +94,7 @@ async function summary(): Promise<void> {
     );
   }
   if (visible.sites) {
-    el('today-sites').textContent = formatSites(await createTimeTrackerRepo(popupDb).getDay(today));
+    el('today-sites').textContent = todayTimeLine(await createTimeTrackerRepo(popupDb).getDay(today));
   }
 }
 

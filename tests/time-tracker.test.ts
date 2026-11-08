@@ -4,6 +4,20 @@ import { createTimeTrackerRepo } from '../src/modules/time-tracker/repo';
 import { createMemoryExecutor } from './sqlite-memory';
 import { runMigrations } from '../src/db/migrations';
 import { formatDuration } from '../src/modules/time-tracker/panel';
+import { crossedThresholds } from '../src/modules/time-tracker/limits';
+import { todayTimeLine } from '../src/popup/summary';
+
+it('detects limit crossings', () => {
+  expect(crossedThresholds(0, 60, 5)).toEqual([]);
+  expect(crossedThresholds(239, 240, 5)).toEqual(['80']);
+  expect(crossedThresholds(299, 300, 5)).toEqual(['100']);
+  expect(crossedThresholds(0, 300, 5)).toEqual(['80', '100']);
+  expect(crossedThresholds(300, 400, 5)).toEqual([]);
+});
+it('builds the today line', () => {
+  expect(todayTimeLine([])).toBe('Bugün henüz süre kaydı yok');
+  expect(todayTimeLine([{ domain: 'a.com', seconds: 3900 }, { domain: 'b.com', seconds: 7500 }])).toBe('Bugün: 3 sa 10 dk · en çok b.com (2 sa 5 dk)');
+});
 
 it('recognizes web domains', () => {
   expect(siteKey('https://WWW.Example.com/path')).toBe('example.com');
