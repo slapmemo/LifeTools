@@ -616,6 +616,9 @@
           <h3>Yedek</h3>
           <button id="backup-download" type="button" class="primary">Yedeği indir</button>
         </div>
+        <label class="setting-row"><span>Her hafta otomatik yedek al (İndirilenler/LifeTools/Yedekler)</span><span class="switch"><input id="auto-backup-enabled" type="checkbox" /><span class="switch-track"></span></span></label>
+        <p id="auto-backup-last" class="hint">Son otomatik yedek: henüz yok</p>
+        <div class="form-actions"><button id="auto-backup-now" type="button">Şimdi yedek al</button></div>
         <div class="backup-restore-box">
           <label for="backup-file" class="field-label">Yedekten geri yükle</label>
           <input id="backup-file" type="file" accept="application/json,.json" />

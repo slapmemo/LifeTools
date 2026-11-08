@@ -1,7 +1,8 @@
 import { icon, type IconName } from '../../design/icons';
 import { requestRunAction } from '../core/actions';
-import { exportData, restoreData, validateBackup, type Backup } from '../core/backup';
+import { restoreData, validateBackup, type Backup } from '../core/backup';
 import { backupSettingKeys } from '../core/backup-settings';
+import { AUTO_BACKUP_ENABLED_KEY, LAST_AUTO_BACKUP_KEY } from '../core/auto-backup';
 import { isModuleEnabled, MODULE_FLAGS_KEY, resolveEnabled, setModuleEnabled } from '../core/module-state';
 import { applyTheme } from '../core/theme';
 import {
@@ -429,25 +430,38 @@ const backupError = (err: unknown): void => {
   showToast(msg, 'error');
 };
 
-document.querySelector('#backup-download')!.addEventListener('click', () => {
+const autoBackupEnabled = document.querySelector<HTMLInputElement>('#auto-backup-enabled')!;
+const autoBackupLast = document.querySelector<HTMLElement>('#auto-backup-last')!;
+async function refreshAutoBackup(): Promise<void> {
+  const data = await chrome.storage.local.get([AUTO_BACKUP_ENABLED_KEY, LAST_AUTO_BACKUP_KEY]);
+  autoBackupEnabled.checked = data[AUTO_BACKUP_ENABLED_KEY] === true;
+  const date = new Date(data[LAST_AUTO_BACKUP_KEY] as string);
+  autoBackupLast.textContent = `Son otomatik yedek: ${Number.isNaN(date.getTime()) ? 'henüz yok' : new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date)}`;
+}
+autoBackupEnabled.addEventListener('change', () => {
+  void chrome.storage.local.set({ [AUTO_BACKUP_ENABLED_KEY]: autoBackupEnabled.checked }).catch(backupError);
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && (changes[AUTO_BACKUP_ENABLED_KEY] || changes[LAST_AUTO_BACKUP_KEY])) void refreshAutoBackup();
+});
+void refreshAutoBackup();
+
+function takeBackup(): void {
   void (async () => {
     try {
-      const data = await exportData(popupDb, await chrome.storage.local.get(backupSettingKeys()));
-      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `lifetools-yedek-${data.exported_at.slice(0, 10)}.json`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      backupFeedback.textContent = 'Yedek indirildi.';
+      const result = await requestRunAction('backup.download');
+      if (!result.ok) throw new Error(result.message ?? 'Yedek indirilemedi.');
+      backupFeedback.textContent = 'Yedek indirme işlemi başlatıldı.';
       backupFeedback.className = 'feedback';
       backupFeedback.hidden = false;
-      showToast('Yedek indirildi.', 'info');
+      showToast('Yedek indirme işlemi başlatıldı.', 'info');
     } catch (err) {
       backupError(err);
     }
   })();
-});
+}
+document.querySelector('#backup-download')!.addEventListener('click', takeBackup);
+document.querySelector('#auto-backup-now')!.addEventListener('click', takeBackup);
 
 backupFile.addEventListener('change', () => {
   void (async () => {

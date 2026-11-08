@@ -20,6 +20,7 @@ import { TAB_SWITCHER_ID } from '../modules/tab-switcher/background';
 import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
 import { parseTurkishDue } from '../modules/command-center/search';
 import { openTabManager } from '../modules/tab-manager/open';
+import { downloadBackup } from './auto-backup-background';
 
 const notes = createNotesRepo(backgroundDb);
 const tasks = createTasksRepo(backgroundDb, Date.now, rescheduleTaskReminders);
@@ -126,7 +127,7 @@ registerAction({
 
 registerAction({
   id: 'backup.download', title: 'Yedeği indir', keywords: ['yedek', 'indir', 'dışa aktar'], moduleId: 'core',
-  async run() { await openPopupSection('backup-download'); }
+  async run() { await downloadBackup(); return 'Yedek indirme işlemi başlatıldı.'; }
 });
 
 registerAction({ id:'watch.addPage', title:'İzleme listesine ekle (sayfa)', keywords:['izleme','video','sayfa'], moduleId:WATCHLIST_ID, toolbar:true, async run({tab}) { const t=needTab(tab); const url=t.url ?? ''; await createWatchRepo(backgroundDb).add({title:(t.title || url || 'Sayfa').slice(0,300),kind:guessKind(url),url}); return 'İzleme listesine eklendi.'; } });
