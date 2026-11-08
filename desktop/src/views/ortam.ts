@@ -1,6 +1,10 @@
 import { api, errText } from '../api';
 import { ambient, CHANNEL_IDS, CHANNEL_LABELS, parseConfig, type AmbientConfig } from '../ambient';
 import { debounce, h, type View } from '../dom';
+import { icon, type IconName } from '../../../design/icons';
+import { rowMenu } from '../view-components';
+
+const SOUNDS: { id: (typeof CHANNEL_IDS)[number]; icon: IconName }[] = CHANNEL_IDS.map((id) => ({ id, icon: 'headphones' }));
 
 const TIMERS: [string, number | null][] = [
   ['Zamanlayıcı yok', null],
@@ -41,24 +45,28 @@ export function ambientView(): View {
   const msg = h('div', { class: 'muted status' });
   const presetSel = h('select', { class: 'grow' });
   const nameInput = h('input', { type: 'text', placeholder: 'Ön ayar adı', maxLength: 40 });
-  const delBtn = h('button', { class: 'danger' }, 'Sil');
-  const chRows = new Map<(typeof CHANNEL_IDS)[number], { on: HTMLInputElement; vol: HTMLInputElement }>();
+  const presetMenu = h('div');
+  const chRows = new Map<(typeof CHANNEL_IDS)[number], { on: HTMLInputElement; vol: HTMLInputElement; card: HTMLElement }>();
   let presets: { id: number; name: string; config_json: string }[] = [];
-  let armed: number | undefined;
-
-  const channelsBox = h('div', { class: 'list' });
-  for (const id of CHANNEL_IDS) {
-    const on = h('input', { type: 'checkbox' });
-    const vol = h('input', { type: 'range', min: '0', max: '100', class: 'grow' });
-    chRows.set(id, { on, vol });
+  const channelsBox = h('div', { class: 'sound-grid' });
+  for (const sound of SOUNDS) {
+    const { id } = sound;
+    const on = h('input', { type: 'checkbox', 'aria-label': `${CHANNEL_LABELS[id]} aç veya kapat` });
+    const vol = h('input', { type: 'range', min: '0', max: '100', 'aria-label': `${CHANNEL_LABELS[id]} ses düzeyi` });
+    const card = h('div', { class: 'card sound-card' },
+      h('div', { class: 'sound-card-header' }, h('span', { class: 'sound-icon' }, icon(sound.icon, 22)),
+        h('strong', { class: 'grow' }, CHANNEL_LABELS[id]), h('label', { class: 'switch' }, on)),
+      h('label', { class: 'sound-volume' }, h('span', { class: 'muted' }, 'Ses düzeyi'), vol));
+    chRows.set(id, { on, vol, card });
     const changed = () => {
       ambient.config.channels[id] = { on: on.checked, vol: Number(vol.value) / 100 };
       ambient.apply();
+      card.classList.toggle('active', on.checked);
       saveLast();
     };
     on.addEventListener('change', changed);
     vol.addEventListener('input', changed);
-    channelsBox.append(h('div', { class: 'row ch-row' }, h('label', { class: 'check ch-name' }, on, ' ' + CHANNEL_LABELS[id]), vol));
+    channelsBox.append(card);
   }
 
   const el = h(
@@ -66,13 +74,14 @@ export function ambientView(): View {
     {},
     h('h2', {}, 'Ortam sesi'),
     h('p', { class: 'muted' }, 'Tüm sesler cihazında sentezlenir; dosya veya ağ kullanılmaz. Pencere tepsiye gizlense de çalmaya devam eder.'),
-    h('div', { class: 'toolbar' }, playBtn, h('label', {}, 'Ana ses '), master),
-    h('div', { class: 'toolbar' }, h('label', {}, 'Kapat: ', timer), remain),
-    channelsBox,
-    h('h3', {}, 'Ön ayarlar'),
-    h('div', { class: 'toolbar' }, presetSel, h('button', { onClick: () => loadPreset() }, 'Yükle'), delBtn),
-    h('div', { class: 'toolbar' }, nameInput, h('button', { onClick: () => void savePreset() }, 'Kaydet')),
-    msg
+    h('div', { class: 'card ambient-controls' },
+      h('div', { class: 'toolbar' }, playBtn, h('label', { class: 'ambient-master' }, 'Ana ses', master)),
+      h('div', { class: 'toolbar' }, h('label', {}, 'Uyku zamanlayıcısı ', timer), remain),
+      h('h3', {}, 'Ön ayarlar'),
+      h('div', { class: 'toolbar' }, presetSel, h('button', { onClick: () => loadPreset() }, 'Yükle'), presetMenu),
+      h('div', { class: 'toolbar' }, nameInput, h('button', { onClick: () => void savePreset() }, 'Kaydet')),
+      msg),
+    channelsBox
   );
 
   function flash(t: string): void {
@@ -86,6 +95,7 @@ export function ambientView(): View {
     for (const [id, r] of chRows) {
       r.on.checked = c.channels[id].on;
       r.vol.value = String(Math.round(c.channels[id].vol * 100));
+      r.card.classList.toggle('active', r.on.checked);
     }
     timer.value = ambient.timerMin === null ? '' : String(ambient.timerMin);
     playBtn.textContent = ambient.playing ? 'Durdur' : 'Çal';
@@ -104,6 +114,20 @@ export function ambientView(): View {
     presets = await api.presetList();
     presetSel.replaceChildren(...presets.map((p) => h('option', { value: String(p.id) }, p.name)));
     if (presets.length === 0) presetSel.append(h('option', { value: '' }, '(kayıtlı ön ayar yok)'));
+    updatePresetMenu();
+  }
+
+  function updatePresetMenu(): void {
+    const p = selected();
+    if (!p) { presetMenu.replaceChildren(); return; }
+    const menu = rowMenu([{ label: 'Sil', danger: true, run: async () => {
+      try { await api.presetDelete(p.id); await loadPresets(); flash('Ön ayar silindi.'); }
+      catch (e) { flash(errText(e)); }
+    } }]);
+    const toggle = menu.querySelector('button');
+    toggle?.setAttribute('title', 'İşlemler');
+    toggle?.setAttribute('aria-label', 'İşlemler');
+    presetMenu.replaceChildren(menu);
   }
 
   function selected() {
@@ -125,6 +149,7 @@ export function ambientView(): View {
       await loadPresets();
       const p = presets.find((x) => x.name === name);
       if (p) presetSel.value = String(p.id);
+      updatePresetMenu();
       flash('Ön ayar kaydedildi.');
     } catch (e) {
       flash(errText(e));
@@ -142,23 +167,7 @@ export function ambientView(): View {
     saveLast();
   });
   timer.addEventListener('change', () => ambient.setTimer(timer.value === '' ? null : Number(timer.value)));
-  delBtn.addEventListener('click', async () => {
-    const p = selected();
-    if (!p) return;
-    if (armed === undefined) {
-      delBtn.textContent = 'Emin misin?';
-      armed = window.setTimeout(() => {
-        armed = undefined;
-        delBtn.textContent = 'Sil';
-      }, 3000);
-      return;
-    }
-    window.clearTimeout(armed);
-    armed = undefined;
-    delBtn.textContent = 'Sil';
-    await api.presetDelete(p.id);
-    await loadPresets();
-  });
+  presetSel.addEventListener('change', updatePresetMenu);
 
   ambient.onChange = syncUi;
   window.setInterval(() => {

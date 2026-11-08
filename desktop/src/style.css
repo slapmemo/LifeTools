@@ -55,6 +55,21 @@ body[data-view='toast'], body[data-view='picker'], body[data-view='snippets'] { 
 .bar-fill { height: 100%; background: var(--accent); }
 .bar-fill.low { background: var(--danger); }
 
+.ambient-controls { margin-bottom: var(--space-16); }
+.ambient-master { display: flex; align-items: center; gap: var(--space-8); flex: 1; min-width: 180px; }
+.ambient-master input { flex: 1; min-width: 80px; }
+.sound-grid, .battery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-12); }
+.sound-card { display: flex; flex-direction: column; gap: var(--space-16); }
+.sound-card.active { border-color: var(--accent); background: var(--accent-soft); }
+.sound-card-header, .battery-heading { display: flex; align-items: center; gap: var(--space-12); }
+.sound-icon, .battery-heading > svg { color: var(--accent); flex-shrink: 0; }
+.sound-volume { display: flex; flex-direction: column; gap: var(--space-4); }
+.sound-volume input { width: 100%; }
+.battery-card { display: flex; flex-direction: column; gap: var(--space-12); }
+.battery-bar { width: 100%; }
+.battery-charging { display: flex; align-items: center; gap: var(--space-4); color: var(--accent); }
+.battery-grid > .empty-state { grid-column: 1 / -1; }
+
 .snippet-form { margin-bottom: var(--space-12); }
 .snippet-form textarea { width: 100%; margin-bottom: var(--space-8); }
 .picker-row.selected { background: var(--accent-soft); }
