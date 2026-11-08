@@ -3,11 +3,16 @@ import { popupDb } from '../../db/client';
 import { confirmSecondClick, createKebabMenu } from '../../panel/ui';
 import { groupWindowBySite, moveTabsToSession, openSession } from '../life-browser/browser';
 import { AUTO_PREFIX, createSessionsRepo } from '../life-browser/repo';
-import { buildViewModel, COLORS, selectRange } from './logic';
+import { buildViewModel, COLORS, HIDDEN_PREFIX, hiddenGroupModel, selectRange } from './logic';
+import { isInternalTabUrl, extensionBaseUrl } from '../../core/internal-tab';
 import { PIN_MANAGER_KEY } from './settings';
 import { pills, ws, type WorkspaceState } from './workspace-ui';
 
 void applyTheme();
+const hiddenSection = document.createElement('section'); hiddenSection.id = 'hidden-section'; hiddenSection.hidden = true;
+const hiddenHeading = document.createElement('h2'); hiddenHeading.textContent = 'Gizlenen gruplar';
+const hiddenGroups = document.createElement('div'); hiddenGroups.id = 'hidden-groups'; hiddenSection.append(hiddenHeading, hiddenGroups);
+document.querySelector('main')!.prepend(hiddenSection);
 const el = <T extends HTMLElement>(selector: string): T => document.querySelector(selector) as T;
 const windowsEl = el<HTMLElement>('#windows'), search = el<HTMLInputElement>('#search'), message = el<HTMLElement>('#message');
 let tabs: chrome.tabs.Tab[] = [], groups: chrome.tabGroups.TabGroup[] = [], currentWindowId: number | undefined;
@@ -64,6 +69,7 @@ function render(): void {
       const box = document.createElement('div'); box.className = 'card group'; const header = document.createElement('div'); header.className = 'group-header'; header.append(dot(card.group.color));
       const name = button(card.group.title || 'Adsız grup', () => { const input = document.createElement('input'); input.value = card.group.title || ''; input.setAttribute('aria-label','Grup adı'); name.replaceWith(input); input.focus(); let saved = false; const save = (): void => { if (saved) return; saved = true; run(async () => { await chrome.tabGroups.update(card.group.id, {title:input.value}); await load(); }); }; input.addEventListener('blur', save); input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } }); }); name.className = 'ghost name'; header.append(name);
       const picker = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Renk'; const pop = swatches(card.group.color, c => run(async () => { await chrome.tabGroups.update(card.group.id,{color:c}); await load(); })); pop.classList.add('popover','card'); picker.append(summary,pop); header.append(picker);
+      const hide = button('Gizle', () => run(() => hideGroup(card.tabs, card.group))); hide.title = 'Grubu kaydet ve sekme çubuğundan kaldır'; header.append(hide);
       if (!workspaceMode) header.append(button(card.group.collapsed ? 'Genişlet' : 'Daralt', () => run(async () => { await chrome.tabGroups.update(card.group.id,{collapsed:!card.group.collapsed}); await load(); })));
       const ids = card.tabs.map(t => t.id!).filter(id => id !== undefined); if (!workspaceMode) header.append(createKebabMenu([{label:'Grubu kaydet ve kapat',onSelect:() => run(() => saveAndClose(card.tabs, card.group.title?.trim() || 'Grup'))},{label:'Grubu çöz',onSelect:() => run(async () => { await chrome.tabs.ungroup(ids); await load(); })},{label:'Grubu kapat',danger:true,confirm:true,onSelect:() => run(async () => { await chrome.tabs.remove(ids); await load(); })}], 'Grup işlemleri'));
       box.append(header); const list = document.createElement('ul'); list.className = 'rows'; if (workspaceMode || !card.group.collapsed || query) visible.forEach(t => list.append(row(t))); box.append(list); section.append(box);
@@ -95,6 +101,18 @@ function renderWorkspaces(): void {
 document.querySelectorAll<HTMLButtonElement>('#mode button').forEach(b => b.addEventListener('click', () => run(async () => { await ws({type:'ws:set-mode',mode:b.dataset.mode}); await load(); })));
 el('#convert button').addEventListener('click', () => run(async () => { await ws({type:'ws:convert-groups',windowId:currentWindowId}); message.textContent = 'Gruplar dönüştürüldü.'; await load(); }));
 chrome.storage.onChanged.addListener((changes, area) => { if ((area === 'local' && (changes.workspaces || changes.workspaceMode)) || (area === 'session' && changes.windowWorkspace)) schedule(); });
+async function hideGroup(groupTabs: chrome.tabs.Tab[], group: chrome.tabGroups.TabGroup): Promise<void> {
+  const name = group.title?.trim() || 'Adsız grup';
+  if (groupTabs.some(t => t.id === undefined || !(t.url || t.pendingUrl) || isInternalTabUrl(t.url || t.pendingUrl, extensionBaseUrl()))) throw new Error('Bu gruptaki tüm sekmeler kaydedilemiyor.');
+  const id = await repo.save(HIDDEN_PREFIX + name, groupTabs.map(t => ({ url: (t.url || t.pendingUrl)!, title: t.title || null, pinned: false, group_title: group.title || '', group_color: group.color })));
+  await chrome.tabs.remove(groupTabs.map(t => t.id!));
+  selected.clear();
+  if (undoTimer) clearTimeout(undoTimer);
+  message.replaceChildren(document.createTextNode(`“${name}” gizlendi `));
+  const undo = button('Geri al', () => run(async () => { undo.disabled = true; try { await openSession(await repo.tabs(id), currentWindowId); await repo.delete(id); message.textContent = 'Grup geri açıldı.'; await refreshSaved(true); } catch (error) { undo.disabled = false; throw error; } }));
+  message.append(undo); undoTimer = setTimeout(() => undo.remove(), 10000);
+  await Promise.all([load(), refreshSaved(true)]);
+}
 async function saveAndClose(candidates: chrome.tabs.Tab[], name?: string): Promise<void> {
   const own = await chrome.tabs.getCurrent();
   const managerUrl = chrome.runtime.getURL('tabs.html');
@@ -126,9 +144,19 @@ async function refreshSaved(force = false): Promise<void> {
   const entries = await Promise.all(sessions.map(async session => ({ session, tabs: await repo.tabs(session.id) })));
   if (sequence !== savedSequence) return;
   savedVersion = version;
+  const hidden = entries.map(entry => ({ ...entry, model: hiddenGroupModel(entry.session, entry.tabs) })).filter(entry => entry.model !== undefined);
+  const hiddenSection = el('#hidden-section'), hiddenList = el('#hidden-groups'); hiddenSection.hidden = !hidden.length; hiddenList.replaceChildren();
+  for (const { session, model } of hidden) {
+    if (!model) continue;
+    const wrap = document.createElement('div'); wrap.className = 'hidden-group';
+    const open = (remove: boolean): void => run(async () => { if (currentWindowId === undefined) throw new Error('Geçerli pencere bulunamadı.'); const savedTabs = await repo.tabs(session.id); await openSession(savedTabs.map(tab => ({ ...tab, group_title: model.name === 'Adsız grup' && tab.group_title === '' ? '' : model.name })), currentWindowId); if (remove) await repo.delete(session.id); await refreshSaved(true); });
+    const chip = button(`${model.name} · ${model.count}`, () => open(true)); chip.prepend(dot(model.color)); wrap.append(chip);
+    wrap.append(createKebabMenu([{label:'Aç, listede kalsın',onSelect:() => open(false)},{label:'Yeniden adlandır',onSelect:() => { const input = document.createElement('input'); input.value = model.name; input.maxLength = 100 - HIDDEN_PREFIX.length; input.setAttribute('aria-label','Grup adı'); chip.replaceWith(input); input.focus(); input.select(); let done = false; const save = (): void => { if (done) return; done = true; run(async () => { try { await repo.rename(session.id, HIDDEN_PREFIX + input.value.trim()); } finally { await refreshSaved(true); } }); }; input.addEventListener('blur',save); input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } if (e.key === 'Escape') { done = true; void refreshSaved(true).catch(report); } }); }},{label:'Sil',danger:true,confirm:true,onSelect:() => run(async () => { await repo.delete(session.id); await refreshSaved(true); })}], `${model.name} işlemleri`)); hiddenList.append(wrap);
+  }
   const container = el('#saved');
   container.replaceChildren();
   for (const { session, tabs: savedTabs } of entries) {
+    if (hiddenGroupModel(session, savedTabs)) continue;
     const card = document.createElement('article'); card.className = 'card saved-card';
     const head = document.createElement('div'); head.className = 'saved-header';
     const name = button(session.name, () => {
@@ -153,7 +181,7 @@ async function refreshSaved(force = false): Promise<void> {
     }
     details.append(list); card.append(head, details); container.append(card);
   }
-  if (!sessions.length) container.textContent = 'Henüz kaydedilmiş oturum yok.';
+  if (!container.childElementCount) container.textContent = 'Henüz kaydedilmiş oturum yok.';
 }
 async function moveSelected(windowId: number): Promise<void> { for (const id of selected) { const tab = tabs.find(t => t.id === id); if (tab && tab.windowId !== windowId) await chrome.tabs.move(id, {windowId,index:-1}); } }
 el('#new-group').addEventListener('click', () => { el('#new-form').hidden = !el('#new-form').hidden; });
@@ -171,4 +199,4 @@ chrome.tabGroups.onCreated.addListener(schedule); chrome.tabGroups.onUpdated.add
 void load().catch(report);
 void refreshSaved().catch(report);
 window.addEventListener('focus', () => { void refreshSaved().catch(report); });
-setInterval(() => { if (!document.hidden && !el('#saved').contains(document.activeElement)) void refreshSaved().catch(report); }, 3000);
+setInterval(() => { if (!document.hidden && !el('#saved').contains(document.activeElement) && !el('#hidden-section').contains(document.activeElement)) void refreshSaved().catch(report); }, 3000);

@@ -6,6 +6,7 @@ export interface SessionTab { id: number; session_id: number; position: number; 
 
 const MAX_NAME = 100;
 export const AUTO_PREFIX = 'Kapanan pencere — ';
+export const HIDDEN_PREFIX = 'Gizli grup — ';
 export function oldAutoSessionIds(sessions: readonly Session[]): number[] {
   return sessions.filter(s => s.name.startsWith(AUTO_PREFIX)).sort((a, b) => b.created_at - a.created_at || b.id - a.id).slice(5).map(s => s.id);
 }
@@ -15,7 +16,7 @@ export function createSessionsRepo(ex: Executor, now: () => number = Date.now) {
     /** Oturumu ve sekmelerini kaydeder; yeni oturum kimliğini döndürür. */
     async save(name: string, tabs: readonly SessionTabInput[]): Promise<number> {
       const trimmed = name.trim();
-      if (!trimmed || trimmed.length > MAX_NAME) throw new Error(`Oturum adı 1–${MAX_NAME} karakter olmalı.`);
+      if (!trimmed || (trimmed.startsWith(HIDDEN_PREFIX) ? !trimmed.slice(HIDDEN_PREFIX.length).trim() : trimmed.length > MAX_NAME)) throw new Error(`Oturum adı 1–${MAX_NAME} karakter olmalı.`);
       if (!tabs.length) throw new Error('Kaydedilecek sekme yok.');
       const id = (await ex.query<{ id: number }>('INSERT INTO sessions (name, created_at) VALUES (?, ?) RETURNING id', [trimmed, now()]))[0].id;
       try {
@@ -37,7 +38,7 @@ export function createSessionsRepo(ex: Executor, now: () => number = Date.now) {
     },
     async rename(sessionId: number, name: string): Promise<void> {
       const trimmed = name.trim();
-      if (!trimmed || trimmed.length > MAX_NAME) throw new Error(`Oturum adı 1–${MAX_NAME} karakter olmalı.`);
+      if (!trimmed || (trimmed.startsWith(HIDDEN_PREFIX) ? !trimmed.slice(HIDDEN_PREFIX.length).trim() : trimmed.length > MAX_NAME)) throw new Error(`Oturum adı 1–${MAX_NAME} karakter olmalı.`);
       await ex.exec('UPDATE sessions SET name = ? WHERE id = ?', [trimmed, sessionId]);
     },
     async removeTab(sessionId: number, tabId: number): Promise<void> {

@@ -1,4 +1,11 @@
 import { GROUP_COLORS } from '../life-browser/tabs';
+import { HIDDEN_PREFIX, type Session, type SessionTab } from '../life-browser/repo';
+
+export { HIDDEN_PREFIX };
+export function hiddenGroupModel(session: Session, tabs: readonly SessionTab[]) {
+  if (!session.name.startsWith(HIDDEN_PREFIX) || !tabs.length || tabs[0].group_title === null || !tabs.every(tab => tab.group_title === tabs[0].group_title)) return undefined;
+  return { id: session.id, name: session.name.slice(HIDDEN_PREFIX.length), color: tabs[0].group_color || 'grey', count: tabs.length };
+}
 
 export const COLORS = GROUP_COLORS.map((color, i) => ({ color, label: ['Gri', 'Mavi', 'Kırmızı', 'Sarı', 'Yeşil', 'Pembe', 'Mor', 'Camgöbeği', 'Turuncu'][i] }));
 export interface ViewTab { id?: number; windowId: number; index: number; groupId: number; url?: string; pendingUrl?: string; title?: string }
