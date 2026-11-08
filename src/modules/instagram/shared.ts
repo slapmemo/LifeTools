@@ -2,7 +2,7 @@ export const INSTAGRAM_ID = 'instagram';
 export const SETTINGS_KEY = 'instagramSettings';
 export const CHANNEL = 'lifetools:instagram:8a72';
 export interface Settings { downloadButton: boolean; seekBar: boolean }
-export const defaults: Settings = { downloadButton: true, seekBar: false };
+export const defaults: Settings = { downloadButton: true, seekBar: true };
 export function validUrl(value: string): boolean {
   try { const u = new URL(value); return u.protocol === 'https:' && !u.username && !u.password && (u.hostname.endsWith('.cdninstagram.com') || u.hostname.endsWith('.fbcdn.net')); } catch { return false; }
 }
