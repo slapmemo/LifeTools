@@ -154,7 +154,10 @@ describe('arayüz', () => {
       'Görev olarak ekle',
       'Bu sayfanın temiz linki',
       'İzleme listesine ekle',
-      'Sekmeyi etiketle'
+      'Etiket: Önemli',
+      'Etiket: Sonra Bak',
+      'Etiket: Araştırma',
+      'Etiketi kaldır'
     ]);
 
     // Kapalı modüllerin öğeleri ve alt öğeleri ağaçtan tamamen kalkar

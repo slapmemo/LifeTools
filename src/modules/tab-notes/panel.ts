@@ -8,12 +8,12 @@ import {
   formatRelativeDate,
   showToast
 } from '../../panel/ui';
-import { PRESET_TAB_LABELS, TAB_LABELS_ID } from '../tab-labels/background';
+import { LABEL_TITLE_KEY, PRESET_TAB_LABELS, TAB_LABELS_ID } from '../tab-labels/background';
 import { createTabLabelsRepo, type TabLabel } from '../tab-labels/repo';
 import { TAB_SWITCHER_ID } from '../tab-switcher/background';
 import { TITLE_CLEANER_ID } from '../title-cleaner';
 import { TITLE_RULES_KEY, type TitleRules } from '../title-cleaner/cleaner';
-import { TAB_NOTES_ID, TRANSFER_KEY } from './background';
+import { SHOW_NOTE_KEY, TAB_NOTES_ID, TRANSFER_KEY } from './background';
 import { createTabNotesRepo, type TabNote } from './repo';
 
 const get = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -50,6 +50,9 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
   const labelChipsWrap = document.getElementById('tab-label-chips');
   const noteInput = get<HTMLTextAreaElement>('tab-note');
   const transfer = get<HTMLInputElement>('tab-note-transfer');
+  const showTitle = get<HTMLInputElement>('tab-label-title');
+  const showNote = get<HTMLInputElement>('tab-note-revisit');
+  const refreshLabel = (target: string) => chrome.runtime.sendMessage({ type: 'tab-labels:refresh', url: target });
   const ruleHostInput = document.getElementById('title-rule-host') as HTMLInputElement | null;
   const rulesInput = get<HTMLTextAreaElement>('title-rule');
   const rulesList = document.getElementById('title-rules-list');
@@ -93,6 +96,7 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
           if (!url) throw new Error('Sekme adresi bulunamadı.');
           const next = currentLabel === preset ? '' : preset;
           await labels.set(url, next);
+          await refreshLabel(url);
           labelInput.value = next;
           notify(next ? `Etiket "${next}" olarak kaydedildi.` : 'Etiket kaldırıldı.');
           await render();
@@ -153,7 +157,7 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
               confirm: true,
               onSelect: () =>
                 action(async () => {
-                  if (le && entry.label) await labels.delete(entry.url);
+                  if (le && entry.label) { await labels.delete(entry.url); await refreshLabel(entry.url); }
                   if (ne && entry.note) await notes.delete(entry.url);
                   notify('Kayıt silindi.');
                   await render();
@@ -260,7 +264,7 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
       isModuleEnabled(TAB_NOTES_ID),
       isModuleEnabled(TITLE_CLEANER_ID),
       isModuleEnabled(TAB_SWITCHER_ID),
-      chrome.storage.local.get({ [TRANSFER_KEY]: false, [TITLE_RULES_KEY]: {} })
+      chrome.storage.local.get({ [TRANSFER_KEY]: false, [LABEL_TITLE_KEY]: false, [SHOW_NOTE_KEY]: false, [TITLE_RULES_KEY]: {} })
     ]);
 
     get<HTMLElement>('tab-tools').hidden = !(le || ne || ce || se);
@@ -277,6 +281,8 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
 
     noteInput.value = url && ne ? (await notes.get(url))?.note || '' : '';
     transfer.checked = Boolean(data[TRANSFER_KEY]);
+    showTitle.checked = data[LABEL_TITLE_KEY] === true;
+    showNote.checked = data[SHOW_NOTE_KEY] === true;
 
     const allRules = (data[TITLE_RULES_KEY] as TitleRules) || {};
     const targetHost = (ruleHostInput?.value.trim().toLowerCase().replace(/^www\./, '')) || host;
@@ -308,6 +314,7 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
     action(async () => {
       if (!url) throw new Error('Sekme adresi bulunamadı.');
       await labels.set(url, labelInput.value);
+      await refreshLabel(url);
       notify('Etiket kaydedildi.');
       await render();
     })
@@ -328,6 +335,8 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
       notify(transfer.checked ? 'Kapanışta SlapMemo aktarımı açıldı.' : 'Kapanışta SlapMemo aktarımı kapatıldı.');
     })
   );
+  showTitle.addEventListener('change', () => action(async () => { await chrome.storage.local.set({ [LABEL_TITLE_KEY]: showTitle.checked }); }));
+  showNote.addEventListener('change', () => action(async () => { await chrome.storage.local.set({ [SHOW_NOTE_KEY]: showNote.checked }); }));
 
   get('title-rule-save').addEventListener('click', () =>
     action(async () => {
