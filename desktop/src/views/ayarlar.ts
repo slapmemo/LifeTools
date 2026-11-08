@@ -1,4 +1,5 @@
 import { emit, listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { api, errText, type NativeStatus } from '../api';
 import { h, parseNum, type View } from '../dom';
@@ -94,6 +95,8 @@ export function settingsView(): View {
   const nativeStatus = h('div', { class: 'muted' });
   const nativeConnect = h('button', {}, 'Bağla');
   const nativeRemove = h('button', { class: 'danger' }, 'Bağlantıyı kaldır');
+  const backupBtn = h('button', { type: 'button' }, 'Yedeği indir');
+  const backupStatus = h('p', { class: 'muted', role: 'status', style: 'user-select: text; overflow-wrap: anywhere' });
 
   const themeBtns = new Map<ThemeMode, HTMLButtonElement>();
   const themeGroup = h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'Görünüm' });
@@ -147,6 +150,7 @@ export function settingsView(): View {
       h('div', { class: 'toolbar' }, nativeConnect, nativeRemove), nativeStatus),
     h('div', { class: 'card settings-card' }, h('h3', {}, 'Görünüm'),
       h('div', { class: 'settings-row' }, 'Tema', themeGroup)),
+    h('div', { class: 'card settings-card' }, h('h3', {}, 'Yedek'), backupBtn, backupStatus),
     h('div', { class: 'card settings-card' }, h('h3', {}, 'Pano gizliliği'),
       h('label', { class: 'settings-row' }, 'Sabitlenmemiş kayıtlar şu kadar gün sonra silinir', expire),
       h('label', { class: 'settings-row' }, 'En fazla kayıt sayısı (sabitlenenler hariç)', max),
@@ -162,6 +166,17 @@ export function settingsView(): View {
       msg.textContent = errText(e);
     }
   };
+  backupBtn.addEventListener('click', async () => {
+    backupBtn.disabled = true;
+    backupStatus.textContent = '';
+    try {
+      backupStatus.textContent = `Yedek kaydedildi: ${await invoke<string>('backup_export')}`;
+    } catch (e) {
+      backupStatus.textContent = `Yedek alınamadı: ${errText(e)}`;
+    } finally {
+      backupBtn.disabled = false;
+    }
+  });
   copyOnly.addEventListener('change', () => void savePrefs());
   battNotify.addEventListener('change', () => void savePrefs());
 

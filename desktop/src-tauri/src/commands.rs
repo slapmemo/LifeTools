@@ -25,6 +25,19 @@ fn err<E: ToString>(e: E) -> String {
 }
 
 #[tauri::command]
+pub fn backup_export(state: St) -> Result<String, String> {
+    let backup = db::backup_data(&state.db())?;
+    let date = &backup["exported_at"].as_str().ok_or("Tarih alınamadı")?[..10];
+    let profile = std::env::var_os("USERPROFILE").ok_or("USERPROFILE bulunamadı")?;
+    let dir = std::path::PathBuf::from(profile).join("Downloads").join("LifeTools").join("Yedekler");
+    std::fs::create_dir_all(&dir).map_err(err)?;
+    let path = dir.join(format!("lifetools-yedek-{date}.json"));
+    let json = serde_json::to_vec_pretty(&backup).map_err(err)?;
+    std::fs::write(&path, json).map_err(err)?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
 pub fn clipboard_list(state: St, query: String) -> Result<Vec<ClipboardItem>, String> {
     db::list_clips(&state.db(), &query).map_err(err)
 }

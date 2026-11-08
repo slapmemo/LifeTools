@@ -152,6 +152,43 @@ fn table_exists(db: &Connection, name: &str) -> Result<bool> {
     db.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)", [name], |r| r.get(0))
 }
 
+/// Eklenti ayarları Chrome depolamasındadır; masaüstü veritabanında bulunmaz.
+pub fn backup_data(db: &Connection) -> std::result::Result<serde_json::Value, String> {
+    use rusqlite::types::ValueRef;
+    let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
+    let version = if table_exists(&tx, "meta").map_err(|e| e.to_string())? {
+        tx.query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| r.get::<_, String>(0))
+            .optional().map_err(|e| e.to_string())?
+            .and_then(|v| v.parse::<i64>().ok()).filter(|v| *v >= 0).unwrap_or(0)
+    } else { 0 };
+    let timestamp: String = tx.query_row("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now')", [], |r| r.get(0)).map_err(|e| e.to_string())?;
+    let mut tables = serde_json::Map::new();
+    for name in ["notes", "snippets", "tasks", "site_time", "sessions", "session_tabs", "tab_labels", "tab_notes", "watch_items", "note_pages", "note_images"] {
+        if !table_exists(&tx, name).map_err(|e| e.to_string())? { continue; }
+        let mut stmt = tx.prepare(&format!("SELECT * FROM {name} ORDER BY rowid")).map_err(|e| e.to_string())?;
+        let columns: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
+        let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+        let mut data = Vec::new();
+        while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            let mut object = serde_json::Map::new();
+            for (i, column) in columns.iter().enumerate() {
+                let value = match row.get_ref(i).map_err(|e| e.to_string())? {
+                    ValueRef::Null => serde_json::Value::Null,
+                    ValueRef::Integer(v) => v.into(),
+                    ValueRef::Real(v) => serde_json::Number::from_f64(v).map(serde_json::Value::Number).ok_or("Geçersiz sayı")?,
+                    ValueRef::Text(v) => std::str::from_utf8(v).map_err(|e| e.to_string())?.into(),
+                    ValueRef::Blob(_) => return Err("Yedeklenemeyen ikili veri bulundu".into()),
+                };
+                object.insert(column.clone(), value);
+            }
+            data.push(serde_json::Value::Object(object));
+        }
+        tables.insert(name.into(), data.into());
+    }
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(serde_json::json!({"app":"LifeTools", "format":1, "schema_version":version, "exported_at":timestamp, "tables":tables, "settings":{}}))
+}
+
 pub fn dashboard_summary(db: &Connection, today: &str) -> Result<DashboardSummary> {
     let mut out = DashboardSummary {
         tasks_available: table_exists(db, "tasks")?, notes_available: table_exists(db, "notes")?,
@@ -480,6 +517,24 @@ pub fn clear_unpinned(db: &Connection) -> Result<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn backup_preserves_extension_rows_and_shape() {
+        let d = Connection::open_in_memory().unwrap();
+        d.execute_batch("CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT); INSERT INTO meta VALUES('schema_version','3'); CREATE TABLE notes(id INTEGER,text TEXT); INSERT INTO notes VALUES(1,'İstanbul'),(2,'Çay'); CREATE TABLE snippets(id INTEGER,body TEXT); INSERT INTO snippets VALUES(7,'Merhaba'); CREATE TABLE clipboard_items(id INTEGER);").unwrap();
+        let backup = backup_data(&d).unwrap();
+        let roundtrip: serde_json::Value = serde_json::from_str(&serde_json::to_string(&backup).unwrap()).unwrap();
+        assert_eq!(roundtrip["app"], "LifeTools");
+        assert_eq!(roundtrip["format"], 1);
+        assert_eq!(roundtrip["schema_version"], 3);
+        assert!(roundtrip["exported_at"].as_str().unwrap().ends_with('Z'));
+        assert_eq!(roundtrip["tables"]["notes"][0]["text"], "İstanbul");
+        assert_eq!(roundtrip["tables"]["notes"][1]["text"], "Çay");
+        assert_eq!(roundtrip["tables"]["snippets"][0]["body"], "Merhaba");
+        assert!(roundtrip["tables"].get("tasks").is_none());
+        assert!(roundtrip["tables"].get("clipboard_items").is_none());
+        assert_eq!(roundtrip["settings"], serde_json::json!({}));
+    }
 
     fn db() -> Connection {
         let mut d = Connection::open_in_memory().unwrap();
