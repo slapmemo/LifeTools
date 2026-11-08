@@ -20,25 +20,25 @@ function validate(input: TaskInput) {
   }
   return { title, note: input.note ?? null, url: input.url ?? null, due };
 }
-export function createTasksRepo(ex: Executor, now: () => number = Date.now) {
+export function createTasksRepo(ex: Executor, now: () => number = Date.now, changed: () => void = () => {}) {
   return {
     async add(input: TaskInput): Promise<Task> {
       const v = validate(input), ts = now();
-      return (await ex.query<Task>('INSERT INTO tasks (title,note,url,due_date,done_at,created_at,updated_at) VALUES (?,?,?,?,NULL,?,?) RETURNING *', [v.title,v.note,v.url,v.due,ts,ts]))[0];
+      const task = (await ex.query<Task>('INSERT INTO tasks (title,note,url,due_date,done_at,created_at,updated_at) VALUES (?,?,?,?,NULL,?,?) RETURNING *', [v.title,v.note,v.url,v.due,ts,ts]))[0]; changed(); return task;
     },
     async update(id: number, input: TaskInput): Promise<Task | null> {
       const v = validate(input);
-      return (await ex.query<Task>('UPDATE tasks SET title=?, note=?, url=?, due_date=?, updated_at=? WHERE id=? RETURNING *', [v.title,v.note,v.url,v.due,now(),id]))[0] ?? null;
+      const task = (await ex.query<Task>('UPDATE tasks SET title=?, note=?, url=?, due_date=?, updated_at=? WHERE id=? RETURNING *', [v.title,v.note,v.url,v.due,now(),id]))[0] ?? null; changed(); return task;
     },
     async toggleDone(id: number): Promise<Task | null> {
       const ts = now();
-      return (await ex.query<Task>('UPDATE tasks SET done_at=CASE WHEN done_at IS NULL THEN ? ELSE NULL END, updated_at=? WHERE id=? RETURNING *', [ts,ts,id]))[0] ?? null;
+      const task = (await ex.query<Task>('UPDATE tasks SET done_at=CASE WHEN done_at IS NULL THEN ? ELSE NULL END, updated_at=? WHERE id=? RETURNING *', [ts,ts,id]))[0] ?? null; changed(); return task;
     },
-    async delete(id: number): Promise<void> { await ex.exec('DELETE FROM tasks WHERE id=?', [id]); },
+    async delete(id: number): Promise<void> { await ex.exec('DELETE FROM tasks WHERE id=?', [id]); changed(); },
     async listOpen(): Promise<Task[]> {
       return ex.query<Task>('SELECT * FROM tasks WHERE done_at IS NULL ORDER BY CASE WHEN due_date < ? THEN 0 WHEN due_date IS NOT NULL THEN 1 ELSE 2 END, due_date ASC, created_at ASC, id ASC', [localToday(now())]);
     },
     async listDone(): Promise<Task[]> { return ex.query<Task>('SELECT * FROM tasks WHERE done_at IS NOT NULL ORDER BY done_at DESC, id DESC LIMIT 50'); },
-    async clearDone(): Promise<void> { await ex.exec('DELETE FROM tasks WHERE done_at IS NOT NULL'); }
+    async clearDone(): Promise<void> { await ex.exec('DELETE FROM tasks WHERE done_at IS NOT NULL'); changed(); }
   };
 }

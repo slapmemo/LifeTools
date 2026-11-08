@@ -7,7 +7,7 @@ import { registerAction } from './actions';
 import { backgroundDb, copyOffscreen } from '../db/host';
 import { SLAPMEMO_ID } from '../modules/slapmemo/background';
 import { createNotesRepo } from '../modules/slapmemo/repo';
-import { QUICK_TASKS_ID } from '../modules/quick-tasks/background';
+import { QUICK_TASKS_ID, rescheduleTaskReminders } from '../modules/quick-tasks/background';
 import { createTasksRepo } from '../modules/quick-tasks/repo';
 import { LINK_CLEANER_ID } from '../modules/link-cleaner/background';
 import { cleanUrl } from '../modules/link-cleaner/clean';
@@ -21,7 +21,7 @@ import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
 import { parseTurkishDue } from '../modules/command-center/search';
 
 const notes = createNotesRepo(backgroundDb);
-const tasks = createTasksRepo(backgroundDb);
+const tasks = createTasksRepo(backgroundDb, Date.now, rescheduleTaskReminders);
 const sessions = createSessionsRepo(backgroundDb);
 
 /** Popup'ı sekme olarak açar ve ilgili bölüme kaydırır (popup.ts hash'i okur). */
