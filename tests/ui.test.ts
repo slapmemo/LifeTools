@@ -154,6 +154,7 @@ describe('arayüz', () => {
       'Görev olarak ekle',
       'Bu sayfanın temiz linki',
       'İzleme listesine ekle',
+      'Ekran görüntüsünü not olarak kaydet',
       'Etiket: Önemli',
       'Etiket: Sonra Bak',
       'Etiket: Araştırma',

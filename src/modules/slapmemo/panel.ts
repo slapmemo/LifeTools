@@ -15,6 +15,7 @@ import type { Note } from './repo';
 import { createNotesRepo } from './repo';
 import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, BUBBLE_ORIGINS } from './bubble-logic';
 import { NOTE_HINT_ENABLED_KEY } from './page-hint';
+import { PAGE_COPY_KEY } from './settings';
 
 const LIST_LIMIT = 50;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -54,9 +55,16 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
   let editingId: number | null = null;
   let renderSeq = 0;
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
+  let imageObserver: IntersectionObserver | undefined;
+  let imageQueue: Promise<void> = Promise.resolve();
 
   const bubbleToggle = document.querySelector<HTMLInputElement>('#memo-bubble-enabled');
   const hintToggle = document.querySelector<HTMLInputElement>('#memo-hint-enabled');
+  const copyToggle = document.querySelector<HTMLInputElement>('#memo-page-copy-enabled');
+  if (copyToggle) {
+    void chrome.storage.local.get({ [PAGE_COPY_KEY]: false }).then(data => { copyToggle.checked = data[PAGE_COPY_KEY] === true; });
+    copyToggle.addEventListener('change', () => { void chrome.storage.local.set({ [PAGE_COPY_KEY]: copyToggle.checked }).catch(() => { copyToggle.checked = !copyToggle.checked; notify('Ayar kaydedilemedi.', 'error'); }); });
+  }
   hintToggle?.addEventListener('change', () => {
     const requested = hintToggle.checked;
     const permission = requested ? chrome.permissions.request({ origins: BUBBLE_ORIGINS }) : Promise.resolve(true);
@@ -143,7 +151,7 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
     dom.tabs.append(button);
   }
 
-  function buildItem(note: Note): HTMLLIElement {
+  function buildItem(note: Note, kinds: Set<string>): HTMLLIElement {
     const contentWrap = document.createElement('div');
     contentWrap.className = 'memo-row-main';
 
@@ -152,6 +160,19 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
     body.textContent = note.text;
     if (note.text.length > 140) body.title = note.text;
     contentWrap.append(body);
+    if (kinds.has('page')) {
+      const link = document.createElement('button'); link.type = 'button'; link.textContent = 'Sayfa kopyası';
+      link.addEventListener('click', () => { void (async () => {
+        const page = await repo.getPage(note.id); if (!page) return;
+        const dialog = document.createElement('dialog');
+        const close = document.createElement('button'); close.textContent = 'Kapat'; close.addEventListener('click', () => dialog.close());
+        const source = document.createElement('a'); source.textContent = note.url ?? ''; source.href = note.url ?? '#'; source.target = '_blank'; source.rel = 'noopener noreferrer';
+        const text = document.createElement('p'); text.textContent = page.text; text.style.whiteSpace = 'pre-wrap';
+        dialog.append(close, document.createElement('br'), source, text); document.body.append(dialog); dialog.addEventListener('close', () => dialog.remove()); dialog.showModal();
+      })().catch(() => notify('Sayfa kopyası yüklenemedi.', 'error')); });
+      contentWrap.append(link);
+    }
+    if (kinds.has('image')) { const img = document.createElement('img'); img.dataset.noteImage = String(note.id); img.alt = 'Ekran görüntüsü'; img.style.cssText = 'display:block;width:160px;height:100px;object-fit:contain;cursor:pointer'; contentWrap.append(img); }
 
     if (note.user_note) {
       const userNote = document.createElement('p');
@@ -324,7 +345,22 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
         : await repo.listNotes({ category: filter, limit: LIST_LIMIT, offset: 0 });
       if (seq !== renderSeq) return;
 
-      dom.list.replaceChildren(...notes.map(buildItem));
+      const attachments = await repo.attachments(notes.map(note => note.id));
+      if (seq !== renderSeq) return;
+      dom.list.replaceChildren(...notes.map(note => buildItem(note, new Set(attachments.filter(a => a.note_id === note.id).map(a => a.kind)))));
+      imageObserver?.disconnect();
+      imageObserver = new IntersectionObserver(entries => {
+        for (const entry of entries) if (entry.isIntersecting) {
+          const img = entry.target as HTMLImageElement; imageObserver?.unobserve(img);
+          imageQueue = imageQueue.then(async () => {
+            if (seq !== renderSeq) return;
+            const image = await repo.getImage(Number(img.dataset.noteImage));
+            if (!image || seq !== renderSeq) return;
+            img.src = image.data_url; img.addEventListener('click', () => { void fetch(image.data_url).then(r => r.blob()).then(blob => { const url = URL.createObjectURL(blob); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); }); });
+          }).catch(() => {});
+        }
+      });
+      dom.list.querySelectorAll<HTMLImageElement>('img[data-note-image]').forEach(img => imageObserver?.observe(img));
       dom.list.hidden = notes.length === 0;
       dom.empty.hidden = notes.length > 0;
       if (notes.length === 0) {

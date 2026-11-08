@@ -10,12 +10,53 @@ import { isNoteCategory, type NoteCategory } from './categories';
 import { createNotesRepo } from './repo';
 import { normalizeNoteUrl } from './repo';
 import { NOTE_HINT_ENABLED_KEY, noteCountText, showNoteHint } from './page-hint';
+import { PAGE_COPY_KEY } from './settings';
 
 export const SLAPMEMO_ID = 'slapmemo';
 const repo = createNotesRepo(backgroundDb);
 const recent = new Map<number, number>();
 const MAX_TEXT = 5000;
 const UNDO_WINDOW = 120_000;
+
+export async function capturePage(id: number, tabId: number | undefined): Promise<void> {
+  if (tabId === undefined || (await chrome.storage.local.get({ [PAGE_COPY_KEY]: false }))[PAGE_COPY_KEY] !== true) return;
+  try {
+    const result = await chrome.scripting.executeScript({ target: { tabId }, func: () => ((document.querySelector('article, main') as HTMLElement | null) ?? document.body)?.innerText.replace(/\s+/g, ' ').trim().slice(0, 100000) ?? '' });
+    if (result[0]?.result) await repo.savePage(id, result[0].result);
+  } catch { /* Bazı sayfalara erişilemez. */ }
+}
+
+export async function saveScreenshot(tab: chrome.tabs.Tab): Promise<void> {
+  if (tab.id === undefined || !(await isModuleEnabled(SLAPMEMO_ID))) throw new Error('Sekme bulunamadı.');
+  const active = await chrome.tabs.get(tab.id);
+  if (!active.active) throw new Error('Etkin sekme bulunamadı.');
+  const raw = await chrome.tabs.captureVisibleTab(active.windowId, { format: 'jpeg', quality: 70 });
+  const bitmap = await createImageBitmap(await (await fetch(raw)).blob());
+  try {
+    let width = Math.min(bitmap.width, 1280), height = Math.max(1, Math.round(bitmap.height * width / bitmap.width));
+    let blob: Blob;
+    for (;;) {
+      const canvas = new OffscreenCanvas(width, height);
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Görüntü hazırlanamadı.');
+      context.drawImage(bitmap, 0, 0, width, height);
+      let quality = 0.7;
+      blob = await canvas.convertToBlob({ type: 'image/jpeg', quality });
+      while (blob.size > 500000 && quality > 0.2) { quality -= 0.1; blob = await canvas.convertToBlob({ type: 'image/jpeg', quality }); }
+      if (blob.size <= 500000) break;
+      width = Math.max(1, Math.floor(width * 0.8)); height = Math.max(1, Math.floor(height * 0.8));
+      if (width === 1 && height === 1) throw new Error('Görüntü küçültülemedi.');
+    }
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = ''; for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    const result = await repo.addNote({ category: 'note', text: (active.title || active.url || 'Ekran görüntüsü').slice(0, MAX_TEXT), url: active.url, pageTitle: active.title, allowDuplicate: true });
+    try { await repo.saveImage(result.note.id, `data:image/jpeg;base64,${btoa(binary)}`, width, height); }
+    catch (err) { await repo.deleteNote(result.note.id); throw err; }
+    recent.set(result.note.id, Date.now());
+    try { await chrome.scripting.executeScript({ target: { tabId: active.id! }, func: pageToast, args: [{ ok: true, id: result.note.id, duplicate: false, category: 'note' }, PAGE_THEME] }); }
+    catch { flashBadge('✓'); }
+  } finally { bitmap.close(); }
+}
 
 export function pickSave(input: { selectionText?: string; linkUrl?: string; pageTitle?: string; pageUrl?: string }): { text: string; category: NoteCategory } {
   const selection = input.selectionText?.trim();
@@ -24,9 +65,10 @@ export function pickSave(input: { selectionText?: string; linkUrl?: string; page
   return { text: input.pageTitle?.trim() || input.pageUrl || '', category: 'read' };
 }
 
-async function save(text: string, url: string | undefined, title: string | undefined, category: NoteCategory) {
+async function save(text: string, url: string | undefined, title: string | undefined, category: NoteCategory, tabId?: number) {
   const result = await repo.addNote({ category, text: text.trim().slice(0, MAX_TEXT), url: url || null, pageTitle: title || null });
   if (!result.duplicate) {
+    await capturePage(result.note.id, tabId);
     const now = Date.now();
     for (const [id, created] of recent) if (now - created > UNDO_WINDOW) recent.delete(id);
     recent.set(result.note.id, now);
@@ -36,7 +78,7 @@ async function save(text: string, url: string | undefined, title: string | undef
 
 async function saveAndNotify(tabId: number | undefined, text: string, url: string | undefined, title: string | undefined, category: NoteCategory): Promise<void> {
   let result: Awaited<ReturnType<typeof save>> | undefined;
-  try { result = await save(text, url, title, category); }
+  try { result = await save(text, url, title, category, tabId); }
   catch (err) { console.debug('[SlapMemo] Kaydedilemedi:', err); }
   try {
     if (tabId === undefined) throw new Error('Sekme yok');
@@ -56,6 +98,10 @@ export function slapMemoMenuContributions(): ContextMenuContribution[] {
       const picked = pickSave({ selectionText: info.selectionText, linkUrl: info.linkUrl, pageTitle: tab?.title, pageUrl });
       await saveAndNotify(tab?.id, picked.text, info.linkUrl && !info.selectionText?.trim() ? info.linkUrl : pageUrl, tab?.title, picked.category);
     }
+  }, {
+    id: 'slapmemo-screenshot', title: 'Ekran görüntüsünü not olarak kaydet', contexts: ['page'], moduleId: SLAPMEMO_ID,
+    enabled: flags => resolveEnabled(flags, SLAPMEMO_ID),
+    onClick: async (_info, tab) => { try { if (tab) await saveScreenshot(tab); } catch { flashBadge('!'); } }
   }];
 }
 
@@ -136,7 +182,7 @@ export function initSlapMemoBackground(): void {
         if (!(await isModuleEnabled(SLAPMEMO_ID))) return { ok: false };
         if (msg.type === 'slapmemo:save') {
           if (typeof msg.text !== 'string' || (msg.category !== undefined && !isNoteCategory(msg.category)) || (msg.url !== undefined && typeof msg.url !== 'string') || (msg.title !== undefined && typeof msg.title !== 'string')) return { ok: false };
-          return await save(msg.text, msg.url, msg.title, msg.category ?? 'note');
+          return await save(msg.text, msg.url, msg.title, msg.category ?? 'note', sender.tab?.id);
         }
         if (!recentId(msg.id)) return { ok: false };
         if (msg.type === 'slapmemo:undo') { await repo.deleteNote(msg.id); recent.delete(msg.id); return { ok: true }; }

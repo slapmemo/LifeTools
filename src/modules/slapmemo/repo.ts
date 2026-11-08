@@ -17,6 +17,7 @@ export interface NewNote {
   text: string;
   url?: string | null;
   pageTitle?: string | null;
+  allowDuplicate?: boolean;
 }
 
 export interface AddResult {
@@ -61,6 +62,23 @@ export function createNotesRepo(ex: Executor, now: () => number = Date.now) {
   }
 
   return {
+    async savePage(id: number, text: string): Promise<void> {
+      await ex.exec('INSERT OR REPLACE INTO note_pages (note_id, text, saved_at) VALUES (?, ?, ?)', [id, text, now()]);
+    },
+    async saveImage(id: number, dataUrl: string, width: number, height: number): Promise<void> {
+      await ex.exec('INSERT OR REPLACE INTO note_images (note_id, data_url, width, height) VALUES (?, ?, ?, ?)', [id, dataUrl, width, height]);
+    },
+    async getPage(id: number): Promise<{ text: string } | null> {
+      return (await ex.query<{ text: string }>('SELECT text FROM note_pages WHERE note_id = ?', [id]))[0] ?? null;
+    },
+    async getImage(id: number): Promise<{ data_url: string } | null> {
+      return (await ex.query<{ data_url: string }>('SELECT data_url FROM note_images WHERE note_id = ?', [id]))[0] ?? null;
+    },
+    async attachments(ids: number[]): Promise<Array<{ note_id: number; kind: string }>> {
+      if (!ids.length) return [];
+      const placeholders = ids.map(() => '?').join(',');
+      return ex.query(`SELECT note_id, 'page' AS kind FROM note_pages WHERE note_id IN (${placeholders}) UNION ALL SELECT note_id, 'image' AS kind FROM note_images WHERE note_id IN (${placeholders})`, [...ids, ...ids]);
+    },
     async notesForUrl(url: string): Promise<Note[]> {
       const notes = await ex.query<Note>('SELECT * FROM notes WHERE url IS NOT NULL ORDER BY created_at DESC, id DESC');
       const normalized = normalizeNoteUrl(url);
@@ -75,7 +93,7 @@ export function createNotesRepo(ex: Executor, now: () => number = Date.now) {
         'SELECT * FROM notes WHERE url IS ? AND text = ? ORDER BY id LIMIT 1',
         [url, text]
       );
-      if (existing[0]) return { note: existing[0], duplicate: true };
+      if (existing[0] && !input.allowDuplicate) return { note: existing[0], duplicate: true };
 
       const ts = now();
       const rows = await ex.query<Note>(
@@ -134,7 +152,7 @@ export function createNotesRepo(ex: Executor, now: () => number = Date.now) {
     },
 
     async deleteNote(id: number): Promise<void> {
-      await ex.exec('DELETE FROM notes WHERE id = ?', [id]);
+      await ex.batch([{ sql: 'DELETE FROM note_images WHERE note_id = ?', params: [id] }, { sql: 'DELETE FROM note_pages WHERE note_id = ?', params: [id] }, { sql: 'DELETE FROM notes WHERE id = ?', params: [id] }]);
     }
   };
 }

@@ -89,6 +89,10 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 8, statements: [
     `CREATE TABLE watch_items (id INTEGER PRIMARY KEY, title TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('film','dizi','video','diger')), status TEXT NOT NULL DEFAULT 'izlenecek' CHECK(status IN ('izlenecek','izleniyor','bitti')), url TEXT, note TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`,
     'CREATE INDEX idx_watch_status_updated ON watch_items(status, updated_at)'
+  ] },
+  { version: 9, statements: [
+    'CREATE TABLE note_pages (note_id INTEGER PRIMARY KEY REFERENCES notes(id) ON DELETE CASCADE, text TEXT NOT NULL, saved_at INTEGER NOT NULL)',
+    'CREATE TABLE note_images (note_id INTEGER PRIMARY KEY REFERENCES notes(id) ON DELETE CASCADE, data_url TEXT NOT NULL, width INTEGER, height INTEGER)'
   ] }
 ];
 

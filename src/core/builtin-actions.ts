@@ -5,7 +5,7 @@ import { CLIP_SLOTS_ID } from '../modules/clip-slots/background';
 import { getSlots, SLOT_IDS } from '../modules/clip-slots/slots';
 import { registerAction } from './actions';
 import { backgroundDb, copyOffscreen } from '../db/host';
-import { SLAPMEMO_ID } from '../modules/slapmemo/background';
+import { SLAPMEMO_ID, saveScreenshot, capturePage } from '../modules/slapmemo/background';
 import { createNotesRepo } from '../modules/slapmemo/repo';
 import { QUICK_TASKS_ID, rescheduleTaskReminders } from '../modules/quick-tasks/background';
 import { createTasksRepo } from '../modules/quick-tasks/repo';
@@ -25,6 +25,8 @@ import { downloadBackup } from './auto-backup-background';
 const notes = createNotesRepo(backgroundDb);
 const tasks = createTasksRepo(backgroundDb, Date.now, rescheduleTaskReminders);
 const sessions = createSessionsRepo(backgroundDb);
+
+registerAction({ id: 'note.screenshot', title: 'Ekran görüntüsünü not olarak kaydet', keywords: ['ekran', 'görüntü', 'not'], moduleId: SLAPMEMO_ID, async run({ tab }) { await saveScreenshot(needTab(tab)); return 'Ekran görüntüsü kaydedildi.'; } });
 
 /** Popup'ı sekme olarak açar ve ilgili bölüme kaydırır (popup.ts hash'i okur). */
 async function openPopupSection(hash: string): Promise<void> {
@@ -51,7 +53,8 @@ registerAction({
     const results = await chrome.scripting.executeScript({ target: { tabId: active.id }, func: () => String(window.getSelection() ?? '') });
     const text = typeof results[0]?.result === 'string' ? (results[0].result as string).trim().slice(0, 5000) : '';
     if (!text) throw new Error('Seçili metin yok.');
-    const { duplicate } = await notes.addNote({ category: 'note', text, url: active.url ?? null, pageTitle: active.title ?? null });
+    const { duplicate, note } = await notes.addNote({ category: 'note', text, url: active.url ?? null, pageTitle: active.title ?? null });
+    if (!duplicate) await capturePage(note.id, active.id);
     return duplicate ? 'Not zaten kayıtlı.' : 'Seçim kaydedildi.';
   }
 });
