@@ -8,7 +8,8 @@ import {
   showToast
 } from '../../panel/ui';
 import { closeWindowSafely, describeTabs, groupWindowBySite, openSession } from './browser';
-import { createSessionsRepo, type Session } from './repo';
+import { AUTO_PREFIX, createSessionsRepo, type Session } from './repo';
+import { AUTO_GROUP_KEY, AUTO_SAVE_KEY } from './settings';
 import { findDuplicates } from './tabs';
 
 function $<T extends HTMLElement>(selector: string): T {
@@ -28,6 +29,11 @@ export function initLifeBrowserPanel(db: Executor = popupDb): { render(): Promis
   const dupList = document.querySelector<HTMLElement>('#lb-duplicates');
   const dedupe = $<HTMLButtonElement>('#lb-dedupe');
   const groupButton = $<HTMLButtonElement>('#lb-group');
+  for (const [selector, key] of [['#lb-auto-group', AUTO_GROUP_KEY], ['#lb-auto-save', AUTO_SAVE_KEY]]) {
+    const input = $<HTMLInputElement>(selector);
+    void chrome.storage.local.get({ [key]: false }).then(data => { input.checked = data[key] === true; });
+    input.addEventListener('change', () => { void chrome.storage.local.set({ [key]: input.checked }); });
+  }
 
   let seq = 0;
   let pendingClose: number[] = [];
@@ -72,6 +78,12 @@ export function initLifeBrowserPanel(db: Executor = popupDb): { render(): Promis
     dateSpan.textContent = formatRelativeDate(session.created_at);
     dateSpan.title = new Date(session.created_at).toLocaleString('tr-TR');
     meta.append(tabChip, dateSpan);
+    if (session.name.startsWith(AUTO_PREFIX)) {
+      const autoChip = document.createElement('span');
+      autoChip.className = 'chip';
+      autoChip.textContent = 'otomatik';
+      meta.append(autoChip);
+    }
 
     const actionsWrap = document.createElement('div');
     actionsWrap.className = 'row-action-group';

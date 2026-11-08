@@ -5,6 +5,10 @@ export interface Session { id: number; name: string; created_at: number; tab_cou
 export interface SessionTab { id: number; session_id: number; position: number; url: string; title: string | null; pinned: number; group_title: string | null; group_color: string | null }
 
 const MAX_NAME = 100;
+export const AUTO_PREFIX = 'Kapanan pencere — ';
+export function oldAutoSessionIds(sessions: readonly Session[]): number[] {
+  return sessions.filter(s => s.name.startsWith(AUTO_PREFIX)).sort((a, b) => b.created_at - a.created_at || b.id - a.id).slice(5).map(s => s.id);
+}
 
 export function createSessionsRepo(ex: Executor, now: () => number = Date.now) {
   return {
