@@ -1,6 +1,8 @@
 import { applyTheme } from '../../core/theme';
+import { popupDb } from '../../db/client';
 import { confirmSecondClick, createKebabMenu } from '../../panel/ui';
-import { groupWindowBySite } from '../life-browser/browser';
+import { groupWindowBySite, moveTabsToSession, openSession } from '../life-browser/browser';
+import { AUTO_PREFIX, createSessionsRepo } from '../life-browser/repo';
 import { buildViewModel, COLORS, selectRange } from './logic';
 
 void applyTheme();
@@ -9,6 +11,9 @@ const windowsEl = el<HTMLElement>('#windows'), search = el<HTMLInputElement>('#s
 let tabs: chrome.tabs.Tab[] = [], groups: chrome.tabGroups.TabGroup[] = [], currentWindowId: number | undefined;
 let selected = new Set<number>(), anchor: number | undefined, anchorWindow: number | undefined, color: chrome.tabGroups.ColorEnum = 'grey';
 let timer: ReturnType<typeof setTimeout> | undefined;
+const repo = createSessionsRepo(popupDb);
+let savedVersion = '', savedSequence = 0;
+let undoTimer: ReturnType<typeof setTimeout> | undefined;
 const report = (error: unknown): void => { message.textContent = error instanceof Error ? error.message : 'İşlem başarısız oldu.'; };
 const run = (fn: () => Promise<void>): void => { void fn().catch(report); };
 const button = (label: string, action: () => void): HTMLButtonElement => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('click', action); return b; };
@@ -35,7 +40,7 @@ function render(): void {
   model.forEach((win, index) => {
     const section = document.createElement('section'); section.className = 'window';
     const heading = document.createElement('div'); heading.className = 'window-title'; const h = document.createElement('h2'); h.textContent = `Pencere ${index + 1}`;
-    heading.append(h, button('Tümünü seç', () => { for (const t of win.tabs.filter(matches)) if (t.id !== undefined) selected.add(t.id); render(); })); section.append(heading);
+    heading.append(h, button('Tümünü seç', () => { for (const t of win.tabs.filter(matches)) if (t.id !== undefined) selected.add(t.id); render(); }), button('Penceredekileri kaydet ve kapat', () => run(() => saveAndClose(win.tabs)))); section.append(heading);
     const row = (tab: chrome.tabs.Tab): HTMLElement => {
       const li = document.createElement('li'); li.className = 'row'; const check = document.createElement('input'); check.type = 'checkbox'; check.checked = selected.has(tab.id!); check.setAttribute('aria-label', `${tab.title || 'Sekme'} seç`);
       check.addEventListener('click', e => { const ids = win.tabs.filter(matches).map(t => t.id!).filter(id => id !== undefined); selected = selectRange(ids, (e as MouseEvent).shiftKey && anchorWindow === win.id ? anchor : undefined, tab.id!, selected, check.checked); anchor = tab.id; anchorWindow = win.id; render(); });
@@ -51,17 +56,78 @@ function render(): void {
       const name = button(card.group.title || 'Adsız grup', () => { const input = document.createElement('input'); input.value = card.group.title || ''; input.setAttribute('aria-label','Grup adı'); name.replaceWith(input); input.focus(); let saved = false; const save = (): void => { if (saved) return; saved = true; run(async () => { await chrome.tabGroups.update(card.group.id, {title:input.value}); await load(); }); }; input.addEventListener('blur', save); input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } }); }); name.className = 'ghost name'; header.append(name);
       const picker = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Renk'; const pop = swatches(card.group.color, c => run(async () => { await chrome.tabGroups.update(card.group.id,{color:c}); await load(); })); pop.classList.add('popover','card'); picker.append(summary,pop); header.append(picker);
       header.append(button(card.group.collapsed ? 'Genişlet' : 'Daralt', () => run(async () => { await chrome.tabGroups.update(card.group.id,{collapsed:!card.group.collapsed}); await load(); })));
-      const ids = card.tabs.map(t => t.id!).filter(id => id !== undefined); header.append(createKebabMenu([{label:'Grubu çöz',onSelect:() => run(async () => { await chrome.tabs.ungroup(ids); await load(); })},{label:'Grubu kapat',danger:true,confirm:true,onSelect:() => run(async () => { await chrome.tabs.remove(ids); await load(); })}], 'Grup işlemleri'));
+      const ids = card.tabs.map(t => t.id!).filter(id => id !== undefined); header.append(createKebabMenu([{label:'Grubu kaydet ve kapat',onSelect:() => run(() => saveAndClose(card.tabs, card.group.title?.trim() || 'Grup'))},{label:'Grubu çöz',onSelect:() => run(async () => { await chrome.tabs.ungroup(ids); await load(); })},{label:'Grubu kapat',danger:true,confirm:true,onSelect:() => run(async () => { await chrome.tabs.remove(ids); await load(); })}], 'Grup işlemleri'));
       box.append(header); const list = document.createElement('ul'); list.className = 'rows'; if (!card.group.collapsed || query) visible.forEach(t => list.append(row(t))); box.append(list); section.append(box);
     }
     const ungrouped = win.ungrouped.filter(matches); if (ungrouped.length) { const box = document.createElement('div'); box.className = 'card group'; const title = document.createElement('div'); title.className = 'group-header'; title.textContent = 'Grupsuz sekmeler'; const list = document.createElement('ul'); list.className = 'rows'; ungrouped.forEach(t => list.append(row(t))); box.append(title,list); section.append(box); } windowsEl.append(section);
   });
+}
+async function saveAndClose(candidates: chrome.tabs.Tab[], name?: string): Promise<void> {
+  const own = await chrome.tabs.getCurrent();
+  const managerUrl = chrome.runtime.getURL('tabs.html');
+  const eligible = candidates.filter(t => t.id !== undefined && t.id !== own?.id && !t.pinned && !!(t.url || t.pendingUrl) && (t.url || t.pendingUrl || '').split('?')[0] !== managerUrl)
+    .map(t => ({ ...t, url: t.url || t.pendingUrl }));
+  if (!eligible.length) throw new Error('Kaydedilecek sekme yok.');
+  const date = new Date();
+  const two = (n: number): string => String(n).padStart(2, '0');
+  const defaultName = `Kaydedilen — ${two(date.getDate())}.${two(date.getMonth() + 1)} ${two(date.getHours())}:${two(date.getMinutes())}`;
+  const id = await moveTabsToSession(repo, name || defaultName, eligible);
+  selected.clear();
+  if (undoTimer) clearTimeout(undoTimer);
+  message.replaceChildren(document.createTextNode(`${eligible.length} sekme kaydedildi `));
+  const undo = button('Geri al', () => run(async () => {
+    undo.disabled = true;
+    try { await openSession(await repo.tabs(id)); await repo.delete(id); message.textContent = 'Sekmeler geri açıldı.'; await refreshSaved(true); }
+    catch (error) { undo.disabled = false; throw error; }
+  }));
+  message.append(undo);
+  undoTimer = setTimeout(() => { undo.remove(); }, 10000);
+  await Promise.all([load(), refreshSaved(true)]);
+}
+
+async function refreshSaved(force = false): Promise<void> {
+  const sequence = ++savedSequence;
+  const sessions = await repo.list();
+  const version = JSON.stringify(sessions);
+  if (sequence !== savedSequence || (!force && version === savedVersion)) return;
+  const entries = await Promise.all(sessions.map(async session => ({ session, tabs: await repo.tabs(session.id) })));
+  if (sequence !== savedSequence) return;
+  savedVersion = version;
+  const container = el('#saved');
+  container.replaceChildren();
+  for (const { session, tabs: savedTabs } of entries) {
+    const card = document.createElement('article'); card.className = 'card saved-card';
+    const head = document.createElement('div'); head.className = 'saved-header';
+    const name = button(session.name, () => {
+      const input = document.createElement('input'); input.value = session.name; input.maxLength = 100; input.setAttribute('aria-label', 'Oturum adı'); name.replaceWith(input); input.focus(); input.select();
+      let done = false;
+      const save = (): void => { if (done) return; done = true; run(async () => { try { await repo.rename(session.id, input.value); } finally { await refreshSaved(true); } }); };
+      input.addEventListener('blur', save); input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } if (e.key === 'Escape') { done = true; void refreshSaved(true).catch(report); } });
+    }); name.className = 'ghost name';
+    const meta = document.createElement('span'); meta.className = 'muted'; meta.textContent = `${new Date(session.created_at).toLocaleString('tr-TR')} · ${session.tab_count} sekme`;
+    head.append(name, meta);
+    if (session.name.startsWith(AUTO_PREFIX)) { const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = 'otomatik'; head.append(chip); }
+    const open = (remove: boolean): void => run(async () => { await openSession(await repo.tabs(session.id)); if (remove) await repo.delete(session.id); await refreshSaved(true); });
+    head.append(button('Hepsini aç', () => open(false)), button('Aç ve listeden sil', () => open(true)));
+    const del = button('Sil', () => {}); del.className = 'danger'; confirmSecondClick(del, () => run(async () => { await repo.delete(session.id); await refreshSaved(true); })); head.append(del);
+    const details = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Sekmeler'; details.append(summary);
+    const list = document.createElement('ul'); list.className = 'rows';
+    for (const tab of savedTabs) {
+      const row = document.createElement('li'); row.className = 'row';
+      const link = button(tab.title || tab.url, () => run(async () => { await chrome.tabs.create({ windowId: currentWindowId, url: tab.url }); })); link.className = 'ghost tab-title';
+      const remove = button('×', () => run(async () => { await repo.removeTab(session.id, tab.id); await refreshSaved(true); })); remove.setAttribute('aria-label', `${tab.title || tab.url} kaydını kaldır`);
+      row.append(link, remove); list.append(row);
+    }
+    details.append(list); card.append(head, details); container.append(card);
+  }
+  if (!sessions.length) container.textContent = 'Henüz kaydedilmiş oturum yok.';
 }
 async function moveSelected(windowId: number): Promise<void> { for (const id of selected) { const tab = tabs.find(t => t.id === id); if (tab && tab.windowId !== windowId) await chrome.tabs.move(id, {windowId,index:-1}); } }
 el('#new-group').addEventListener('click', () => { el('#new-form').hidden = !el('#new-form').hidden; });
 function renderSwatches(): void { const s = el('#swatches'); s.replaceChildren(swatches(color, c => { color = c; renderSwatches(); })); } renderSwatches();
 el<HTMLFormElement>('#new-form').addEventListener('submit', e => { e.preventDefault(); run(async () => { const first = tabs.find(t => t.id === [...selected][0]); if (!first || !selected.size) return; await moveSelected(first.windowId); const id = await chrome.tabs.group({tabIds:[...selected] as [number,...number[]],createProperties:{windowId:first.windowId}}); await chrome.tabGroups.update(id,{title:el<HTMLInputElement>('#group-name').value,color}); selected.clear(); el('#new-form').hidden = true; await load(); }); });
 el('#ungroup').addEventListener('click', () => run(async () => { await chrome.tabs.ungroup([...selected]); selected.clear(); await load(); }));
+el('#save-close').addEventListener('click', () => run(() => saveAndClose(tabs.filter(t => t.id !== undefined && selected.has(t.id)))));
 confirmSecondClick(el<HTMLButtonElement>('#close'), () => run(async () => { await chrome.tabs.remove([...selected]); selected.clear(); await load(); }));
 el('#clear').addEventListener('click', () => { selected.clear(); render(); });
 el('#site').addEventListener('click', () => run(async () => { let count = 0; for (const id of new Set(tabs.map(t => t.windowId))) count += await groupWindowBySite(id); message.textContent = `${count} grup oluşturuldu`; await load(); }));
@@ -70,3 +136,6 @@ const schedule = (): void => { if (timer) clearTimeout(timer); timer = setTimeou
 chrome.tabs.onCreated.addListener(schedule); chrome.tabs.onRemoved.addListener(schedule); chrome.tabs.onUpdated.addListener(schedule); chrome.tabs.onMoved.addListener(schedule); chrome.tabs.onAttached.addListener(schedule); chrome.tabs.onDetached.addListener(schedule);
 chrome.tabGroups.onCreated.addListener(schedule); chrome.tabGroups.onUpdated.addListener(schedule); chrome.tabGroups.onRemoved.addListener(schedule); chrome.tabGroups.onMoved.addListener(schedule);
 void load().catch(report);
+void refreshSaved().catch(report);
+window.addEventListener('focus', () => { void refreshSaved().catch(report); });
+setInterval(() => { if (!document.hidden && !el('#saved').contains(document.activeElement)) void refreshSaved().catch(report); }, 3000);

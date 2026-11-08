@@ -55,6 +55,23 @@ test('oturum deposu geçersiz girdileri reddeder', async () => {
   expect(await repo.list()).toEqual([]);
 });
 
+test('oturum adı değiştirilir ve yalnızca belirtilen oturumun sekmesi kaldırılır', async () => {
+  const ex = await createMemoryExecutor(); await runMigrations(ex);
+  const repo = createSessionsRepo(ex);
+  const input = { url: 'https://a.com', title: null, pinned: false, group_title: null, group_color: null };
+  const first = await repo.save('İlk', [input, input]);
+  const second = await repo.save('İkinci', [input]);
+  const [tab] = await repo.tabs(first);
+  await repo.rename(first, '  Yeni ad  ');
+  await expect(repo.rename(first, ' ')).rejects.toThrow();
+  await repo.removeTab(second, tab.id);
+  expect(await repo.tabs(first)).toHaveLength(2);
+  await repo.removeTab(first, tab.id);
+  expect(await repo.tabs(first)).toHaveLength(1);
+  expect((await repo.list()).find(s => s.id === first)).toMatchObject({ name: 'Yeni ad', tab_count: 1 });
+  expect(await repo.tabs(second)).toHaveLength(1);
+});
+
 test('gruplama planı: en az 2 sekme, www birleşir, sabit ve gruplu sekmeler hariç', () => {
   const plan = planGroupsBySite([
     tab(1, 'https://www.example.com/a'),

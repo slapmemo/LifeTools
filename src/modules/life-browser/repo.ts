@@ -35,6 +35,14 @@ export function createSessionsRepo(ex: Executor, now: () => number = Date.now) {
     async tabs(sessionId: number): Promise<SessionTab[]> {
       return ex.query<SessionTab>('SELECT * FROM session_tabs WHERE session_id = ? ORDER BY position ASC, id ASC', [sessionId]);
     },
+    async rename(sessionId: number, name: string): Promise<void> {
+      const trimmed = name.trim();
+      if (!trimmed || trimmed.length > MAX_NAME) throw new Error(`Oturum adı 1–${MAX_NAME} karakter olmalı.`);
+      await ex.exec('UPDATE sessions SET name = ? WHERE id = ?', [trimmed, sessionId]);
+    },
+    async removeTab(sessionId: number, tabId: number): Promise<void> {
+      await ex.exec('DELETE FROM session_tabs WHERE session_id = ? AND id = ?', [sessionId, tabId]);
+    },
     async delete(sessionId: number): Promise<void> { await ex.exec('DELETE FROM sessions WHERE id = ?', [sessionId]); }
   };
 }
