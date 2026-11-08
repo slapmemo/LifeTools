@@ -1,5 +1,5 @@
 /** Runs in the target page's isolated world; keep this function self-contained. */
-export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolean; category?: string }): void {
+export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolean; category?: string; title?: string; undoType?: string }): void {
   document.getElementById('lifetools-slapmemo-toast')?.remove();
   const host = document.createElement('div');
   host.id = 'lifetools-slapmemo-toast';
@@ -17,13 +17,18 @@ export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolea
   shadow.append(style);
   const box = document.createElement('div'); box.className = 'toast';
   const title = document.createElement('strong');
-  title.textContent = !result.ok ? 'Kaydedilemedi' : result.duplicate ? 'Bu not zaten kayıtlı' : 'Not kaydedildi ✓';
+  title.textContent = !result.ok ? 'Kaydedilemedi' : result.title ?? (result.duplicate ? 'Bu not zaten kayıtlı' : 'Not kaydedildi ✓');
   box.append(title);
   let timer: ReturnType<typeof setTimeout>;
   const schedule = () => { clearTimeout(timer); timer = setTimeout(() => host.remove(), 4000); };
   box.addEventListener('mouseenter', () => clearTimeout(timer));
   box.addEventListener('mouseleave', schedule);
-  if (result.ok && !result.duplicate && result.id !== undefined) {
+  if (result.ok && result.undoType && result.id !== undefined) {
+    const actions = document.createElement('div'); actions.className = 'actions';
+    const undo = document.createElement('button'); undo.textContent = 'Geri al';
+    undo.addEventListener('click', () => { void chrome.runtime.sendMessage({ type: result.undoType, id: result.id }).then(response => { if (response?.ok) host.remove(); }).catch(() => {}); });
+    actions.append(undo); box.append(actions);
+  } else if (result.ok && !result.title && !result.duplicate && result.id !== undefined) {
     const actions = document.createElement('div'); actions.className = 'actions';
     const buttons: HTMLButtonElement[] = [];
     for (const [category, label] of [['read', 'Okunacak'], ['watch', 'İzlenecek'], ['idea', 'Fikir']]) {

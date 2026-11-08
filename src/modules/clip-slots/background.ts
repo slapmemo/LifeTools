@@ -90,6 +90,17 @@ export function clipSlotsMenuContributions(slots: readonly Slot[]): ContextMenuC
 }
 
 export function initClipSlotsBackground(): void {
+  chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+    if (!sender.tab || msg?.type !== 'clip-slots:set') return;
+    void (async () => {
+      try {
+        if (!(await isModuleEnabled(CLIP_SLOTS_ID)) || !Number.isInteger(msg.slot) || msg.slot < 1 || msg.slot > 5 || typeof msg.text !== 'string' || !msg.text.trim() || msg.text.length > 10000) return { ok: false };
+        const slots = await getSlots(); slots[msg.slot - 1].text = msg.text;
+        await chrome.storage.local.set({ [CLIP_SLOTS_KEY]: slots }); return { ok: true };
+      } catch { return { ok: false }; }
+    })().then(respond);
+    return true;
+  });
   setContextMenuContributions(CLIP_SLOTS_ID, clipSlotsMenuContributions([]));
   registerContextMenuLoader(CLIP_SLOTS_ID, async () => {
     const slots = await getSlots();
