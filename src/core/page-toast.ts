@@ -17,7 +17,7 @@ export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolea
   shadow.append(style);
   const box = document.createElement('div'); box.className = 'toast';
   const title = document.createElement('strong');
-  title.textContent = !result.ok ? 'Kaydedilemedi' : result.title ?? (result.duplicate ? 'Bu not zaten kayıtlı' : 'Not kaydedildi ✓');
+  title.textContent = result.title ?? (!result.ok ? 'Kaydedilemedi' : result.duplicate ? 'Bu not zaten kayıtlı' : 'Not kaydedildi ✓');
   box.append(title);
   let timer: ReturnType<typeof setTimeout>;
   const schedule = () => { clearTimeout(timer); timer = setTimeout(() => host.remove(), 4000); };

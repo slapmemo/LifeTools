@@ -29,6 +29,7 @@ import { initLinkCleanerPanel } from '../modules/link-cleaner/panel';
 import { PINNED_GUARD_ID } from '../modules/pinned-guard/background';
 import { initPinnedGuardPanel } from '../modules/pinned-guard/panel';
 import { PIP_ID } from '../modules/pip/background';
+import { PIP_HOVER_ENABLED_KEY, PIP_HOVER_ORIGINS } from '../modules/pip/hover-logic';
 import { QUICK_TASKS_ID } from '../modules/quick-tasks/background';
 import { initQuickTasksPanel } from '../modules/quick-tasks/panel';
 import { SHORTCUTS_ID } from '../modules/shortcuts/background';
@@ -60,6 +61,15 @@ const pipSection = document.querySelector('#pip-panel') as HTMLElement;
 const pipFeedback = document.querySelector('#pip-feedback') as HTMLElement;
 const pipShortcutHint = document.getElementById('pip-shortcut-hint');
 const pipShortcutChange = document.getElementById('pip-shortcut-change');
+const pipHover = document.querySelector<HTMLInputElement>('#pip-hover-enabled')!;
+pipHover.addEventListener('change', () => {
+  const requested = pipHover.checked;
+  const permission = requested ? chrome.permissions.request({ origins: PIP_HOVER_ORIGINS }) : Promise.resolve(true);
+  void permission.then(async granted => {
+    if (!granted) { pipHover.checked = false; showToast('Site izni verilmedi.', 'error'); return; }
+    await chrome.storage.local.set({ [PIP_HOVER_ENABLED_KEY]: requested });
+  }).catch(() => { pipHover.checked = !requested; showToast('Ayar kaydedilemedi.', 'error'); });
+});
 
 document.querySelector('#pip-toggle')!.addEventListener('click', () => {
   void (async () => {
@@ -331,7 +341,11 @@ async function refresh(): Promise<void> {
   if (resolveEnabled(flags, WATCHLIST_ID)) await watch.render();
   if (resolveEnabled(flags, CLIP_SLOTS_ID)) await clip.render();
   pipSection.hidden = !resolveEnabled(flags, PIP_ID);
-  if (!pipSection.hidden) await refreshPipShortcut();
+  if (!pipSection.hidden) {
+    await refreshPipShortcut();
+    const data = await chrome.storage.local.get({ [PIP_HOVER_ENABLED_KEY]: false });
+    pipHover.checked = data[PIP_HOVER_ENABLED_KEY] === true && await chrome.permissions.contains({ origins: PIP_HOVER_ORIGINS });
+  }
   await tabTools.render();
   if (resolveEnabled(flags, TIME_TRACKER_ID)) await timeTracker.render();
   tasksSection.hidden = !resolveEnabled(flags, QUICK_TASKS_ID);

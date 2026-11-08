@@ -17,6 +17,7 @@ await build({
     panel: 'src/panel/panel.ts',
     'site-toolbar-content': 'src/modules/site-toolbar/content.ts',
     'slapmemo-bubble': 'src/modules/slapmemo/bubble-content.ts',
+    'pip-hover-button': 'src/modules/pip/hover-button.ts',
     'watchlist-page-button': 'src/modules/watchlist/page-button.ts',
     blocked: 'src/modules/site-blocker/blocked.ts',
     'site-blocker-content': 'src/modules/site-blocker/content.ts',
