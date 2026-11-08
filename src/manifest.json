@@ -117,10 +117,21 @@
         "*://www.twitter.com/*"
       ],
       "js": [
-        "x-video-ui.js",
-        "site-blocker-content.js"
+        "x-video-ui.js"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://x.com/*",
+        "*://www.x.com/*",
+        "*://twitter.com/*",
+        "*://www.twitter.com/*"
+      ],
+      "js": [
+        "site-blocker-content.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "options_page": "panel.html"

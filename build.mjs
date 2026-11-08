@@ -7,33 +7,44 @@ const dist = 'dist';
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 
-await build({
-  entryPoints: {
-    background: 'src/background.ts',
-    'x-video-hook': 'src/modules/x-video/x-video-hook.ts',
-    'x-video-ui': 'src/modules/x-video/x-video-ui.ts',
-    'smart-replies-content': 'src/modules/smart-replies/content.ts',
-    popup: 'src/popup/popup.ts',
-    panel: 'src/panel/panel.ts',
-    'site-toolbar-content': 'src/modules/site-toolbar/content.ts',
-    'slapmemo-bubble': 'src/modules/slapmemo/bubble-content.ts',
-    'pip-hover-button': 'src/modules/pip/hover-button.ts',
-    'watchlist-page-button': 'src/modules/watchlist/page-button.ts',
-    blocked: 'src/modules/site-blocker/blocked.ts',
-    'site-blocker-content': 'src/modules/site-blocker/content.ts',
-    switcher: 'src/modules/tab-switcher/switcher.ts',
-    'command-center': 'src/modules/command-center/command-center.ts',
-    offscreen: 'src/db/offscreen.ts',
-    'db-worker': 'src/db/worker.ts'
-  },
+const sharedOptions = {
   outdir: dist,
   bundle: true,
-  format: 'esm',
   platform: 'browser',
   target: 'chrome116',
   logLevel: 'info',
   // sqlite-wasm içindeki yalnızca Node ortamına özgü dinamik importlar.
   external: ['node:*', 'fs', 'path', 'module', 'url', 'os', 'crypto', 'util', 'worker_threads', 'child_process']
+};
+
+await build({
+  ...sharedOptions,
+  format: 'esm',
+  entryPoints: {
+    background: 'src/background.ts',
+    popup: 'src/popup/popup.ts',
+    panel: 'src/panel/panel.ts',
+    blocked: 'src/modules/site-blocker/blocked.ts',
+    switcher: 'src/modules/tab-switcher/switcher.ts',
+    'command-center': 'src/modules/command-center/command-center.ts',
+    offscreen: 'src/db/offscreen.ts',
+    'db-worker': 'src/db/worker.ts'
+  }
+});
+
+await build({
+  ...sharedOptions,
+  format: 'iife',
+  entryPoints: {
+    'x-video-hook': 'src/modules/x-video/x-video-hook.ts',
+    'x-video-ui': 'src/modules/x-video/x-video-ui.ts',
+    'smart-replies-content': 'src/modules/smart-replies/content.ts',
+    'site-toolbar-content': 'src/modules/site-toolbar/content.ts',
+    'slapmemo-bubble': 'src/modules/slapmemo/bubble-content.ts',
+    'pip-hover-button': 'src/modules/pip/hover-button.ts',
+    'watchlist-page-button': 'src/modules/watchlist/page-button.ts',
+    'site-blocker-content': 'src/modules/site-blocker/content.ts'
+  }
 });
 
 const manifest = JSON.parse(readFileSync('src/manifest.json', 'utf8'));
