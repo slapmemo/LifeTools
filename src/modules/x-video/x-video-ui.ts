@@ -9,6 +9,11 @@ let settings: Settings = defaults;
 let frame = 0;
 let route = location.href;
 let openButton: HTMLButtonElement | undefined;
+const gifJobs = new Map<string, HTMLButtonElement>();
+chrome.runtime.onMessage.addListener(msg => {
+  if (msg?.channel !== CHANNEL || msg.action !== 'gif-progress') return;
+  const button = gifJobs.get(msg.id); if (button && typeof msg.percent === 'number') { button.textContent = `GIF hazırlanıyor… %${Math.max(0, Math.min(100, Math.round(msg.percent)))}`; button.title = button.textContent; }
+});
 let scrollX = 0, scrollY = 0, buttonTop = 0, buttonLeft = 0;
 const host = document.createElement('div');
 host.dataset.lifetoolsXVideo = 'menu';
@@ -41,6 +46,17 @@ async function download(m: VideoMedia, v: Variant): Promise<boolean> {
 }
 function showSuccess(button: HTMLButtonElement): void {
   const svg = button.querySelector('svg'); if (svg) { const old = svg.innerHTML; svg.innerHTML = '<path d="m5 12 4 4L19 6"/>'; setTimeout(() => { svg.innerHTML = old; }, 1200); }
+}
+async function downloadGif(button: HTMLButtonElement, m: VideoMedia, v: Variant): Promise<void> {
+  const original = button.innerHTML; const id = crypto.randomUUID(); gifJobs.set(id, button); button.disabled = true;
+  button.textContent = 'GIF hazırlanıyor… %0'; button.title = button.textContent;
+  let ok = false;
+  try {
+    const response = await chrome.runtime.sendMessage({ channel: CHANNEL, action: 'download-gif', id, url: v.url, screenName: m.screenName, tweetId: m.tweetId, res: label(v), mediaIndex: (m.mediaCount ?? 0) > 1 ? m.mediaIndex : undefined });
+    ok = response?.ok === true;
+  } catch { /* menu remains available for MP4 */ }
+  finally { gifJobs.delete(id); button.innerHTML = original; button.disabled = false; }
+  if (ok) { button.title = 'İndir'; showSuccess(button); } else { button.title = 'GIF oluşturulamadı'; openMenu(button, [m]); }
 }
 async function downloadAll(button: HTMLButtonElement, items: VideoMedia[]): Promise<void> {
   const original = button.innerHTML;
@@ -75,7 +91,14 @@ function openMenu(button: HTMLButtonElement, items: VideoMedia[]): void {
   menu.className = 'menu'; menu.setAttribute('role', 'menu');
   menu.style.background = light ? '#fff' : (rgb && (rgb[3] === undefined || rgb[3] > 0) ? background : '#000');
   menu.style.color = light ? '#0f1419' : '#e7e9ea';
-  const title = document.createElement('div'); title.className = 'title'; title.textContent = 'Kalite seç'; menu.append(title);
+  const title = document.createElement('div'); title.className = 'title'; title.textContent = button.title === 'GIF oluşturulamadı' ? 'GIF oluşturulamadı' : 'Kalite seç'; menu.append(title);
+  for (const [index, m] of items.entries()) {
+    const variant = m.isGif && selectVariant(m.variants, 'highest');
+    if (!variant) continue;
+    const row = document.createElement('button'); row.type = 'button'; row.className = 'row'; row.setAttribute('role', 'menuitem');
+    row.textContent = `${items.length > 1 ? `${index + 1}. video — ` : ''}GIF olarak indir`;
+    row.addEventListener('click', () => { closeMenu(true); void downloadGif(button, m, variant); }); menu.append(row);
+  }
   if (items.length > 1) {
     const row = document.createElement('button'); row.type = 'button'; row.className = 'row'; row.setAttribute('role', 'menuitem');
     row.textContent = `Hepsini indir (${items.length})`;
