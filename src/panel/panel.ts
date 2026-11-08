@@ -49,6 +49,7 @@ import { initTimeTrackerPanel } from '../modules/time-tracker/panel';
 import { WATCHLIST_ID } from '../modules/watchlist/background';
 import { initWatchlistPanel } from '../modules/watchlist/panel';
 import { defaults as xVideoDefaults, SETTINGS_KEY as X_VIDEO_SETTINGS_KEY, X_VIDEO_ID } from '../modules/x-video/shared';
+import { defaults as instagramDefaults, SETTINGS_KEY as INSTAGRAM_SETTINGS_KEY, INSTAGRAM_ID } from '../modules/instagram/shared';
 import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
 import { initZombieTabsPanel } from '../modules/zombie-tabs/panel';
 import { initStoragePanel } from '../popup/storage-panel';
@@ -304,6 +305,12 @@ async function renderModules(rawFlags?: unknown): Promise<void> {
 }
 
 const xVideoPanel = document.querySelector('#x-video-panel') as HTMLElement;
+const instagramPanel = document.querySelector('#instagram-panel') as HTMLElement;
+const instagramDownload = document.querySelector('#instagram-download') as HTMLInputElement;
+const instagramSeek = document.querySelector('#instagram-seek') as HTMLInputElement;
+for (const control of [instagramDownload, instagramSeek]) control.addEventListener('change', () => {
+  void chrome.storage.local.get({ [INSTAGRAM_SETTINGS_KEY]: instagramDefaults }).then(data => chrome.storage.local.set({ [INSTAGRAM_SETTINGS_KEY]: { ...data[INSTAGRAM_SETTINGS_KEY], downloadButton: instagramDownload.checked, seekBar: instagramSeek.checked } }));
+});
 const xVideoStatus = document.getElementById('x-video-status');
 const xVideoHowtoIcon = document.getElementById('x-video-howto-icon');
 if (xVideoHowtoIcon) xVideoHowtoIcon.replaceChildren(icon('clapperboard', 18));
@@ -328,6 +335,11 @@ for (const control of [xQuality, xOneClick, xSaveAs]) {
 async function refresh(): Promise<void> {
   const flags = (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
   const xEnabled = resolveEnabled(flags, X_VIDEO_ID);
+  instagramPanel.hidden = !resolveEnabled(flags, INSTAGRAM_ID);
+  const instagramData = await chrome.storage.local.get({ [INSTAGRAM_SETTINGS_KEY]: instagramDefaults });
+  const instagramSettings = { ...instagramDefaults, ...instagramData[INSTAGRAM_SETTINGS_KEY] };
+  instagramDownload.checked = instagramSettings.downloadButton;
+  instagramSeek.checked = instagramSettings.seekBar;
   xVideoPanel.hidden = !xEnabled;
   if (xVideoStatus) xVideoStatus.textContent = xEnabled ? 'Etkin' : 'Kapalı';
 

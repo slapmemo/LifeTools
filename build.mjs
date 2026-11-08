@@ -39,6 +39,8 @@ await build({
   entryPoints: {
     'x-video-hook': 'src/modules/x-video/x-video-hook.ts',
     'x-video-ui': 'src/modules/x-video/x-video-ui.ts',
+    'ig-hook': 'src/modules/instagram/ig-hook.ts',
+    'ig-ui': 'src/modules/instagram/ig-ui.ts',
     'smart-replies-content': 'src/modules/smart-replies/content.ts',
     'site-toolbar-content': 'src/modules/site-toolbar/content.ts',
     'slapmemo-bubble': 'src/modules/slapmemo/bubble-content.ts',

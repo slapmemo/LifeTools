@@ -70,7 +70,9 @@
     "*://x.com/*",
     "*://www.x.com/*",
     "*://twitter.com/*",
-    "*://www.twitter.com/*"
+    "*://www.twitter.com/*",
+    "*://www.instagram.com/*",
+    "*://instagram.com/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
@@ -98,6 +100,17 @@
     "http://*/*"
   ],
   "content_scripts": [
+    {
+      "matches": ["*://www.instagram.com/*", "*://instagram.com/*"],
+      "js": ["ig-hook.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://www.instagram.com/*", "*://instagram.com/*"],
+      "js": ["ig-ui.js"],
+      "run_at": "document_start"
+    },
     {
       "matches": [
         "*://x.com/*",
