@@ -73,7 +73,72 @@ pub fn begin_install() -> Result<(), String> { let dir = tools()?; fs::create_di
 pub fn install_helper() { if let Ok(dir) = tools() { let _ = fs::write(dir.join("install.lock"), std::process::id().to_string()); } let result = install(); if let Ok(dir) = tools() { if let Err(e) = result { let _ = fs::write(dir.join("install-error.txt"), format!("Kurulum başarısız: {e}")); } let _ = fs::remove_file(dir.join("install.lock")); } }
 pub fn update() -> Result<(), String> { install()?; run(Command::new(tools()?.join("yt-dlp.exe")).arg("-U")) }
 fn validate(url: &str) -> Result<(), String> { if url.len() > 2048 || url.chars().any(|c| c.is_whitespace() || c.is_control()) { return Err("Geçersiz URL".into()); } let u = tauri::Url::parse(url).map_err(|_| "Geçersiz URL")?; if !matches!(u.scheme(), "http" | "https") || u.host_str().is_none() { return Err("Yalnızca HTTP veya HTTPS adresleri desteklenir".into()); } Ok(()) }
-fn args(url: &str, mode: &str, dir: &Path, output: &Path) -> Result<Vec<String>, String> { validate(url)?; let mut a = vec!["--ffmpeg-location".into(), dir.to_string_lossy().into_owned(), "--no-quiet".into(), "--no-playlist".into(), "--newline".into(), "--progress-template".into(), "download:LT_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s".into(), "--print".into(), "after_move:LT_FILE:%(filepath)s".into(), "--merge-output-format".into(), "mp4".into(), "-o".into(), output.join("%(title).150B [%(id)s].%(ext)s").to_string_lossy().into_owned()]; match mode { "video_best" | "video_1080" | "video_720" => { a.push("-f".into()); a.push(match mode { "video_best" => "bv*+ba/b", "video_1080" => "bv*[height<=1080]+ba/b[height<=1080]", _ => "bv*[height<=720]+ba/b[height<=720]" }.into()); }, "audio_mp3" => a.extend(["-x".into(), "--audio-format".into(), "mp3".into()]), _ => return Err("Geçersiz indirme modu".into()) }; a.extend(["--".into(), url.into()]); Ok(a) }
+fn args(url: &str, mode: &str, dir: &Path, output: &Path) -> Result<Vec<String>, String> { validate(url)?; let mut a = vec!["--ffmpeg-location".into(), dir.to_string_lossy().into_owned(), "--no-quiet".into(), "--no-playlist".into(), "--newline".into(), "--progress-template".into(), "download:LT_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s".into(), "--print".into(), "after_move:LT_FILE:%(filepath)s".into(), "--merge-output-format".into(), "mp4".into(), "-o".into(), output.join("%(title).150B [%(id)s].%(ext)s").to_string_lossy().into_owned()]; match mode { "video_best" | "video_1080" | "video_720" => { a.push("-f".into()); a.push(match mode { "video_best" => "bv*+ba/b", "video_1080" => "bv*[height<=1080]+ba/b[height<=1080]", _ => "bv*[height<=720]+ba/b[height<=720]" }.into()); }, "audio_mp3" => a.extend(["-x".into(), "--audio-format".into(), "mp3".into()]), _ => { let raw = mode.strip_prefix("height:").ok_or("Geçersiz indirme modu")?; if raw.is_empty() || !raw.bytes().all(|b| b.is_ascii_digit()) { return Err("Geçersiz indirme modu".into()); } let height: u32 = raw.parse().map_err(|_| "Geçersiz indirme modu")?; if !(144..=4320).contains(&height) { return Err("Geçersiz indirme modu".into()); } a.extend(["-f".into(), format!("bv*[height={height}]+ba/b[height={height}]/bv*[height<={height}]+ba/b[height<={height}]")]); } }; a.extend(["--".into(), url.into()]); Ok(a) }
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SizeEstimate { size_bytes: Option<u64>, approx: bool }
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VideoFormat { height: u64, fps: Option<f64>, label: String, size_bytes: Option<u64>, approx: bool }
+#[derive(Serialize)]
+pub struct VideoFormats { formats: Vec<VideoFormat>, audio: SizeEstimate, title: Option<String>, duration: Option<f64> }
+
+fn estimate(format: &serde_json::Value, duration: Option<f64>) -> SizeEstimate {
+    if let Some(n) = format.get("filesize").and_then(|v| v.as_u64()) { return SizeEstimate { size_bytes: Some(n), approx: false }; }
+    if let Some(n) = format.get("filesize_approx").and_then(|v| v.as_u64()) { return SizeEstimate { size_bytes: Some(n), approx: true }; }
+    let size = format.get("tbr").and_then(|v| v.as_f64()).zip(duration)
+        .map(|(rate, seconds)| rate * 1000.0 * seconds / 8.0)
+        .filter(|n| n.is_finite() && *n >= 0.0 && *n < u64::MAX as f64).map(|n| n.round() as u64);
+    SizeEstimate { size_bytes: size, approx: size.is_some() }
+}
+fn parse_formats(info: &serde_json::Value) -> VideoFormats {
+    let duration = info.get("duration").and_then(|v| v.as_f64());
+    let entries = info.get("formats").and_then(|v| v.as_array()).map(Vec::as_slice).unwrap_or(&[]);
+    let audio = entries.iter().filter(|f| f.get("acodec").and_then(|v| v.as_str()).is_some_and(|c| c != "none") && f.get("vcodec").and_then(|v| v.as_str()) == Some("none"))
+        .max_by(|a, b| a.get("abr").and_then(|v| v.as_f64()).unwrap_or(0.0).total_cmp(&b.get("abr").and_then(|v| v.as_f64()).unwrap_or(0.0)));
+    let audio_size = audio.map(|f| estimate(f, duration)).unwrap_or(SizeEstimate { size_bytes: None, approx: false });
+    let mut best = std::collections::BTreeMap::new();
+    for f in entries.iter().filter(|f| f.get("vcodec").and_then(|v| v.as_str()).is_some_and(|c| c != "none")) {
+        if let Some(height) = f.get("height").and_then(|v| v.as_u64()).filter(|h| *h > 0) {
+            let rate = f.get("tbr").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            if best.get(&height).map_or(true, |(r, _): &(f64, &serde_json::Value)| rate > *r) { best.insert(height, (rate, f)); }
+        }
+    }
+    let formats = best.into_iter().rev().map(|(height, (_, f))| {
+        let fps = f.get("fps").and_then(|v| v.as_f64());
+        let label = if fps.is_some_and(|n| n >= 50.0) { format!("{height}p{}", fps.unwrap().round() as u64) } else { format!("{height}p") };
+        let video = estimate(f, duration);
+        let size_bytes = video.size_bytes.zip(audio_size.size_bytes).and_then(|(v, a)| v.checked_add(a));
+        VideoFormat { height, fps, label, size_bytes, approx: video.approx || audio_size.approx }
+    }).collect();
+    VideoFormats { formats, audio: audio_size, title: info.get("title").and_then(|v| v.as_str()).map(str::to_owned), duration }
+}
+pub fn formats(url: &str) -> Result<VideoFormats, String> {
+    validate(url)?;
+    let exe = tools()?.join("yt-dlp.exe");
+    if !exe.is_file() { return Err("TOOLS_MISSING: İndirme araçları kurulu değil".into()); }
+    let mut child = Command::new(exe).args(["-J", "--no-playlist", "--no-warnings", "--", url]).creation_flags(SPAWN_FLAGS)
+        .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| format!("İşlem başlatılamadı: {e}"))?;
+    let mut stdout = child.stdout.take().unwrap();
+    let mut stderr = child.stderr.take().unwrap();
+    let out = std::thread::spawn(move || { let mut b = Vec::new(); stdout.read_to_end(&mut b).map(|_| b) });
+    let err = std::thread::spawn(move || { let mut b = Vec::new(); stderr.read_to_end(&mut b).map(|_| b) });
+    let start = std::time::Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) if start.elapsed() < std::time::Duration::from_secs(45) => std::thread::sleep(std::time::Duration::from_millis(50)),
+            Ok(None) => { let _ = child.kill(); let _ = child.wait(); return Err("Video bilgileri alınırken zaman aşımına uğradı".into()); },
+            Err(e) => { let _ = child.kill(); let _ = child.wait(); return Err(format!("İşlem beklenemedi: {e}")); }
+        }
+    };
+    let stdout = out.join().map_err(|_| "Çıktı okunamadı")?.map_err(|e| e.to_string())?;
+    let stderr = err.join().map_err(|_| "Hata çıktısı okunamadı")?.map_err(|e| e.to_string())?;
+    if !status.success() { return Err(format!("Video bilgileri alınamadı: {}", String::from_utf8_lossy(&stderr))); }
+    let info = serde_json::from_slice(&stdout).map_err(|e| format!("Video bilgileri geçersiz: {e}"))?;
+    Ok(parse_formats(&info))
+}
 #[derive(Serialize, Deserialize)] pub struct Job { pub id: String, url: String, mode: String, pid: u32, started_at: u64, output_dir: String, #[serde(default)] cancelled: bool }
 #[derive(Serialize)] pub struct JobStatus { #[serde(flatten)] job: Job, state: String, percent: Option<String>, speed: Option<String>, eta: Option<String>, file: Option<String>, error: Option<String> }
 fn job_path(id: &str) -> Result<PathBuf, String> { if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit() || b == b'-') { return Err("Geçersiz iş kimliği".into()); } Ok(jobs()?.join(format!("{id}.json"))) }
@@ -104,4 +169,34 @@ pub fn open_folder() -> Result<(), String> { let dir = selected_dir()?; Command:
         fs::remove_dir_all(root).unwrap();
     }
     #[test] fn no_detached_process() { assert_eq!(SPAWN_FLAGS & 0x00000008, 0); }
+}
+
+#[cfg(test)] mod format_tests {
+    use super::*;
+    #[test] fn grouping_and_estimates() {
+        let info: serde_json::Value = serde_json::from_str(r#"{"title":"Test","duration":10,"formats":[
+            {"height":720,"fps":30,"vcodec":"avc1","tbr":100,"filesize":1000},
+            {"height":720,"fps":60,"vcodec":"vp9","tbr":200,"filesize_approx":2000},
+            {"height":1080,"fps":30,"vcodec":"avc1","tbr":800},
+            {"height":480,"vcodec":"avc1"},
+            {"vcodec":"none","acodec":"aac","abr":128,"filesize":500},
+            {"vcodec":"none","acodec":"aac","abr":64,"filesize":100}
+        ]}"#).unwrap();
+        let result = serde_json::to_value(parse_formats(&info)).unwrap();
+        assert_eq!(result["audio"], serde_json::json!({"sizeBytes":500,"approx":false}));
+        assert_eq!(result["formats"][0]["sizeBytes"], 1000500);
+        assert_eq!(result["formats"][0]["approx"], true);
+        assert_eq!(result["formats"][1]["label"], "720p60");
+        assert_eq!(result["formats"][1]["sizeBytes"], 2500);
+        assert_eq!(result["formats"][1]["approx"], true);
+        assert_eq!(result["formats"][2]["sizeBytes"], serde_json::Value::Null);
+        assert_eq!(result["formats"].as_array().unwrap().len(), 3);
+    }
+    #[test] fn height_mode() {
+        let build = |mode| args("https://example.com", mode, Path::new("tools"), Path::new("out"));
+        let a = build("height:720").unwrap();
+        let index = a.iter().position(|x| x == "-f").unwrap();
+        assert_eq!(a[index + 1], "bv*[height=720]+ba/b[height=720]/bv*[height<=720]+ba/b[height<=720]");
+        for mode in ["height:abc", "height:99999", "height:720;x", "height:143", "height:+720"] { assert!(build(mode).is_err()); }
+    }
 }

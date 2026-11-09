@@ -170,6 +170,7 @@ fn dispatch(conn: &Connection, req: &Json) -> Result<Map<String, Json>, String> 
         // The extension must use a long timeout or sendNativeMessage for this modal operation.
         "video_pick_folder" => { out.insert("path".into(), json!(crate::video_dl::pick_folder(req.get("initial").and_then(Json::as_str))?)); }
         "video_settings" => { let (last, default) = crate::video_dl::settings()?; out.insert("lastDir".into(), json!(last)); out.insert("defaultDir".into(), json!(default)); }
+        "video_formats" => { let url = req.get("url").and_then(Json::as_str).ok_or("url eksik")?; let data = serde_json::to_value(crate::video_dl::formats(url)?).map_err(|e| e.to_string())?; out.extend(data.as_object().ok_or("Video bilgileri geçersiz")?.clone()); }
         "video_download" => { let url = req.get("url").and_then(Json::as_str).ok_or("url eksik")?; let mode = req.get("mode").and_then(Json::as_str).ok_or("mode eksik")?; out.insert("jobId".into(), json!(crate::video_dl::start(url, mode, req.get("dir").and_then(Json::as_str))?)); }
         "video_job" => { let id = req.get("jobId").and_then(Json::as_str).ok_or("jobId eksik")?; out.insert("job".into(), json!(crate::video_dl::job_status(id)?)); }
         "video_jobs" => { out.insert("jobs".into(), json!(crate::video_dl::list()?)); }
