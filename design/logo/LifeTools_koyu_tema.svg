@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="LifeTools LT monogram">
+  <rect x="3" y="3" width="122" height="122" rx="29" fill="#A69CFF"/>
+  <g fill="#181B24">
+    <path d="M 28 27 L 44 27 L 35 79 L 62 79 L 59.4 94 L 17 94 Z"/>
+    <path d="M 56 27 L 109 27 L 106 42 L 87.4 42 L 79.2 83 L 62.9 83 L 71.3 42 L 53.3 42 Z"/>
+    <path d="M 73 110 C 72 96 79 83 93 77 C 99 74 107 72 113 70 C 113 90 102 105 88 109 C 82 111 77 111 73 110 Z"/>
+  </g>
+  <path d="M 75 109 C 81 96 93 86 105 81" fill="none" stroke="#A69CFF" stroke-width="4.4" stroke-linecap="round"/>
+</svg>

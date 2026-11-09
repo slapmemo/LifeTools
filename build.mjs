@@ -70,7 +70,7 @@ copyFileSync('src/popup/popup.css', join(dist, 'popup.css'));
 copyFileSync('src/db/offscreen.html', join(dist, 'offscreen.html'));
 copyFileSync('src/modules/site-blocker/blocked.html', join(dist, 'blocked.html'));
 copyFileSync('src/modules/site-blocker/blocked.css', join(dist, 'blocked.css'));
-cpSync('legacy-x-prototype/icons', join(dist, 'icons'), { recursive: true });
+cpSync('src/icons', join(dist, 'icons'), { recursive: true });
 
 function findFile(dir, name) {
   for (const entry of readdirSync(dir)) {

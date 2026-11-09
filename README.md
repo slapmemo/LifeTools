@@ -1,3 +1,5 @@
+<img src="design/logo/LifeTools_acik_tema.svg" width="96" alt="LifeTools logosu">
+
 # LifeTools
 
 Yerel çalışan Chrome eklentisi ve masaüstü verimlilik araçları.
