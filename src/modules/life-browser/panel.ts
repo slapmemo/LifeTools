@@ -9,7 +9,7 @@ import {
 } from '../../panel/ui';
 import { closeWindowSafely, describeTabs, groupWindowBySite, openSession } from './browser';
 import { AUTO_PREFIX, createSessionsRepo, type Session } from './repo';
-import { AUTO_GROUP_KEY, AUTO_SAVE_KEY } from './settings';
+import { AUTO_SAVE_KEY } from './settings';
 import { findDuplicates } from './tabs';
 
 function $<T extends HTMLElement>(selector: string): T {
@@ -29,11 +29,9 @@ export function initLifeBrowserPanel(db: Executor = popupDb): { render(): Promis
   const dupList = document.querySelector<HTMLElement>('#lb-duplicates');
   const dedupe = $<HTMLButtonElement>('#lb-dedupe');
   const groupButton = $<HTMLButtonElement>('#lb-group');
-  for (const [selector, key] of [['#lb-auto-group', AUTO_GROUP_KEY], ['#lb-auto-save', AUTO_SAVE_KEY]]) {
-    const input = $<HTMLInputElement>(selector);
-    void chrome.storage.local.get({ [key]: key !== AUTO_SAVE_KEY }).then(data => { input.checked = data[key] !== false; });
-    input.addEventListener('change', () => { void chrome.storage.local.set({ [key]: input.checked }); });
-  }
+  const autoSave = $<HTMLInputElement>('#lb-auto-save');
+  void chrome.storage.local.get({ [AUTO_SAVE_KEY]: false }).then(data => { autoSave.checked = data[AUTO_SAVE_KEY] !== false; });
+  autoSave.addEventListener('change', () => { void chrome.storage.local.set({ [AUTO_SAVE_KEY]: autoSave.checked }); });
 
   let seq = 0;
   let pendingClose: number[] = [];

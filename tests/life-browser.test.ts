@@ -2,22 +2,9 @@ import { expect, test } from 'vitest';
 import { createMemoryExecutor } from './sqlite-memory';
 import { runMigrations } from '../src/db/migrations';
 import { AUTO_PREFIX, createSessionsRepo, oldAutoSessionIds } from '../src/modules/life-browser/repo';
-import { decideAutoGroup, findDuplicates, normalizeUrl, planGroupsBySite, toSessionTabs, type TabLike } from '../src/modules/life-browser/tabs';
+import { findDuplicates, normalizeUrl, planGroupsBySite, toSessionTabs, type TabLike } from '../src/modules/life-browser/tabs';
 
 const tab = (id: number, url: string, extra: Partial<TabLike> = {}): TabLike => ({ id, url, pinned: false, groupId: -1, index: id, ...extra });
-
-test('otomatik gruplama mevcut gruba katılır veya uygun sekmeyle grup oluşturur', () => {
-  const a = tab(1, 'https://www.example.com/a'), b = tab(2, 'https://example.com/b');
-  const groups = new Map([[7, { title: 'example.com', color: 'red' }]]);
-  expect(decideAutoGroup(b, [a, b], groups, new Set())).toEqual({ action: 'join', groupId: 7 });
-  const plan = decideAutoGroup(b, [a, b], new Map(), new Set());
-  expect(plan).toMatchObject({ action: 'create', tabIds: [1, 2], title: 'example.com' });
-  expect(decideAutoGroup(b, [a, b], new Map(), new Set())).toEqual(plan);
-  expect(decideAutoGroup(b, [a, b], new Map(), new Set([1]))).toEqual({ action: 'none' });
-  expect(decideAutoGroup(b, [a, b], groups, new Set([2]))).toEqual({ action: 'none' });
-  expect(decideAutoGroup({ ...b, pinned: true }, [a, b], groups, new Set())).toEqual({ action: 'none' });
-  expect(decideAutoGroup(tab(3, 'chrome://newtab'), [a, b], groups, new Set())).toEqual({ action: 'none' });
-});
 
 test('yalnızca en yeni beş otomatik oturum tutulur', () => {
   const sessions = Array.from({ length: 7 }, (_, i) => ({ id: i + 1, name: AUTO_PREFIX + i, created_at: i, tab_count: 2 }));

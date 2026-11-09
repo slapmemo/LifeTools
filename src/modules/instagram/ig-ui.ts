@@ -3,19 +3,21 @@ import { CHANNEL, INSTAGRAM_ID, SETTINGS_KEY, defaults, validUrl, type Settings 
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { PAGE_THEME } from '../../core/page-theme';
 import { setSeekBarsEnabled } from './seek-bar';
-import { SPEED_KEY, SPEEDS, nextSpeed, parseSpeed } from './speed';
+import { SPEED_KEY, SPEEDS, applyPlaybackSpeed, nextSpeed, parseSpeed } from './speed';
 const byCode = new Map<string, InstagramVideo[]>();
 const byFilename = new Map<string, InstagramVideo>();
 const hosts = new Map<HTMLVideoElement, HTMLElement>();
+const speedButtons = new WeakMap<HTMLElement, HTMLButtonElement>();
 let enabled = true; let settings: Settings = defaults; let frame = 0;
 let speed = 1; let speedReady = false;
 const managed = new Map<HTMLVideoElement, () => void>();
 let pointer: { x: number; y: number } | undefined;
-function applySpeed(video: HTMLVideoElement): void { if (video.playbackRate !== speed) video.playbackRate = speed; }
+function applySpeed(video: HTMLVideoElement): void { applyPlaybackSpeed(video, speed); }
+function updateSpeedLabels(): void { for (const host of hosts.values()) { const button = speedButtons.get(host); if (button) button.textContent = `${speed}x`; } }
 function setSpeed(value: number): void {
   speed = parseSpeed(value);
   for (const video of managed.keys()) applySpeed(video);
-  for (const host of hosts.values()) host.remove(); hosts.clear();
+  updateSpeedLabels();
   void chrome.storage.local.set({ [SPEED_KEY]: speed });
   schedule();
 }
@@ -56,7 +58,9 @@ function create(video: HTMLVideoElement): HTMLElement {
   const host = document.createElement('div'); host.dataset.lifetoolsInstagram = ''; host.style.cssText = 'position:fixed;z-index:2147483647;pointer-events:none';
   const root = host.attachShadow({ mode: 'closed' }); const style = document.createElement('style');
   style.textContent = `${PAGE_THEME} .wrap{position:relative;pointer-events:auto;display:flex;gap:4px} button{font:inherit;cursor:pointer;color:var(--lt-text);background:var(--lt-surface);border:1px solid var(--lt-border);box-shadow:var(--lt-shadow)} .button{border-radius:50%;width:34px;height:34px;font-size:20px;line-height:1} .speed{border-radius:17px;height:34px;min-width:40px;padding:0 7px;font-size:12px}.menu{position:absolute;right:0;top:38px;white-space:nowrap;border-radius:10px;padding:5px;background:var(--lt-surface);box-shadow:var(--lt-shadow)} .row{display:block;border:0;box-shadow:none;padding:8px;border-radius:6px;width:100%} .row:hover{background:var(--lt-sub)} .feedback{position:absolute;right:0;top:38px;white-space:nowrap;padding:6px 9px;border-radius:8px;background:var(--lt-surface);color:var(--lt-text);box-shadow:var(--lt-shadow)}`;
-  const wrap = document.createElement('div'); wrap.className = 'wrap'; const button = document.createElement('button'); button.className = 'button'; button.type = 'button'; button.textContent = '↓'; button.title = 'Videoyu indir'; button.setAttribute('aria-label', 'Videoyu indir'); wrap.append(button); const speedButton = document.createElement('button'); speedButton.className = 'speed'; speedButton.type = 'button'; speedButton.title = 'H?z'; speedButton.setAttribute('aria-label', 'Video h?z?n? de?i?tir'); speedButton.addEventListener('click', event => { event.stopPropagation(); event.preventDefault(); setSpeed(speed === SPEEDS[SPEEDS.length - 1] ? SPEEDS[0] : nextSpeed(speed, 1)); }); wrap.append(speedButton); root.append(style, wrap);
+  const wrap = document.createElement('div'); wrap.className = 'wrap'; const button = document.createElement('button'); button.className = 'button'; button.type = 'button'; button.textContent = '↓'; button.title = 'Videoyu indir'; button.setAttribute('aria-label', 'Videoyu indir'); wrap.append(button); const speedButton = document.createElement('button'); speedButton.className = 'speed'; speedButton.type = 'button'; speedButton.title = 'Hız'; speedButton.setAttribute('aria-label', 'Video hızını değiştir'); speedButton.addEventListener('click', () => { setSpeed(speed === SPEEDS[SPEEDS.length - 1] ? SPEEDS[0] : nextSpeed(speed, 1)); }); wrap.append(speedButton); root.append(style, wrap);
+  for (const name of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) wrap.addEventListener(name, event => { event.preventDefault(); event.stopPropagation(); });
+  speedButtons.set(host, speedButton);
   const feedback = (text: string) => { wrap.querySelector('.menu, .feedback')?.remove(); const note = document.createElement('div'); note.className = 'feedback'; note.setAttribute('role', 'status'); note.textContent = text; wrap.append(note); if (text !== 'İndiriliyor…') setTimeout(() => note.remove(), 3000); };
   const run = async (items: InstagramVideo[]) => { feedback('İndiriliyor…'); button.disabled = true; let ok = true; for (const item of items) if (!await download(item)) ok = false; button.disabled = false; feedback(ok ? 'İndirildi ✓' : 'Video bulunamadı — sayfayı yenileyip tekrar dene'); };
   button.addEventListener('click', event => { event.stopPropagation(); event.preventDefault(); const items = itemsFor(video); if (!items.length) { feedback('Video bulunamadı — sayfayı yenileyip tekrar dene'); return; } if (items.length === 1) { void run(items); return; }
@@ -82,4 +86,8 @@ window.addEventListener('message', e => { if (e.source !== window || e.origin !=
 new MutationObserver(records => { if (records.some(r => [...r.addedNodes, ...r.removedNodes].some(n => !(n instanceof Element) || !n.hasAttribute('data-lifetools-instagram')))) schedule(); }).observe(document, { childList: true, subtree: true });
 window.addEventListener('scroll', schedule, true); window.addEventListener('resize', schedule); window.addEventListener('popstate', schedule);
 async function refresh(): Promise<void> { enabled = await isModuleEnabled(INSTAGRAM_ID); const data = await chrome.storage.local.get({ [SETTINGS_KEY]: defaults, [SPEED_KEY]: 1 }); settings = { ...defaults, ...data[SETTINGS_KEY] }; speed = parseSpeed(data[SPEED_KEY]); speedReady = true; for (const host of hosts.values()) host.remove(); hosts.clear(); setSeekBarsEnabled(enabled && settings.seekBar); manageVideos(); for (const video of managed.keys()) applySpeed(video); schedule(); }
-chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && (changes[MODULE_FLAGS_KEY] || changes[SETTINGS_KEY] || changes[SPEED_KEY])) void refresh(); }); void refresh();
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return;
+  if (changes[MODULE_FLAGS_KEY] || changes[SETTINGS_KEY]) { void refresh(); return; }
+  if (changes[SPEED_KEY]) { speed = parseSpeed(changes[SPEED_KEY].newValue); for (const video of managed.keys()) applySpeed(video); updateSpeedLabels(); }
+}); void refresh();

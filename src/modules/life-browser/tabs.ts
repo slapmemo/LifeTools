@@ -16,19 +16,6 @@ export function isGroupColor(value: unknown): value is GroupColor { return typeo
 const NO_GROUP = -1;
 const ungrouped = (tab: TabLike): boolean => tab.groupId === undefined || tab.groupId === NO_GROUP;
 
-export type AutoGroupDecision = { action: 'none' } | { action: 'join'; groupId: number } | { action: 'create'; tabIds: [number, number]; title: string; color: GroupColor };
-export function decideAutoGroup(tab: TabLike, windowTabs: readonly TabLike[], groups: ReadonlyMap<number, GroupInfo>, recentlyUngrouped: ReadonlySet<number>): AutoGroupDecision {
-  if (tab.id === undefined || tab.pinned || isInternalTabUrl(tab.url, extensionBaseUrl()) || !ungrouped(tab) || recentlyUngrouped.has(tab.id)) return { action: 'none' };
-  const site = siteKey(tab.url ?? null);
-  if (!site) return { action: 'none' };
-  for (const [groupId, group] of groups) if (group.title === site) return { action: 'join', groupId };
-  const other = windowTabs.find(t => t.id !== undefined && t.id !== tab.id && !t.pinned && !isInternalTabUrl(t.url, extensionBaseUrl()) && ungrouped(t) && !recentlyUngrouped.has(t.id) && siteKey(t.url ?? null) === site);
-  if (!other || other.id === undefined) return { action: 'none' };
-  let hash = 0;
-  for (const char of site) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) >>> 0;
-  return { action: 'create', tabIds: [other.id, tab.id], title: site, color: GROUP_COLORS[hash % GROUP_COLORS.length] };
-}
-
 /**
  * "Siteye göre grupla" planı: sabitlenmemiş ve gruba girmemiş sekmeleri siteye (www'siz alan adı)
  * göre toplar; yalnızca en az 2 sekmesi olan siteler için grup önerir. Sıra, ilk sekmenin sırasıdır.

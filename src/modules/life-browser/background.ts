@@ -2,23 +2,20 @@ import { isModuleEnabled } from '../../core/module-state';
 import { backgroundDb } from '../../db/host';
 import { describeTabs } from './browser';
 import { AUTO_PREFIX, createSessionsRepo, oldAutoSessionIds } from './repo';
-import { AUTO_GROUP_KEY, AUTO_SAVE_KEY } from './settings';
-import { decideAutoGroup, type SessionTabInput } from './tabs';
+import { AUTO_SAVE_KEY } from './settings';
+import type { SessionTabInput } from './tabs';
 import { extensionBaseUrl, isInternalTabUrl } from '../../core/internal-tab';
 
 export const LIFE_BROWSER_ID = 'life-browser';
 const snapshotKey = (id: number): string => `lifeBrowserWindow:${id}`;
-const ungroupKey = (id: number): string => `lifeBrowserUngrouped:${id}`;
 const closedKey = (id: number): string => `lifeBrowserClosed:${id}`;
 const repo = createSessionsRepo(backgroundDb);
 const snapshotTimers = new Map<number, ReturnType<typeof setTimeout>>();
-const groupTimers = new Map<number, ReturnType<typeof setTimeout>>();
 let saveQueue = Promise.resolve();
-let groupQueue = Promise.resolve();
 const closingWindows = new Set<number>();
 
 async function enabled(key: string): Promise<boolean> {
-  return await isModuleEnabled(LIFE_BROWSER_ID) && (await chrome.storage.local.get({ [key]: key !== AUTO_SAVE_KEY }))[key] !== false;
+  return await isModuleEnabled(LIFE_BROWSER_ID) && (await chrome.storage.local.get({ [key]: false }))[key] !== false;
 }
 async function snapshot(windowId: number): Promise<void> {
   if (closingWindows.has(windowId) || !await enabled(AUTO_SAVE_KEY)) return;
@@ -33,29 +30,6 @@ async function snapshot(windowId: number): Promise<void> {
 function scheduleSnapshot(windowId: number): void {
   clearTimeout(snapshotTimers.get(windowId));
   snapshotTimers.set(windowId, setTimeout(() => { snapshotTimers.delete(windowId); void snapshot(windowId); }, 500));
-}
-async function groupTab(tabId: number): Promise<void> {
-  if (!await enabled(AUTO_GROUP_KEY)) return;
-  try {
-    const tab = await chrome.tabs.get(tabId);
-    const win = await chrome.windows.get(tab.windowId);
-    if (win.type !== 'normal' || win.incognito || tab.incognito) return;
-    const tabs = await chrome.tabs.query({ windowId: tab.windowId });
-    const groups = await chrome.tabGroups.query({ windowId: tab.windowId });
-    const keys = tabs.flatMap(t => t.id === undefined ? [] : [ungroupKey(t.id)]);
-    const stored = await chrome.storage.session.get(keys);
-    const recent = new Set(tabs.flatMap(t => t.id !== undefined && typeof stored[ungroupKey(t.id)] === 'number' && Date.now() - stored[ungroupKey(t.id)] < 600000 ? [t.id] : []));
-    const decision = decideAutoGroup(tab, tabs, new Map(groups.map(g => [g.id, { title: g.title ?? '', color: g.color }])), recent);
-    if (decision.action === 'join') await chrome.tabs.group({ tabIds: tabId, groupId: decision.groupId });
-    if (decision.action === 'create') {
-      const id = await chrome.tabs.group({ tabIds: decision.tabIds, createProperties: { windowId: tab.windowId } });
-      await chrome.tabGroups.update(id, { title: decision.title, color: decision.color });
-    }
-  } catch { /* Sekme veya grup bu arada kapanmış olabilir. */ }
-}
-function scheduleGroup(id: number): void {
-  clearTimeout(groupTimers.get(id));
-  groupTimers.set(id, setTimeout(() => { groupTimers.delete(id); groupQueue = groupQueue.then(() => groupTab(id)).catch(error => { console.error(error); }); }, 500));
 }
 async function saveClosed(windowId: number): Promise<void> {
   if (!await enabled(AUTO_SAVE_KEY)) return;
@@ -75,12 +49,8 @@ async function saveClosed(windowId: number): Promise<void> {
 }
 export function initLifeBrowserBackground(): void {
   chrome.tabs.onCreated.addListener(tab => { scheduleSnapshot(tab.windowId); });
-  chrome.tabs.onUpdated.addListener((id, change, tab) => {
-    if (change.groupId === -1) void chrome.storage.session.set({ [ungroupKey(id)]: Date.now() });
-    if (change.url !== undefined || change.status === 'complete') scheduleGroup(id);
-    scheduleSnapshot(tab.windowId);
-  });
-  chrome.tabs.onRemoved.addListener((id, info) => { clearTimeout(groupTimers.get(id)); groupTimers.delete(id); void chrome.storage.session.remove(ungroupKey(id)); if (info.isWindowClosing) closingWindows.add(info.windowId); else scheduleSnapshot(info.windowId); });
+  chrome.tabs.onUpdated.addListener((_id, _change, tab) => scheduleSnapshot(tab.windowId));
+  chrome.tabs.onRemoved.addListener((_id, info) => { if (info.isWindowClosing) closingWindows.add(info.windowId); else scheduleSnapshot(info.windowId); });
   chrome.tabs.onMoved.addListener((_id, info) => scheduleSnapshot(info.windowId));
   chrome.tabs.onAttached.addListener((_id, info) => scheduleSnapshot(info.newWindowId));
   chrome.tabs.onDetached.addListener((_id, info) => scheduleSnapshot(info.oldWindowId));

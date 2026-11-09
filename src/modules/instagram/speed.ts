@@ -1,6 +1,10 @@
 ﻿export const SPEED_KEY = 'instagram.speed';
 export const SPEEDS = [0.5, 1, 1.25, 1.5, 2, 3] as const;
 
+export function applyPlaybackSpeed(video: { playbackRate: number }, speed: number): void {
+  if (video.playbackRate !== speed) video.playbackRate = speed;
+}
+
 export function parseSpeed(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && SPEEDS.some(speed => speed === value) ? value : 1;
 }
