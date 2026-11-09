@@ -31,7 +31,7 @@ export function initLifeBrowserPanel(db: Executor = popupDb): { render(): Promis
   const groupButton = $<HTMLButtonElement>('#lb-group');
   for (const [selector, key] of [['#lb-auto-group', AUTO_GROUP_KEY], ['#lb-auto-save', AUTO_SAVE_KEY]]) {
     const input = $<HTMLInputElement>(selector);
-    void chrome.storage.local.get({ [key]: false }).then(data => { input.checked = data[key] === true; });
+    void chrome.storage.local.get({ [key]: key !== AUTO_SAVE_KEY }).then(data => { input.checked = data[key] !== false; });
     input.addEventListener('change', () => { void chrome.storage.local.set({ [key]: input.checked }); });
   }
 

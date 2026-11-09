@@ -111,9 +111,9 @@ export function initTimeTrackerPanel(db: Executor = popupDb): { render(): Promis
       }
 
       const values = (await chrome.storage.local.get({ [EXCLUDED_KEY]: [] }))[EXCLUDED_KEY] as string[];
-      const settings = await chrome.storage.local.get({ [LIMITS_KEY]: {}, [LIMITS_ENABLED_KEY]: false });
+      const settings = await chrome.storage.local.get({ [LIMITS_KEY]: {}, [LIMITS_ENABLED_KEY]: true });
       const limits = settings[LIMITS_KEY] as DailyLimits;
-      limitToggle.checked = settings[LIMITS_ENABLED_KEY] === true;
+      limitToggle.checked = settings[LIMITS_ENABLED_KEY] !== false;
       limitsList.replaceChildren();
       if (!Object.keys(limits).length) {
         const li = document.createElement('li'); li.className = 'muted'; li.textContent = 'Limit yok.'; limitsList.append(li);

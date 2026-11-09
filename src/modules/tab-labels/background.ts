@@ -14,7 +14,7 @@ export const LABEL_TITLE_KEY = 'tabLabelsShowInTitle';
 
 async function updateTab(tab: chrome.tabs.Tab, cleanup = false): Promise<void> {
   if (tab.id === undefined || !tab.url || !(await canInjectTabPage(tab.url))) return;
-  const enabled = (await chrome.storage.local.get({ [LABEL_TITLE_KEY]: false }))[LABEL_TITLE_KEY] === true && await isModuleEnabled(TAB_LABELS_ID);
+  const enabled = (await chrome.storage.local.get({ [LABEL_TITLE_KEY]: true }))[LABEL_TITLE_KEY] !== false && await isModuleEnabled(TAB_LABELS_ID);
   if (!enabled && !cleanup) return;
   const label = enabled ? (await createTabLabelsRepo(backgroundDb).get(tab.url))?.label ?? '' : '';
   try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: applyLabelTitle, args: [LABEL_EMOJI[label] ?? '', Object.values(LABEL_EMOJI)] }); } catch { /* Sayfa artık kullanılabilir olmayabilir. */ }

@@ -15,12 +15,13 @@ export async function togglePip(tabId: number): Promise<string> {
 export function initPipBackground(): void {
  let queue: Promise<void> = Promise.resolve();
  const refresh = () => { queue = queue.then(async () => {
-  const data = await chrome.storage.local.get({ [PIP_HOVER_ENABLED_KEY]: false });
-  const active = data[PIP_HOVER_ENABLED_KEY] === true && await isModuleEnabled(PIP_ID);
+  const data = await chrome.storage.local.get({ [PIP_HOVER_ENABLED_KEY]: true });
+  const active = data[PIP_HOVER_ENABLED_KEY] !== false && await isModuleEnabled(PIP_ID);
   await replaceSiteScript('pip-hover-button', active ? PIP_HOVER_ORIGINS : [], 'pip-hover-button.js', true);
  }).catch(err => { console.debug('[PiP]', err); }); };
  chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && (changes[PIP_HOVER_ENABLED_KEY] || changes[MODULE_FLAGS_KEY])) refresh(); });
- chrome.permissions.onRemoved.addListener(refresh);
+ chrome.permissions.onAdded.addListener(refresh);
+  chrome.permissions.onRemoved.addListener(refresh);
  chrome.runtime.onInstalled.addListener(refresh);
  chrome.runtime.onStartup.addListener(refresh);
  refresh();

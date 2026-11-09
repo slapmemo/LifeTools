@@ -13,10 +13,10 @@ document.documentElement.append(host);
 let current = ''; let serial = 0;
 async function render(): Promise<void> {
   const id = ++serial; const handle = profilePageHandle(location.href);
-  const [enabled, settings, data] = await Promise.all([isModuleEnabled('site-blocker'), loadSettings(), chrome.storage.local.get({ siteBlockerButtonEnabled: false })]);
+  const [enabled, settings, data] = await Promise.all([isModuleEnabled('site-blocker'), loadSettings(), chrome.storage.local.get({ siteBlockerButtonEnabled: true })]);
   if (id !== serial) return;
   current = handle ?? '';
-  host.hidden = !handle || !enabled || !settings.enabled || data.siteBlockerButtonEnabled !== true;
+  host.hidden = !handle || !enabled || !settings.enabled || data.siteBlockerButtonEnabled === false;
   button.disabled = !!handle && settings.blockedHandles.includes(handle);
   button.textContent = button.disabled ? 'Engelli' : 'Engelle';
   const header = document.querySelector<HTMLElement>('[data-testid="primaryColumn"] [data-testid="UserName"]');

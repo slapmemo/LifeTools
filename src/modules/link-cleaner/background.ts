@@ -37,7 +37,7 @@ export async function expandShortLink(url: string): Promise<string> {
 
 async function showExpanded(rawUrl: string, tabId?: number): Promise<void> {
   if (!(await isModuleEnabled(LINK_CLEANER_ID))) return;
-  const settings = await chrome.storage.local.get({ [SHORT_LINK_KEY]: false });
+  const settings = await chrome.storage.local.get({ [SHORT_LINK_KEY]: true });
   if (!settings[SHORT_LINK_KEY] || !(await chrome.permissions.contains({ origins: SHORT_LINK_PERMISSION_ORIGINS }))) return;
   try {
     const url = await expandShortLink(rawUrl);
@@ -108,10 +108,10 @@ export function initLinkCleanerBackground(): void {
   let queue = Promise.resolve();
   const refresh = () => {
     queue = queue.then(async () => {
-      const data = await chrome.storage.local.get({ [AUTO_CLEAN_KEY]: false, [SHORT_LINK_KEY]: false });
-      const enabled = data[AUTO_CLEAN_KEY] === true && await isModuleEnabled(LINK_CLEANER_ID) && await chrome.permissions.contains({ origins: AUTO_CLEAN_ORIGINS });
+      const data = await chrome.storage.local.get({ [AUTO_CLEAN_KEY]: true, [SHORT_LINK_KEY]: true });
+      const enabled = data[AUTO_CLEAN_KEY] !== false && await isModuleEnabled(LINK_CLEANER_ID) && await chrome.permissions.contains({ origins: AUTO_CLEAN_ORIGINS });
       await updateCleaningRules(enabled);
-      const shortEnabled = data[SHORT_LINK_KEY] === true && await chrome.permissions.contains({ origins: SHORT_LINK_PERMISSION_ORIGINS });
+      const shortEnabled = data[SHORT_LINK_KEY] !== false && await chrome.permissions.contains({ origins: SHORT_LINK_PERMISSION_ORIGINS });
       setContextMenuContributions(LINK_CLEANER_ID, linkCleanerMenuContributions(shortEnabled));
     }).catch(err => { console.debug('[Link Temizleyici]', err); });
   };

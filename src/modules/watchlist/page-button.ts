@@ -11,8 +11,8 @@ let frame = 0;
 let generation = 0;
 const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; void render(); }); };
 async function settings(): Promise<void> {
-  const data = await chrome.storage.local.get({ [PAGE_BUTTON_KEY]: false, [MODULE_FLAGS_KEY]: {} });
-  enabled = data[PAGE_BUTTON_KEY] === true && resolveEnabled(data[MODULE_FLAGS_KEY], 'watchlist');
+  const data = await chrome.storage.local.get({ [PAGE_BUTTON_KEY]: true, [MODULE_FLAGS_KEY]: {} });
+  enabled = data[PAGE_BUTTON_KEY] !== false && resolveEnabled(data[MODULE_FLAGS_KEY], 'watchlist');
   schedule();
 }
 async function render(): Promise<void> {

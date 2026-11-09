@@ -41,8 +41,8 @@ export function initBlockerPanel(): { render(): Promise<void> } {
     try {
       const { enabled, blockedHandles } = await loadSettings();
       dom.enabled.checked = enabled;
-      const buttonSetting = await chrome.storage.local.get({ siteBlockerButtonEnabled: false });
-      dom.buttonEnabled.checked = buttonSetting.siteBlockerButtonEnabled === true;
+      const buttonSetting = await chrome.storage.local.get({ siteBlockerButtonEnabled: true });
+      dom.buttonEnabled.checked = buttonSetting.siteBlockerButtonEnabled !== false;
       dom.pill.classList.toggle('paused', !enabled);
       dom.pillText.textContent = enabled ? 'Aktif' : 'Duraklatıldı';
       dom.statusTitle.textContent = enabled ? 'Koruma açık' : 'Koruma kapalı';

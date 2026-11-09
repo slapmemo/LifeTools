@@ -74,8 +74,8 @@ export function initSiteBlockerBackground(): void {
       const handle = normalizeHandle(msg.handle);
       if (!handle || msg.handle !== handle || profilePageHandle(sender.url!) !== handle || !(await isModuleEnabled(SITE_BLOCKER_ID))) return { ok: false };
       const settings = await loadSettings();
-      const toggle = await chrome.storage.local.get({ siteBlockerButtonEnabled: false });
-      if (!settings.enabled || toggle.siteBlockerButtonEnabled !== true) return { ok: false };
+      const toggle = await chrome.storage.local.get({ siteBlockerButtonEnabled: true });
+      if (!settings.enabled || toggle.siteBlockerButtonEnabled === false) return { ok: false };
       if (msg.type === 'site-blocker:add') {
         if (settings.blockedHandles.includes(handle) || settings.blockedHandles.length >= MAX_HANDLES) return { ok: false };
         await chrome.storage.local.set({ blockedHandles: [handle, ...settings.blockedHandles] });

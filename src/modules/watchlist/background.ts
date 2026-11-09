@@ -51,12 +51,13 @@ export function initWatchlistBackground(): void {
   let queue: Promise<void> = Promise.resolve();
   const refresh = () => {
     queue = queue.then(async () => {
-      const data = await chrome.storage.local.get({ [PAGE_BUTTON_KEY]: false });
-      const active = data[PAGE_BUTTON_KEY] === true && await isModuleEnabled(WATCHLIST_ID);
+      const data = await chrome.storage.local.get({ [PAGE_BUTTON_KEY]: true });
+      const active = data[PAGE_BUTTON_KEY] !== false && await isModuleEnabled(WATCHLIST_ID);
       await replaceSiteScript('watchlist-page-button', active ? PAGE_ORIGINS : [], 'watchlist-page-button.js', false);
     }).catch(err => { console.debug('[Watchlist]', err); });
   };
   chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && (changes[PAGE_BUTTON_KEY] || changes[MODULE_FLAGS_KEY])) refresh(); });
+  chrome.permissions.onAdded.addListener(refresh);
   chrome.permissions.onRemoved.addListener(refresh);
   chrome.runtime.onInstalled.addListener(refresh);
   chrome.runtime.onStartup.addListener(refresh);

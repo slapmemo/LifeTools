@@ -46,8 +46,8 @@ export function initWatchlistPanel(): { render(): Promise<void>; openNewForm(): 
   const feedback = root.querySelector('#watch-feedback') as HTMLElement;
   const pageToggle = root.querySelector<HTMLInputElement>('#watch-page-button-enabled');
   if (pageToggle) {
-    void chrome.storage.local.get({ [PAGE_BUTTON_KEY]: false }).then(async data => {
-      pageToggle.checked = data[PAGE_BUTTON_KEY] === true && await chrome.permissions.contains({ origins: PAGE_ORIGINS });
+    void chrome.storage.local.get({ [PAGE_BUTTON_KEY]: true }).then(async data => {
+      pageToggle.checked = data[PAGE_BUTTON_KEY] !== false && await chrome.permissions.contains({ origins: PAGE_ORIGINS });
     });
     pageToggle.addEventListener('change', () => {
       const requested = pageToggle.checked;

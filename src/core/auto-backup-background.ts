@@ -26,15 +26,15 @@ export function downloadBackup(): Promise<void> {
 }
 
 async function syncAlarm(): Promise<void> {
-  const data = await chrome.storage.local.get({ [AUTO_BACKUP_ENABLED_KEY]: false });
-  if (data[AUTO_BACKUP_ENABLED_KEY] !== true) { await chrome.alarms.clear(AUTO_BACKUP_ALARM); return; }
+  const data = await chrome.storage.local.get({ [AUTO_BACKUP_ENABLED_KEY]: true });
+  if (data[AUTO_BACKUP_ENABLED_KEY] === false) { await chrome.alarms.clear(AUTO_BACKUP_ALARM); return; }
   if (!await chrome.alarms.get(AUTO_BACKUP_ALARM)) await chrome.alarms.create(AUTO_BACKUP_ALARM, { periodInMinutes: BACKUP_WEEK_MS / 60000 });
 }
 
 async function checkDue(): Promise<void> {
   await syncAlarm();
   const data = await chrome.storage.local.get([AUTO_BACKUP_ENABLED_KEY, LAST_AUTO_BACKUP_KEY]);
-  if (data[AUTO_BACKUP_ENABLED_KEY] === true && isBackupDue(data[LAST_AUTO_BACKUP_KEY], Date.now())) await downloadBackup();
+  if (data[AUTO_BACKUP_ENABLED_KEY] !== false && isBackupDue(data[LAST_AUTO_BACKUP_KEY], Date.now())) await downloadBackup();
 }
 
 export function initAutoBackup(): void {

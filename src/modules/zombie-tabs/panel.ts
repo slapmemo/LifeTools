@@ -151,14 +151,14 @@ export function initZombieTabsPanel(db: Executor = popupDb): { render(): Promise
     const current = ++seq;
     try {
       const [settings, session, tabs] = await Promise.all([
-        chrome.storage.local.get({ [ZOMBIE_HOURS_KEY]: null, [AUTO_SLEEP_KEY]: false, [WEEKLY_KEY]: false, [LAST_SLEEP_KEY]: null }),
+        chrome.storage.local.get({ [ZOMBIE_HOURS_KEY]: null, [AUTO_SLEEP_KEY]: false, [WEEKLY_KEY]: true, [LAST_SLEEP_KEY]: null }),
         chrome.storage.session.get({ [LAST_ACTIVE_KEY]: {} }),
         chrome.tabs.query({ windowType: 'normal' })
       ]);
       if (current !== seq) return;
       const hours = normalizeHours(settings[ZOMBIE_HOURS_KEY]);
       autoSleep.checked = settings[AUTO_SLEEP_KEY] === true;
-      weekly.checked = settings[WEEKLY_KEY] === true;
+      weekly.checked = settings[WEEKLY_KEY] !== false;
       const sleep = settings[LAST_SLEEP_KEY] as { count?: number; time?: number } | null;
       lastSleep.textContent = sleep && typeof sleep.count === 'number' && typeof sleep.time === 'number' ? `Son uyutma: ${sleep.count} sekme · ${new Date(sleep.time).toLocaleString('tr-TR')}` : '';
       ensureSelectOption(hours);

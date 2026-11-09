@@ -18,8 +18,8 @@ function editable(node: Node | null): boolean {
   return !!element?.closest('input, textarea, [contenteditable]:not([contenteditable="false"])');
 }
 async function loadSettings(): Promise<void> {
-  const data = await chrome.storage.local.get({ [BUBBLE_ENABLED_KEY]: false, [BUBBLE_HIDDEN_KEY]: [], [MODULE_FLAGS_KEY]: {} });
-  enabled = data[BUBBLE_ENABLED_KEY] === true && resolveEnabled(data[MODULE_FLAGS_KEY], 'slapmemo');
+  const data = await chrome.storage.local.get({ [BUBBLE_ENABLED_KEY]: true, [BUBBLE_HIDDEN_KEY]: [], [MODULE_FLAGS_KEY]: {} });
+  enabled = data[BUBBLE_ENABLED_KEY] !== false && resolveEnabled(data[MODULE_FLAGS_KEY], 'slapmemo');
   flags = data[MODULE_FLAGS_KEY];
   hiddenSites = Array.isArray(data[BUBBLE_HIDDEN_KEY]) ? data[BUBBLE_HIDDEN_KEY].filter((site: unknown): site is string => typeof site === 'string') : [];
   if (!enabled || hiddenSites.includes(location.hostname)) hide();

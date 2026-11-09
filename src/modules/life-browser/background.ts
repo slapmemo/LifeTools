@@ -18,7 +18,7 @@ let groupQueue = Promise.resolve();
 const closingWindows = new Set<number>();
 
 async function enabled(key: string): Promise<boolean> {
-  return await isModuleEnabled(LIFE_BROWSER_ID) && (await chrome.storage.local.get({ [key]: false }))[key] === true;
+  return await isModuleEnabled(LIFE_BROWSER_ID) && (await chrome.storage.local.get({ [key]: key !== AUTO_SAVE_KEY }))[key] !== false;
 }
 async function snapshot(windowId: number): Promise<void> {
   if (closingWindows.has(windowId) || !await enabled(AUTO_SAVE_KEY)) return;

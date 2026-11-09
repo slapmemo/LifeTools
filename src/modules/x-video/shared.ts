@@ -4,7 +4,7 @@ export const SETTINGS_KEY = 'xVideoSettings';
 export const CHANNEL = 'lifetools:x-video:7d926d';
 export type Quality = 'highest' | '720' | 'lowest';
 export interface Settings { quality: Quality; oneClick: boolean; saveAs: boolean }
-export const defaults: Settings = { quality:'highest', oneClick:false, saveAs:false };
+export const defaults: Settings = { quality:'highest', oneClick:true, saveAs:true };
 export function resolution(url: string): number { const m = url.match(/\/(\d+)x(\d+)\//); return m ? Math.min(Number(m[1]), Number(m[2])) : 0; }
 export function label(v: Variant): string { const r = resolution(v.url); return r ? `${r}p` : v.bitrate ? `${Math.round(v.bitrate / 1000)} kbps` : 'MP4'; }
 export function sortVariants(v: Variant[]): Variant[] { return [...v].sort ( (a,b) => (resolution(b.url)-resolution(a.url)) || ((b.bitrate ?? 0)-(a.bitrate ?? 0)) ); }

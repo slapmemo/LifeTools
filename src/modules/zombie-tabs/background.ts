@@ -34,7 +34,7 @@ async function seed(): Promise<void> {
   await save(last, active);
 }
 async function syncAlarms(): Promise<void> {
-  const settings = await chrome.storage.local.get({ [AUTO_SLEEP_KEY]: false, [WEEKLY_KEY]: false });
+  const settings = await chrome.storage.local.get({ [AUTO_SLEEP_KEY]: false, [WEEKLY_KEY]: true });
   const enabled = await isModuleEnabled(ZOMBIE_TABS_ID);
   for (const [name, on, period] of [[SLEEP_ALARM, settings[AUTO_SLEEP_KEY], 60], [WEEKLY_ALARM, settings[WEEKLY_KEY], 7 * 24 * 60]] as const) {
     if (enabled && on === true) {
@@ -64,8 +64,8 @@ async function sleepTabs(): Promise<void> {
   await chrome.storage.local.set({ [LAST_SLEEP_KEY]: { count, time: Date.now() } });
 }
 async function weeklyNotice(): Promise<void> {
-  const settings = await chrome.storage.local.get({ [WEEKLY_KEY]: false, [LAST_WEEKLY_KEY]: null });
-  if (settings[WEEKLY_KEY] !== true || !(await isModuleEnabled(ZOMBIE_TABS_ID)) || !weeklyDue(settings[LAST_WEEKLY_KEY], Date.now())) return;
+  const settings = await chrome.storage.local.get({ [WEEKLY_KEY]: true, [LAST_WEEKLY_KEY]: null });
+  if (settings[WEEKLY_KEY] === false || !(await isModuleEnabled(ZOMBIE_TABS_ID)) || !weeklyDue(settings[LAST_WEEKLY_KEY], Date.now())) return;
   const tabs = await candidates(72);
   if (tabs.length < 5) return;
   const move = await isModuleEnabled('life-browser');

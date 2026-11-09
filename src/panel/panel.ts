@@ -357,8 +357,8 @@ async function refresh(): Promise<void> {
   pipSection.hidden = !resolveEnabled(flags, PIP_ID);
   if (!pipSection.hidden) {
     await refreshPipShortcut();
-    const data = await chrome.storage.local.get({ [PIP_HOVER_ENABLED_KEY]: false });
-    pipHover.checked = data[PIP_HOVER_ENABLED_KEY] === true && await chrome.permissions.contains({ origins: PIP_HOVER_ORIGINS });
+    const data = await chrome.storage.local.get({ [PIP_HOVER_ENABLED_KEY]: true });
+    pipHover.checked = data[PIP_HOVER_ENABLED_KEY] !== false && await chrome.permissions.contains({ origins: PIP_HOVER_ORIGINS });
   }
   await tabTools.render();
   if (resolveEnabled(flags, TIME_TRACKER_ID)) await timeTracker.render();
@@ -446,7 +446,7 @@ const autoBackupEnabled = document.querySelector<HTMLInputElement>('#auto-backup
 const autoBackupLast = document.querySelector<HTMLElement>('#auto-backup-last')!;
 async function refreshAutoBackup(): Promise<void> {
   const data = await chrome.storage.local.get([AUTO_BACKUP_ENABLED_KEY, LAST_AUTO_BACKUP_KEY]);
-  autoBackupEnabled.checked = data[AUTO_BACKUP_ENABLED_KEY] === true;
+  autoBackupEnabled.checked = data[AUTO_BACKUP_ENABLED_KEY] !== false;
   const date = new Date(data[LAST_AUTO_BACKUP_KEY] as string);
   autoBackupLast.textContent = `Son otomatik yedek: ${Number.isNaN(date.getTime()) ? 'henüz yok' : new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date)}`;
 }

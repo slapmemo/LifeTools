@@ -18,8 +18,8 @@ function enqueue(action: () => Promise<void>): void { queue = queue.then(action)
 export function rescheduleTaskReminders(): void { enqueue(syncReminders); }
 
 async function remindersEnabled(): Promise<boolean> {
-  const data = await chrome.storage.local.get({ [REMINDERS_KEY]: false });
-  return data[REMINDERS_KEY] === true && await isModuleEnabled(QUICK_TASKS_ID);
+  const data = await chrome.storage.local.get({ [REMINDERS_KEY]: true });
+  return data[REMINDERS_KEY] !== false && await isModuleEnabled(QUICK_TASKS_ID);
 }
 
 async function syncReminders(): Promise<void> {

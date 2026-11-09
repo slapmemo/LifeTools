@@ -20,7 +20,7 @@ const MAX_TEXT = 5000;
 const UNDO_WINDOW = 120_000;
 
 export async function capturePage(id: number, tabId: number | undefined): Promise<void> {
-  if (tabId === undefined || (await chrome.storage.local.get({ [PAGE_COPY_KEY]: false }))[PAGE_COPY_KEY] !== true) return;
+  if (tabId === undefined || (await chrome.storage.local.get({ [PAGE_COPY_KEY]: true }))[PAGE_COPY_KEY] === false) return;
   try {
     const result = await chrome.scripting.executeScript({ target: { tabId }, func: () => ((document.querySelector('article, main') as HTMLElement | null) ?? document.body)?.innerText.replace(/\s+/g, ' ').trim().slice(0, 100000) ?? '' });
     if (result[0]?.result) await repo.savePage(id, result[0].result);
@@ -132,8 +132,8 @@ export function initSlapMemoBackground(): void {
     if (change.status !== 'complete' || tab.incognito || !tab.url || !/^https?:\/\//i.test(tab.url)) return;
     const url = tab.url;
     void (async () => {
-      const settings = await chrome.storage.local.get({ [NOTE_HINT_ENABLED_KEY]: false });
-      if (settings[NOTE_HINT_ENABLED_KEY] !== true || !(await isModuleEnabled(SLAPMEMO_ID)) || !(await chrome.permissions.contains({ origins: BUBBLE_ORIGINS }))) return;
+      const settings = await chrome.storage.local.get({ [NOTE_HINT_ENABLED_KEY]: true });
+      if (settings[NOTE_HINT_ENABLED_KEY] === false || !(await isModuleEnabled(SLAPMEMO_ID)) || !(await chrome.permissions.contains({ origins: BUBBLE_ORIGINS }))) return;
       const notes = await repo.notesForUrl(url);
       if (!notes.length) return;
       const current = await chrome.tabs.get(tabId);
@@ -144,12 +144,13 @@ export function initSlapMemoBackground(): void {
   let queue: Promise<void> = Promise.resolve();
   const refresh = () => {
     queue = queue.then(async () => {
-      const data = await chrome.storage.local.get({ [BUBBLE_ENABLED_KEY]: false });
-      const active = data[BUBBLE_ENABLED_KEY] === true && await isModuleEnabled(SLAPMEMO_ID);
+      const data = await chrome.storage.local.get({ [BUBBLE_ENABLED_KEY]: true });
+      const active = data[BUBBLE_ENABLED_KEY] !== false && await isModuleEnabled(SLAPMEMO_ID);
       await replaceSiteScript('slapmemo-bubble', active ? BUBBLE_ORIGINS : [], 'slapmemo-bubble.js', false);
     }).catch(err => { console.debug('[SlapMemo]', err); });
   };
   chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && (changes[BUBBLE_ENABLED_KEY] || changes[MODULE_FLAGS_KEY])) refresh(); });
+  chrome.permissions.onAdded.addListener(refresh);
   chrome.permissions.onRemoved.addListener(refresh);
   chrome.runtime.onInstalled.addListener(refresh);
   chrome.runtime.onStartup.addListener(refresh);
@@ -165,8 +166,8 @@ export function initSlapMemoBackground(): void {
     if (msg?.type === 'slapmemo:open-panel') {
       if (!sender.tab || sender.tab.incognito || !sender.tab.url || !/^https?:\/\//i.test(sender.tab.url)) return;
       void (async () => {
-        const settings = await chrome.storage.local.get({ [NOTE_HINT_ENABLED_KEY]: false });
-        if (settings[NOTE_HINT_ENABLED_KEY] !== true || !(await isModuleEnabled(SLAPMEMO_ID)) || !(await chrome.permissions.contains({ origins: BUBBLE_ORIGINS }))) return;
+        const settings = await chrome.storage.local.get({ [NOTE_HINT_ENABLED_KEY]: true });
+        if (settings[NOTE_HINT_ENABLED_KEY] === false || !(await isModuleEnabled(SLAPMEMO_ID)) || !(await chrome.permissions.contains({ origins: BUBBLE_ORIGINS }))) return;
         await chrome.tabs.create({ url: chrome.runtime.getURL('panel.html#notlar') });
       })().catch(() => {});
       return;

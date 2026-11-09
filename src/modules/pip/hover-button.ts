@@ -50,8 +50,8 @@ document.addEventListener('mouseout', event => { if (event.target === video) sch
 window.addEventListener('scroll', position, true);
 window.addEventListener('resize', position);
 async function loadSettings(): Promise<void> {
-  const data = await chrome.storage.local.get({ [PIP_HOVER_ENABLED_KEY]: false, [MODULE_FLAGS_KEY]: {} });
-  enabled = data[PIP_HOVER_ENABLED_KEY] === true && resolveEnabled(data[MODULE_FLAGS_KEY], 'pip');
+  const data = await chrome.storage.local.get({ [PIP_HOVER_ENABLED_KEY]: true, [MODULE_FLAGS_KEY]: {} });
+  enabled = data[PIP_HOVER_ENABLED_KEY] !== false && resolveEnabled(data[MODULE_FLAGS_KEY], 'pip');
   if (!enabled) hide();
 }
 chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && (changes[PIP_HOVER_ENABLED_KEY] || changes[MODULE_FLAGS_KEY])) void loadSettings(); });

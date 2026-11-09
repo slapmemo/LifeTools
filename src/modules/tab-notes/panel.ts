@@ -264,7 +264,7 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
       isModuleEnabled(TAB_NOTES_ID),
       isModuleEnabled(TITLE_CLEANER_ID),
       isModuleEnabled(TAB_SWITCHER_ID),
-      chrome.storage.local.get({ [TRANSFER_KEY]: false, [LABEL_TITLE_KEY]: false, [SHOW_NOTE_KEY]: false, [TITLE_RULES_KEY]: {} })
+      chrome.storage.local.get({ [TRANSFER_KEY]: true, [LABEL_TITLE_KEY]: true, [SHOW_NOTE_KEY]: true, [TITLE_RULES_KEY]: {} })
     ]);
 
     get<HTMLElement>('tab-tools').hidden = !(le || ne || ce || se);
@@ -281,8 +281,8 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
 
     noteInput.value = url && ne ? (await notes.get(url))?.note || '' : '';
     transfer.checked = Boolean(data[TRANSFER_KEY]);
-    showTitle.checked = data[LABEL_TITLE_KEY] === true;
-    showNote.checked = data[SHOW_NOTE_KEY] === true;
+    showTitle.checked = data[LABEL_TITLE_KEY] !== false;
+    showNote.checked = data[SHOW_NOTE_KEY] !== false;
 
     const allRules = (data[TITLE_RULES_KEY] as TitleRules) || {};
     const targetHost = (ruleHostInput?.value.trim().toLowerCase().replace(/^www\./, '')) || host;

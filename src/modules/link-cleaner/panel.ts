@@ -99,9 +99,9 @@ export function initLinkCleanerPanel(): { render(): Promise<void> } {
 
   return {
     async render() {
-      const settings = await chrome.storage.local.get({ [AUTO_CLEAN_KEY]: false, [SHORT_LINK_KEY]: false });
-      autoToggle.checked = settings[AUTO_CLEAN_KEY] === true && await chrome.permissions.contains({ origins: AUTO_CLEAN_ORIGINS });
-      shortToggle.checked = settings[SHORT_LINK_KEY] === true && await chrome.permissions.contains({ origins: SHORT_LINK_PERMISSION_ORIGINS });
+      const settings = await chrome.storage.local.get({ [AUTO_CLEAN_KEY]: true, [SHORT_LINK_KEY]: true });
+      autoToggle.checked = settings[AUTO_CLEAN_KEY] !== false && await chrome.permissions.contains({ origins: AUTO_CLEAN_ORIGINS });
+      shortToggle.checked = settings[SHORT_LINK_KEY] !== false && await chrome.permissions.contains({ origins: SHORT_LINK_PERMISSION_ORIGINS });
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         active = cleanUrl(tab?.url ?? '');

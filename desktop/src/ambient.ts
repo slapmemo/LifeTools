@@ -25,7 +25,7 @@ export interface AmbientConfig {
 
 export function defaultConfig(): AmbientConfig {
   const channels = {} as Record<ChannelId, ChannelCfg>;
-  for (const id of CHANNEL_IDS) channels[id] = { on: false, vol: 0.5 };
+  for (const id of CHANNEL_IDS) channels[id] = { on: true, vol: 0.5 };
   return { master: 0.8, channels };
 }
 
@@ -44,7 +44,7 @@ export function mergeConfig(base: AmbientConfig, raw: unknown): AmbientConfig {
   for (const id of CHANNEL_IDS) {
     const c = r.channels?.[id];
     if (c && typeof c === 'object') {
-      out.channels[id] = { on: c.on === true, vol: clamp01(c.vol, out.channels[id].vol) };
+      out.channels[id] = { on: c.on !== false, vol: clamp01(c.vol, out.channels[id].vol) };
     }
   }
   return out;

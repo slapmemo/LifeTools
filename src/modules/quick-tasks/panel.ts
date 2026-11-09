@@ -28,7 +28,7 @@ const GROUP_DEFS = [
 export function initQuickTasksPanel(db: Executor = popupDb): { render(): Promise<void> } {
   const repo = createTasksRepo(db, Date.now, () => { void chrome.runtime.sendMessage({ type: 'quick-tasks:reschedule' }).catch(() => {}); });
   const reminderToggle = $<HTMLInputElement>('#task-reminders');
-  void chrome.storage.local.get({ [REMINDERS_KEY]: false }).then(data => { reminderToggle.checked = data[REMINDERS_KEY] === true; });
+  void chrome.storage.local.get({ [REMINDERS_KEY]: true }).then(data => { reminderToggle.checked = data[REMINDERS_KEY] !== false; });
   reminderToggle.addEventListener('change', () => { void chrome.storage.local.set({ [REMINDERS_KEY]: reminderToggle.checked }); });
   const form = $<HTMLFormElement>('#task-form');
   const title = $<HTMLInputElement>('#task-title');

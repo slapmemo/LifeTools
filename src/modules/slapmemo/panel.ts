@@ -62,7 +62,7 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
   const hintToggle = document.querySelector<HTMLInputElement>('#memo-hint-enabled');
   const copyToggle = document.querySelector<HTMLInputElement>('#memo-page-copy-enabled');
   if (copyToggle) {
-    void chrome.storage.local.get({ [PAGE_COPY_KEY]: false }).then(data => { copyToggle.checked = data[PAGE_COPY_KEY] === true; });
+    void chrome.storage.local.get({ [PAGE_COPY_KEY]: true }).then(data => { copyToggle.checked = data[PAGE_COPY_KEY] !== false; });
     copyToggle.addEventListener('change', () => { void chrome.storage.local.set({ [PAGE_COPY_KEY]: copyToggle.checked }).catch(() => { copyToggle.checked = !copyToggle.checked; notify('Ayar kaydedilemedi.', 'error'); }); });
   }
   hintToggle?.addEventListener('change', () => {
@@ -77,8 +77,8 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
   const bubbleEmpty = document.querySelector<HTMLElement>('#memo-bubble-empty');
   async function renderBubbleSettings(): Promise<void> {
     if (!bubbleToggle || !bubbleSites || !bubbleEmpty) return;
-    const data = await chrome.storage.local.get({ [BUBBLE_ENABLED_KEY]: false, [BUBBLE_HIDDEN_KEY]: [] });
-    bubbleToggle.checked = data[BUBBLE_ENABLED_KEY] === true && await chrome.permissions.contains({ origins: BUBBLE_ORIGINS });
+    const data = await chrome.storage.local.get({ [BUBBLE_ENABLED_KEY]: true, [BUBBLE_HIDDEN_KEY]: [] });
+    bubbleToggle.checked = data[BUBBLE_ENABLED_KEY] !== false && await chrome.permissions.contains({ origins: BUBBLE_ORIGINS });
     const sites: string[] = Array.isArray(data[BUBBLE_HIDDEN_KEY]) ? data[BUBBLE_HIDDEN_KEY].filter((site: unknown): site is string => typeof site === 'string') : [];
     bubbleEmpty.hidden = sites.length > 0;
     bubbleSites.replaceChildren();
@@ -330,7 +330,7 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
 
   async function render(): Promise<void> {
     void renderBubbleSettings().catch(() => {});
-    if (hintToggle) void chrome.storage.local.get({ [NOTE_HINT_ENABLED_KEY]: false }).then(async data => { hintToggle.checked = data[NOTE_HINT_ENABLED_KEY] === true && await chrome.permissions.contains({ origins: BUBBLE_ORIGINS }); }).catch(() => {});
+    if (hintToggle) void chrome.storage.local.get({ [NOTE_HINT_ENABLED_KEY]: true }).then(async data => { hintToggle.checked = data[NOTE_HINT_ENABLED_KEY] !== false && await chrome.permissions.contains({ origins: BUBBLE_ORIGINS }); }).catch(() => {});
     const seq = ++renderSeq;
     for (const [key, button] of tabButtons) {
       const active = (key === 'all' ? null : key) === filter;

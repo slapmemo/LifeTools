@@ -17,12 +17,12 @@ async function apply(events: Event[]): Promise<void> {
     const result = onEvent(state, event, Date.now());
     const chunks = result.chunks.filter(c => !excluded.includes(c.domain));
     const today = localDay(Date.now());
-    const settings = await chrome.storage.local.get({ [LIMITS_KEY]: {}, [LIMITS_ENABLED_KEY]: false, [NOTIFIED_KEY]: {} });
+    const settings = await chrome.storage.local.get({ [LIMITS_KEY]: {}, [LIMITS_ENABLED_KEY]: true, [NOTIFIED_KEY]: {} });
     const limits = settings[LIMITS_KEY] as DailyLimits;
     const notified = settings[NOTIFIED_KEY] as Record<string, Record<string, string[]>>;
     for (const chunk of chunks) {
       const minutes = limits[chunk.domain];
-      const active = settings[LIMITS_ENABLED_KEY] === true && chunk.day === today && Number.isInteger(minutes) && minutes >= 5 && minutes <= 1440;
+      const active = settings[LIMITS_ENABLED_KEY] !== false && chunk.day === today && Number.isInteger(minutes) && minutes >= 5 && minutes <= 1440;
       const before = active ? (await repo.getDay(today)).find(row => row.domain === chunk.domain)?.seconds ?? 0 : 0;
       await repo.addChunks([chunk]);
       if (!active) continue;
