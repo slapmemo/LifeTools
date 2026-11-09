@@ -133,8 +133,8 @@ function makeButton(bar: HTMLElement, id: string): void {
   button.addEventListener('mouseleave', () => { button.style.background = 'transparent'; button.style.color = color; });
   button.addEventListener('click', event => {
     event.preventDefault(); event.stopPropagation(); const items = media.get(id) ?? [];
-    if (settings.oneClick && items.length === 1) {
-      const variant = selectVariant(items[0].variants, settings.quality);
+    if (!settings.askQuality && items.length) {
+      const variant = selectVariant(items[0].variants, 'highest');
       if (variant) {
         closeMenu(); void download(items[0], variant);
         showSuccess(button);
@@ -143,7 +143,11 @@ function makeButton(bar: HTMLElement, id: string): void {
     }
     openMenu(button, items);
   });
-  wrap.append(button); bar.append(wrap);
+  const menuButton = document.createElement('button');
+  menuButton.type = 'button'; menuButton.textContent = '▾'; menuButton.title = 'İndirme seçenekleri'; menuButton.setAttribute('aria-label', 'İndirme seçenekleri');
+  menuButton.style.cssText = `border:0;background:transparent;color:${color};cursor:pointer;padding:4px`;
+  menuButton.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); openMenu(menuButton, media.get(id) ?? []); });
+  wrap.append(button, menuButton); bar.append(wrap);
 }
 function render(): void {
   if (route !== location.href) { route = location.href; closeMenu(); }

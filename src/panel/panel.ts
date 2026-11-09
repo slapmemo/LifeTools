@@ -51,6 +51,7 @@ import { initWatchlistPanel } from '../modules/watchlist/panel';
 import { initVideoPanel } from '../modules/video-downloader/panel';
 import { VIDEO_ID } from '../modules/video-downloader/logic';
 import { defaults as xVideoDefaults, SETTINGS_KEY as X_VIDEO_SETTINGS_KEY, X_VIDEO_ID } from '../modules/x-video/shared';
+import { sanitizeDownloadFolder } from '../core/download-path';
 import { defaults as instagramDefaults, SETTINGS_KEY as INSTAGRAM_SETTINGS_KEY, INSTAGRAM_ID } from '../modules/instagram/shared';
 import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
 import { initZombieTabsPanel } from '../modules/zombie-tabs/panel';
@@ -322,19 +323,19 @@ const xVideoStatus = document.getElementById('x-video-status');
 const xVideoHowtoIcon = document.getElementById('x-video-howto-icon');
 if (xVideoHowtoIcon) xVideoHowtoIcon.replaceChildren(icon('clapperboard', 18));
 
-const xQuality = document.querySelector('#x-video-quality') as HTMLSelectElement;
-const xOneClick = document.querySelector('#x-video-one-click') as HTMLInputElement;
-const xSaveAs = document.querySelector('#x-video-save-as') as HTMLInputElement;
-for (const control of [xQuality, xOneClick, xSaveAs]) {
+const xAskQuality = document.querySelector('#x-video-ask-quality') as HTMLInputElement;
+const xDownloadFolder = document.querySelector('#x-video-download-folder') as HTMLInputElement;
+for (const control of [xAskQuality, xDownloadFolder]) {
   control.addEventListener('change', () => {
-    void chrome.storage.local
+    xDownloadFolder.value = sanitizeDownloadFolder(xDownloadFolder.value);
+    void chrome.storage.local.get({ [X_VIDEO_SETTINGS_KEY]: xVideoDefaults }).then(data => chrome.storage.local
       .set({
         [X_VIDEO_SETTINGS_KEY]: {
-          quality: xQuality.value,
-          oneClick: xOneClick.checked,
-          saveAs: xSaveAs.checked
+          ...data[X_VIDEO_SETTINGS_KEY],
+          askQuality: xAskQuality.checked,
+          downloadFolder: xDownloadFolder.value
         }
-      })
+      }))
       .then(() => showToast('X Video İndirici ayarları kaydedildi.', 'info'));
   });
 }
@@ -356,9 +357,8 @@ async function refresh(): Promise<void> {
 
   const xData = await chrome.storage.local.get({ [X_VIDEO_SETTINGS_KEY]: xVideoDefaults });
   const xSettings = { ...xVideoDefaults, ...xData[X_VIDEO_SETTINGS_KEY] };
-  xQuality.value = xSettings.quality;
-  xOneClick.checked = xSettings.oneClick;
-  xSaveAs.checked = xSettings.saveAs;
+  xAskQuality.checked = xSettings.askQuality;
+  xDownloadFolder.value = sanitizeDownloadFolder(xSettings.downloadFolder);
 
   await renderModules(flags);
   await updateSubTabs(flags);

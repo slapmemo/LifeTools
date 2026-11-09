@@ -489,35 +489,23 @@
         </div>
 
         <div class="settings-rows">
+          <label class="setting-row">
+            <span>Kalite sor</span>
+            <span class="switch">
+              <input id="x-video-ask-quality" type="checkbox" />
+              <span class="switch-track"></span>
+            </span>
+          </label>
           <div class="setting-row">
-            <label for="x-video-quality">Varsayılan kalite</label>
-            <select id="x-video-quality">
-              <option value="highest">En yüksek</option>
-              <option value="720">720p</option>
-              <option value="lowest">En düşük</option>
-            </select>
+            <label for="x-video-download-folder">İndirme klasörü</label>
+            <input id="x-video-download-folder" type="text" maxlength="100" placeholder="Boş = İndirilenler" />
           </div>
-
-          <label class="setting-row">
-            <span>Tek tıkla varsayılan kaliteyi indir</span>
-            <span class="switch">
-              <input id="x-video-one-click" type="checkbox" />
-              <span class="switch-track"></span>
-            </span>
-          </label>
-
-          <label class="setting-row">
-            <span>Kaydet penceresini göster</span>
-            <span class="switch">
-              <input id="x-video-save-as" type="checkbox" />
-              <span class="switch-track"></span>
-            </span>
-          </label>
+          <p class="hint">Chrome yalnızca İndirilenler klasörünün içine kaydedebilir.</p>
         </div>
 
         <div class="media-howto">
           <span id="x-video-howto-icon" class="media-howto-icon"></span>
-          <p class="hint">X (Twitter) akışında video veya GIF içeren gönderilerin altındaki eylem çubuğunda İndir düğmesi görünür. Düğmeye tıklayarak seçtiğin kalitede MP4 olarak indirebilirsin.</p>
+          <p class="hint">İndir düğmesi en yüksek kaliteyi indirir; yanındaki ok kalite ve diğer seçenekleri açar. Klasör ayarı Instagram indirmeleri için de geçerlidir.</p>
         </div>
       </div>
 

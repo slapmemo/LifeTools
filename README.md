@@ -40,8 +40,8 @@ Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını aç
 - **Sekme Başlığı Temizleyici:** Sekme görünümlerindeki başlıkları sadeleştirir; siteye özel kuralları Panel'de düzenle.
 - **Site Engelleyici:** Panel'e eklediğin X profillerini engel sayfasında açar; korumayı buradan yönet veya duraklat.
 - **Resim içinde resim:** Etkin sayfadaki videoyu küçük pencerede açıp kapat; `Alt+P`, Panel veya Komut Merkezi'ni kullan.
-- **X Video İndirici:** X'teki video ve GIF'lerde indirme düğmesini kullan; kalite ve indirme seçeneklerini Panel'den ayarla. Desteklenen videolar ve site yapısı indirmeyi sınırlar.
-- **Instagram:** Video üzerindeki indirme düğmesiyle tek veya birden çok video indir; ilerleme çubuğuna tıkla veya sürükle, fare video üzerindeyken oklarla beş saniye sar.
+- **X Video İndirici:** Tek tıkla en yüksek kalitede indir; ok düğmesinden kalite, GIF ve toplu indirme seçeneklerine ulaş. Panel'den kalite sorulmasını ve indirme alt klasörünü ayarla.
+- **Instagram:** Video üzerindeki indirme düğmesiyle tek veya birden çok video indir; X Video İndirici'deki ortak indirme klasörü ayarını kullan. İlerleme çubuğuna tıkla veya sürükle, fare video üzerindeyken oklarla beş saniye sar.
 - **Komut Merkezi:** `Alt+K` ile eylem, sekme, not, görev ve şablon ara; `not`, `görev` veya `izle` gibi komutlarla hızlı işlem yap.
 - **Site Araç Çubuğu:** Panel'de site ve eylemleri seçip izin ver; sitedeki sürüklenebilir **LT** düğmesinden eylemleri aç.
 - **Kısayol Oluşturucu:** Panel'de komutları ve atamalarını gör; Chrome'un kısayol sayfasında tuşları düzenle.

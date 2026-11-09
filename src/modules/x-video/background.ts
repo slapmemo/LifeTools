@@ -2,6 +2,7 @@ import { isModuleEnabled } from '../../core/module-state';
 import { flashBadge } from '../../core/badge';
 import { CHANNEL, X_VIDEO_ID, SETTINGS_KEY, defaults, validUrl, filename } from './shared';
 import { ensureOffscreen } from '../../db/host';
+import { downloadPath } from '../../core/download-path';
 const GIF_CHANNEL = 'lifetools:x-gif-offscreen';
 const jobs = new Map<string, number>();
 export function initXVideoBackground(): void {
@@ -30,7 +31,7 @@ export function initXVideoBackground(): void {
    const revoke = () => { if (gifUrl) void chrome.runtime.sendMessage({ channel: GIF_CHANNEL, action: 'revoke', url: gifUrl }).catch(() => {}); };
    try {
     const name = filename(msg.screenName, msg.tweetId, msg.res, msg.mediaIndex);
-    const id = await chrome.downloads.download({url, filename:gifUrl ? name.replace(/\.mp4$/, '.gif') : name, saveAs:data[SETTINGS_KEY]?.saveAs !== false});
+    const id = await chrome.downloads.download({url, filename:downloadPath(data[SETTINGS_KEY]?.downloadFolder, gifUrl ? name.replace(/\.mp4$/, '.gif') : name), saveAs:false});
     if (gifUrl) {
      const listener = (delta: chrome.downloads.DownloadDelta) => { if (delta.id === id && (delta.state?.current === 'complete' || delta.state?.current === 'interrupted')) { chrome.downloads.onChanged.removeListener(listener); revoke(); } };
      chrome.downloads.onChanged.addListener(listener);

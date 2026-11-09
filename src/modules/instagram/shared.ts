@@ -8,5 +8,5 @@ export function validUrl(value: string): boolean {
 }
 export function filename(username: string, code: string, index?: number): string {
   const clean = (s: string) => String(s).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80) || 'x';
-  return `LifeTools/instagram-${clean(username)}-${clean(code)}${index === undefined ? '' : `-${index}`}.mp4`;
+  return `instagram-${clean(username)}-${clean(code)}${index === undefined ? '' : `-${index}`}.mp4`;
 }

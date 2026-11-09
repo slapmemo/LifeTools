@@ -4,8 +4,8 @@ import { defaults as videoDefaults } from '../src/modules/x-video/shared';
 
 describe('feature defaults', () => {
   it('enables video options', () => {
-    expect(videoDefaults.oneClick).toBe(true);
-    expect(videoDefaults.saveAs).toBe(true);
+    expect(videoDefaults.askQuality).toBe(false);
+    expect(videoDefaults.downloadFolder).toBe('');
   });
   it('enables ambient channels while preserving explicit off settings', async () => {
     vi.stubGlobal('window', { addEventListener: vi.fn() });

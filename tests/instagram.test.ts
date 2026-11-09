@@ -19,5 +19,5 @@ describe('Instagram download safety', () => {
     expect(validUrl('https://scontent.cdninstagram.com/a')).toBe(true); expect(validUrl('https://video.fbcdn.net/a')).toBe(true);
     for (const url of ['http://video.fbcdn.net/a', 'https://fbcdn.net/a', 'https://evilfbcdn.net/a', 'https://user@video.fbcdn.net/a']) expect(validUrl(url)).toBe(false);
   });
-  it('sanitizes filenames and preserves carousel position', () => expect(filename('../ada', 'AB/C', 2)).toBe('LifeTools/instagram-ada-ABC-2.mp4'));
+  it('sanitizes filenames and preserves carousel position', () => expect(filename('../ada', 'AB/C', 2)).toBe('instagram-ada-ABC-2.mp4'));
 });
