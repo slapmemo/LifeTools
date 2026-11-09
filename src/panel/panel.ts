@@ -56,6 +56,9 @@ import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
 import { initZombieTabsPanel } from '../modules/zombie-tabs/panel';
 import { initStoragePanel } from '../popup/storage-panel';
 import { confirmSecondClick, showToast } from './ui';
+import { showVersions } from '../core/desktop-version';
+
+void showVersions(document.querySelector<HTMLElement>('#panel-version')!, document.querySelector<HTMLElement>('#video-version-warning')!);
 
 const watchSection = document.querySelector('#watchlist-panel') as HTMLElement;
 const watch = initWatchlistPanel();

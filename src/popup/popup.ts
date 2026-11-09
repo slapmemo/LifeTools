@@ -13,6 +13,17 @@ import { popupVisibility } from '../core/ui-visibility';
 import { applyTheme } from '../core/theme';
 import { todayTimeLine, formatTasks } from './summary';
 import { openTabManager } from '../modules/tab-manager/open';
+import { showVersions } from '../core/desktop-version';
+
+const versionFooter = document.createElement('footer');
+versionFooter.className = 'version-footer';
+const versionStatus = document.createElement('div');
+const versionWarning = document.createElement('div');
+versionWarning.hidden = true;
+versionWarning.setAttribute('role', 'status');
+versionFooter.append(versionStatus, versionWarning);
+document.querySelector('main')!.append(versionFooter);
+void showVersions(versionStatus, versionWarning);
 
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = el<HTMLInputElement>('search');

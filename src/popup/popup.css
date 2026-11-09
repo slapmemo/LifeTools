@@ -15,3 +15,4 @@ textarea { resize: none; margin-top: var(--space-12); }
 #feedback:empty { display: none; }
 #results button { width: 100%; text-align: left; justify-content: flex-start; display: flex; }
 .banner { margin-top: var(--space-12); padding: var(--space-8); }
+.version-footer { margin-top: var(--space-12); color: var(--muted); font-size: var(--font-size-12); }

@@ -50,7 +50,7 @@ export function initVideoBackground(): void {
     { id: 'video:link', title: 'Bağlantıdaki videoyu indir', contexts: ['link'], moduleId: VIDEO_ID, enabled: f => resolveEnabled(f, VIDEO_ID), onClick: async info => { try { await startDownload(info.linkUrl || ''); } catch {} } }
   ]);
   chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === ALARM) void poll(); });
-  chrome.notifications.onButtonClicked.addListener((id) => { if (id === INSTALL) void videoCall('video_tools_install').then(() => notify(INSTALL, 'Kurulum başladı. Bir dakika sonra tekrar deneyin.')).catch(() => notify(INSTALL, UNREACHABLE)); });
+  chrome.notifications.onButtonClicked.addListener((id) => { if (id === INSTALL) void videoCall('video_tools_install').then(() => notify(INSTALL, 'Kurulum başladı. Bir dakika sonra tekrar deneyin.')).catch(e => notify(INSTALL, e instanceof Error ? e.message : UNREACHABLE)); });
   chrome.runtime.onMessage.addListener((msg, sender, respond) => {
     if (sender.tab && (msg?.type === 'video-downloader:jobs' || msg?.type === 'video-downloader:cancel')) {
       void (async () => {

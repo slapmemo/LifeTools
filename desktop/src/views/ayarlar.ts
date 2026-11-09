@@ -1,6 +1,7 @@
 import { emit, listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getVersion } from '@tauri-apps/api/app';
 import { api, errText, type NativeStatus } from '../api';
 import { h, parseNum, type View } from '../dom';
 
@@ -140,6 +141,8 @@ export function settingsView(): View {
   const max = h('input', { type: 'number', min: '10', max: '5000' });
   const excl = h('textarea', { rows: 6, class: 'grow' });
   const msg = h('div', { class: 'muted' });
+  const version = h('p', { class: 'muted' });
+  void getVersion().then(value => { version.textContent = `LifeTools masaüstü · Sürüm ${value}`; }).catch(() => undefined);
   const saveBtn = h('button', {}, 'Kaydet');
   const nativeStatus = h('div', { class: 'muted' });
   const nativeConnect = h('button', {}, 'Bağla');
@@ -215,7 +218,7 @@ export function settingsView(): View {
       h('label', { class: 'settings-row' }, 'En fazla kayıt sayısı (sabitlenenler hariç)', max),
       h('label', { class: 'field' }, 'Kaydedilmeyecek uygulamalar (her satıra bir exe adı)', excl),
       h('div', { class: 'toolbar settings-save' }, saveBtn)),
-    msg
+    msg, version
   );
 
   const savePrefs = async () => {

@@ -64,7 +64,7 @@ pub fn dedupe(list: Vec<DeviceBattery>) -> Vec<DeviceBattery> {
 
 /// Tepsi ipucu metni (Windows sınırı ~127 karakter).
 pub fn tooltip_text(list: &[DeviceBattery]) -> String {
-    let mut s = String::from("LifeTools");
+    let mut s = format!("LifeTools {}", env!("CARGO_PKG_VERSION"));
     for d in list {
         let line = format!("\n{}: %{}", d.name, d.percent);
         if s.chars().count() + line.chars().count() > 120 {
@@ -141,9 +141,9 @@ mod tests {
 
     #[test]
     fn tooltip_format_and_limit() {
-        assert_eq!(tooltip_text(&[]), "LifeTools");
+        assert_eq!(tooltip_text(&[]), format!("LifeTools {}", env!("CARGO_PKG_VERSION")));
         let t = tooltip_text(&[dev("Fare", 85, None)]);
-        assert_eq!(t, "LifeTools\nFare: %85");
+        assert_eq!(t, format!("LifeTools {}\nFare: %85", env!("CARGO_PKG_VERSION")));
         let many: Vec<_> = (0..30).map(|i| dev(&format!("Aygıt {i}"), 50, None)).collect();
         assert!(tooltip_text(&many).chars().count() <= 124);
     }
