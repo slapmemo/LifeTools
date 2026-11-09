@@ -14,7 +14,7 @@ LifeTools GitHub'da herkese açık; README klasörleri, özellikleri, Releases v
 | Varsayılanlar | Yeni kurulumda tüm modüller ve özellikler açık; otomatik sekme uyutma kapalı, isteğe bağlı site izni gerektiren özellikler izin verilince çalışır. Masaüstünde «yalnızca panoya kopyala» kapalıdır. |
 | Testler | Eklenti: 51 test dosyası, ~200 test (vitest); masaüstü 62 test (cargo test). |
 | Sürümler | Eklenti ve masaüstü aynı sürümü kullanır: 0.5.2. X indirmesi tek tıkla en yüksek kalite, Panel'de «Kalite sor» ve İndirilenler alt klasörü ayarı var. Popup, Panel, masaüstü Ayarlar ve tepsi sürümü gösterir; eski masaüstü için uyarı vardır. |
-| Dağıtım | v0.4.0, v0.5.0 ve v0.5.1 Releases yayımlandı; her birinde eklenti ZIP'i ve kullanıcı başına NSIS yükleyicisi bulunur. |
+| Dağıtım | v0.4.0, v0.5.0, v0.5.1 ve v0.5.2 Releases yayımlandı; her birinde eklenti ZIP'i ve kullanıcı başına NSIS yükleyicisi bulunur. |
 
 Instagram Reels hız kontrolü (0,5×–3×, fare videodayken < / >, hız hatırlanır) ve sekme başına Ses Yükseltici (%0–600) eklendi. Ses Yükseltici tabCapture ve offscreen AudioContext kullanır; Chrome sekme paylaşımı göstergesini gösterir, chrome:// sayfalarında çalışmaz. LifeBrowser'ın otomatik aynı-site gruplaması kaldırıldı; elle «Siteye göre grupla» duruyor.
 
@@ -67,7 +67,7 @@ Masaüstü yükleyicisi `npm run tauri build` ile `LifeTools_<sürüm>_x64-setup
 | Alt+Q | Görsel sekme değiştirici |
 | Alt+K | Komut Merkezi |
 | Alt+P | Resim içinde resim |
-| Ctrl+Shift+V (masaüstü) | Pano geçmişi seçici |
+| Ctrl+Alt+V (masaüstü, Ayarlar'dan değiştirilebilir) | Pano geçmişi seçici |
 | Ctrl+Shift+Space (masaüstü) | Şablon seçici |
 | Ctrl+Alt+T (masaüstü) | Etkin pencereyi üstte tut |
 
