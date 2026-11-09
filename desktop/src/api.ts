@@ -54,6 +54,9 @@ export interface Snippet {
 export interface Prefs {
   battery_notify: boolean;
   copy_only: boolean;
+  picker_shortcut: string;
+  snippets_shortcut: string;
+  topmost_shortcut: string;
 }
 
 export interface DeviceBattery {
@@ -110,6 +113,7 @@ export const api = {
   snippetPickerHide: () => invoke<void>('snippet_picker_hide'),
   prefsGet: () => invoke<Prefs>('prefs_get'),
   prefsSet: (prefs: Prefs) => invoke<void>('prefs_set', { prefs }),
+  shortcutsSet: (picker: string, snippets: string, topmost: string) => invoke<void>('shortcuts_set', { picker, snippets, topmost }),
   batteryList: () => invoke<DeviceBattery[]>('battery_list'),
   presetList: () => invoke<AmbientPreset[]>('ambient_preset_list'),
   presetSave: (name: string, configJson: string) =>

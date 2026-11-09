@@ -84,6 +84,55 @@ export function bindThemeListener(): void {
 }
 
 export function settingsView(): View {
+  const defaults = ['Ctrl+Alt+V', 'Ctrl+Shift+Space', 'Ctrl+Alt+T'];
+  let shortcuts = [...defaults];
+  let recording: number | null = null;
+  let saving = false;
+  const shortcutError = h('p', { class: 'muted', role: 'alert' });
+  const shortcutButtons = defaults.map((value, index) => {
+    const button = h('button', { type: 'button', class: 'chip chip-mono' }, value);
+    button.addEventListener('click', () => {
+      if (saving) return;
+      recording = index;
+      renderShortcuts();
+      button.focus();
+    });
+    button.addEventListener('blur', () => { if (recording === index) { recording = null; renderShortcuts(); } });
+    button.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (recording !== index) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === 'Escape') { recording = null; renderShortcuts(); return; }
+      if (['Control', 'Alt', 'Shift', 'Meta', 'AltGraph'].includes(event.key)) return;
+      const key = event.code.startsWith('Key') ? event.code.slice(3) :
+        event.code.startsWith('Digit') ? event.code.slice(5) : event.code;
+      const parts = [event.ctrlKey && 'Ctrl', event.altKey && 'Alt', event.shiftKey && 'Shift', event.metaKey && 'Super', key].filter(Boolean);
+      const next = [...shortcuts];
+      next[index] = parts.join('+');
+      recording = null;
+      void saveShortcuts(next);
+    });
+    return button;
+  });
+  function renderShortcuts(): void {
+    shortcutButtons.forEach((button, index) => { button.textContent = recording === index ? 'Tu?lara bas?' : shortcuts[index]; button.disabled = saving; });
+  }
+  async function saveShortcuts(next: string[]): Promise<void> {
+    saving = true;
+    shortcutError.textContent = '';
+    renderShortcuts();
+    try {
+      await api.shortcutsSet(next[0], next[1], next[2]);
+      shortcuts = next;
+    } catch (e) {
+      shortcutError.textContent = errText(e);
+    } finally {
+      saving = false;
+      renderShortcuts();
+    }
+  }
+  const resetShortcuts = h('button', { type: 'button' }, 'Varsay?lana d?n');
+  resetShortcuts.addEventListener('click', () => { if (!saving) { recording = null; void saveShortcuts([...defaults]); } });
   const autostart = h('input', { type: 'checkbox' });
   const copyOnly = h('input', { type: 'checkbox' });
   const battNotify = h('input', { type: 'checkbox' });
@@ -151,9 +200,9 @@ export function settingsView(): View {
       h('label', { class: 'settings-row' }, 'Windows açılışında başlat', autostart),
       h('label', { class: 'settings-row' }, 'Pil %20 altına düşünce bildir', battNotify)),
     h('div', { class: 'card settings-card' }, h('h3', {}, 'Kısayollar'),
-      h('div', { class: 'settings-row' }, 'Pano seçici', h('span', { class: 'chip chip-mono' }, 'Ctrl+Shift+V')),
-      h('div', { class: 'settings-row' }, 'Etkin pencereyi üstte tut / bırak', h('span', { class: 'chip chip-mono' }, 'Ctrl+Alt+T')),
-      h('div', { class: 'settings-row' }, 'Şablon seçici', h('span', { class: 'chip chip-mono' }, 'Ctrl+Shift+Space')),
+      h('div', { class: 'settings-row' }, 'Pano seçici', shortcutButtons[0]),
+      h('div', { class: 'settings-row' }, 'Etkin pencereyi üstte tut / bırak', shortcutButtons[2]),
+      h('div', { class: 'settings-row' }, 'Şablon seçici', shortcutButtons[1]),
       h('label', { class: 'settings-row' }, 'Şablonu yalnızca panoya kopyala (otomatik yapıştırma yok)', copyOnly)),
     h('div', { class: 'card settings-card' }, h('h3', {}, 'Chrome bağlantısı'),
       h('p', { class: 'muted' }, 'Eklentinin verileri bu uygulamanın veritabanında (%APPDATA%\\LifeTools\\lifetools.db) saklanabilir. Önce burada bağla, sonra eklentide "Verileri masaüstüne taşı" düğmesine bas. Bağlantıdan sonra Chrome\'u yeniden başlatmak gerekmez.'),
@@ -171,7 +220,7 @@ export function settingsView(): View {
 
   const savePrefs = async () => {
     try {
-      await api.prefsSet({ copy_only: copyOnly.checked, battery_notify: battNotify.checked });
+      await api.prefsSet({ ...await api.prefsGet(), copy_only: copyOnly.checked, battery_notify: battNotify.checked });
     } catch (e) {
       msg.textContent = errText(e);
     }
@@ -253,6 +302,8 @@ export function settingsView(): View {
       const s = await api.settingsGet();
       fill(s.expire_days, s.max_items, s.exclusions);
       const p = await api.prefsGet();
+      shortcuts = [p.picker_shortcut, p.snippets_shortcut, p.topmost_shortcut];
+      renderShortcuts();
       copyOnly.checked = p.copy_only;
       battNotify.checked = p.battery_notify;
       try {

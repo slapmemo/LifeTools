@@ -315,11 +315,14 @@ pub struct Prefs {
     pub battery_notify: bool,
     /// Şablonu yalnızca panoya kopyala (Ctrl+V gönderme).
     pub copy_only: bool,
+    pub picker_shortcut: String,
+    pub snippets_shortcut: String,
+    pub topmost_shortcut: String,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { battery_notify: true, copy_only: false }
+        Prefs { battery_notify: true, copy_only: false, picker_shortcut: "Ctrl+Alt+V".into(), snippets_shortcut: "Ctrl+Shift+Space".into(), topmost_shortcut: "Ctrl+Alt+T".into() }
     }
 }
 
@@ -627,10 +630,12 @@ mod tests {
 
     #[test]
     fn prefs_default_and_roundtrip() {
+        let old: Prefs = serde_json::from_str(r#"{"battery_notify":false,"copy_only":true}"#).unwrap();
+        assert_eq!(old, Prefs { battery_notify: false, copy_only: true, ..Prefs::default() });
         let d = db();
-        assert_eq!(load_prefs(&d).unwrap(), Prefs { battery_notify: true, copy_only: false });
-        save_prefs(&d, &Prefs { battery_notify: false, copy_only: true }).unwrap();
-        assert_eq!(load_prefs(&d).unwrap(), Prefs { battery_notify: false, copy_only: true });
+        assert_eq!(load_prefs(&d).unwrap(), Prefs { battery_notify: true, copy_only: false, picker_shortcut: "Ctrl+Alt+V".into(), snippets_shortcut: "Ctrl+Shift+Space".into(), topmost_shortcut: "Ctrl+Alt+T".into() });
+        save_prefs(&d, &Prefs { battery_notify: false, copy_only: true, ..Prefs::default() }).unwrap();
+        assert_eq!(load_prefs(&d).unwrap(), Prefs { battery_notify: false, copy_only: true, ..Prefs::default() });
     }
 
     #[test]

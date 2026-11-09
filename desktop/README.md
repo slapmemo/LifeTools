@@ -30,7 +30,7 @@ cargo test
 ## Özellikler
 
 - **Ana sayfa:** Özetleri ve bölümlere hızlı erişimi gösterir.
-- **Pano geçmişi:** Metinleri ara, sabitle, sil veya kaydı duraklat. `Ctrl+Shift+V` seçicisi bir metni panoya kopyalar; otomatik yapıştırmaz.
+- **Pano geçmişi:** Metinleri ara, sabitle, sil veya kaydı duraklat. `Ctrl+Alt+V` seçicisi bir metni panoya kopyalar; otomatik yapıştırmaz.
 - **Pencereler:** `Ctrl+Alt+T` veya tepsi menüsü etkin pencereyi üstte tutar ya da bırakır. Pencereler bölümünden listeyi yönetebilirsin.
 - **Şablonlar:** Şablonları oluştur ve ara; `Ctrl+Shift+Space` seçicisinde Enter ile önceki pencereye yapıştır. Ayarlar'da yalnızca panoya kopyalama seçilebilir; yazarken otomatik genişletme yoktur.
 - **Elektrik tahmini:** Güç, günlük kullanım ve birim fiyattan tahmini tüketim ve maliyeti hesapla.

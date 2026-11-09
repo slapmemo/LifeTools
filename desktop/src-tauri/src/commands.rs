@@ -176,7 +176,11 @@ pub fn prefs_get(state: St) -> Result<db::Prefs, String> {
 
 #[tauri::command]
 pub fn prefs_set(state: St, prefs: db::Prefs) -> Result<(), String> {
-    db::save_prefs(&state.db(), &prefs).map_err(err)
+    let db = state.db();
+    let mut current = db::load_prefs(&db).map_err(err)?;
+    current.copy_only = prefs.copy_only;
+    current.battery_notify = prefs.battery_notify;
+    db::save_prefs(&db, &current).map_err(err)
 }
 
 #[tauri::command]

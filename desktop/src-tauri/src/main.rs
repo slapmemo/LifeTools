@@ -23,18 +23,86 @@ use tauri::menu::{IsMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, WebviewWindow, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use std::sync::Mutex;
 
-fn picker_shortcut() -> Shortcut {
-    Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyV)
+struct ActiveShortcuts(Mutex<[Option<Shortcut>; 3]>);
+
+fn parse_shortcuts(picker: &str, snippets: &str, topmost: &str) -> Result<[Shortcut; 3], String> {
+    let parse = |value: &str| -> Result<Shortcut, String> {
+        let shortcut: Shortcut = value.parse().map_err(|_| "Ge?ersiz k?sayol".to_string())?;
+        if !shortcut.mods.intersects(Modifiers::CONTROL | Modifiers::ALT | Modifiers::SUPER) {
+            return Err("K?sayol Ctrl, Alt veya Win i?ermeli".into());
+        }
+        Ok(shortcut)
+    };
+    let values = [parse(picker)?, parse(snippets)?, parse(topmost)?];
+    if values[0] == values[1] || values[0] == values[2] || values[1] == values[2] {
+        return Err("K?sayollar birbirinden farkl? olmal?".into());
+    }
+    Ok(values)
 }
 
-fn topmost_shortcut() -> Shortcut {
-    Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyT)
+#[tauri::command]
+fn shortcuts_set(app: AppHandle, picker: String, snippets: String, topmost: String) -> Result<(), String> {
+    let new = parse_shortcuts(&picker, &snippets, &topmost)?;
+    let active = app.state::<ActiveShortcuts>();
+    let mut current = active.0.lock().map_err(|e| e.to_string())?;
+    let old = *current;
+    let manager = app.global_shortcut();
+    let mut removed = Vec::new();
+    for (i, sc) in old.iter().enumerate() {
+        if let Some(sc) = sc {
+            if let Err(e) = manager.unregister(*sc) {
+                let mut restored = old;
+                for (index, shortcut) in removed {
+                    if manager.register(shortcut).is_err() { restored[index] = None; }
+                }
+                *current = restored;
+                return Err(if restored == old { format!("K?sayol kald?r?lamad?: {e}") } else { format!("K?sayol kald?r?lamad?: {e}; ?nceki k?sayollardan baz?lar? geri y?klenemedi") });
+            }
+            removed.push((i, *sc));
+        }
+    }
+    let mut registered = Vec::new();
+    let result = (|| -> Result<(), String> {
+        for sc in new {
+            manager.register(sc).map_err(|_| "Bu k?sayol ba?ka bir uygulama taraf?ndan kullan?l?yor".to_string())?;
+            registered.push(sc);
+        }
+        let state = app.state::<Arc<AppState>>();
+        let db = state.db();
+        let mut prefs = db::load_prefs(&db).map_err(|e| e.to_string())?;
+        prefs.picker_shortcut = picker;
+        prefs.snippets_shortcut = snippets;
+        prefs.topmost_shortcut = topmost;
+        db::save_prefs(&db, &prefs).map_err(|e| e.to_string())?;
+        Ok(())
+    })();
+    if let Err(error) = result {
+        for sc in registered { let _ = manager.unregister(sc); }
+        let mut restored = [None; 3];
+        for (i, sc) in old.iter().enumerate() {
+            if let Some(sc) = sc { if manager.register(*sc).is_ok() { restored[i] = Some(*sc); } }
+        }
+        *current = restored;
+        if restored != old { return Err(format!("{error}; ?nceki k?sayollardan baz?lar? geri y?klenemedi")); }
+        return Err(error);
+    }
+    *current = new.map(Some);
+    Ok(())
 }
 
-fn snippets_shortcut() -> Shortcut {
-    Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space)
+#[cfg(test)]
+mod shortcut_tests {
+    use super::*;
+    #[test]
+    fn validates_shortcuts() {
+        assert!(parse_shortcuts("Ctrl+Alt+V", "Ctrl+Shift+Space", "Ctrl+Alt+T").is_ok());
+        assert!(parse_shortcuts("V", "Ctrl+Shift+Space", "Ctrl+Alt+T").is_err());
+        assert!(parse_shortcuts("Shift+V", "Ctrl+Shift+Space", "Ctrl+Alt+T").is_err());
+        assert!(parse_shortcuts("ctrl+alt+v", "Ctrl+Alt+V", "Ctrl+Alt+T").is_err());
+    }
 }
 
 /// Pilleri okur, tepsi ipucunu günceller ve (açıksa) eşik altı bildirimini verir.
@@ -236,10 +304,6 @@ fn main() {
         std::process::exit(native_host::run(&args));
     }
 
-    let picker_sc = picker_shortcut();
-    let topmost_sc = topmost_shortcut();
-    let snippets_sc = snippets_shortcut();
-
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             show_main(app, None);
@@ -251,12 +315,13 @@ fn main() {
                     if event.state() != ShortcutState::Pressed {
                         return;
                     }
-                    if shortcut == &picker_sc {
-                        toggle_picker(app);
-                    } else if shortcut == &topmost_sc {
-                        toggle_topmost(app);
-                    } else if shortcut == &snippets_sc {
-                        toggle_snippets(app);
+                    let active = app.state::<ActiveShortcuts>();
+                    let action = active.0.lock().ok().and_then(|values| values.iter().position(|s| s.as_ref() == Some(shortcut)));
+                    match action {
+                        Some(0) => toggle_picker(app),
+                        Some(1) => toggle_snippets(app),
+                        Some(2) => toggle_topmost(app),
+                        _ => {}
                     }
                 })
                 .build(),
@@ -305,6 +370,7 @@ fn main() {
             commands::snippet_delete,
             commands::snippet_insert,
             commands::snippet_picker_hide,
+            shortcuts_set,
             commands::prefs_get,
             commands::prefs_set,
             commands::battery_list,
@@ -327,11 +393,23 @@ fn main() {
 
             build_tray(app)?;
 
-            for sc in [picker_shortcut(), topmost_shortcut(), snippets_shortcut()] {
-                if let Err(e) = app.global_shortcut().register(sc) {
-                    eprintln!("Kısayol kaydedilemedi ({sc:?}): {e}");
+            let mut prefs = db::load_prefs(&state.db()).unwrap_or_default();
+            let shortcuts = parse_shortcuts(&prefs.picker_shortcut, &prefs.snippets_shortcut, &prefs.topmost_shortcut).unwrap_or_else(|_| {
+                let defaults = db::Prefs::default();
+                prefs.picker_shortcut = defaults.picker_shortcut;
+                prefs.snippets_shortcut = defaults.snippets_shortcut;
+                prefs.topmost_shortcut = defaults.topmost_shortcut;
+                let _ = db::save_prefs(&state.db(), &prefs);
+                parse_shortcuts(&prefs.picker_shortcut, &prefs.snippets_shortcut, &prefs.topmost_shortcut).unwrap()
+            });
+            let mut registered = [None; 3];
+            for (i, sc) in shortcuts.into_iter().enumerate() {
+                match app.global_shortcut().register(sc) {
+                    Ok(()) => registered[i] = Some(sc),
+                    Err(e) => eprintln!("K?sayol kaydedilemedi ({sc:?}): {e}"),
                 }
             }
+            app.manage(ActiveShortcuts(Mutex::new(registered)));
 
             clipboard::spawn_listener(app.handle().clone(), state.clone());
 
