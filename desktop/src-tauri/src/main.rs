@@ -13,6 +13,7 @@ mod paste;
 mod privacy;
 mod state;
 mod win;
+mod video_dl;
 
 use state::AppState;
 use std::sync::atomic::Ordering;
@@ -227,6 +228,10 @@ fn run_maintenance(state: &AppState) {
 fn main() {
     // Chrome Native Messaging ana bilgisayarı olarak başlatıldıysa: Tauri/tek örnek öncesinde köprüyü çalıştır.
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.iter().any(|a| a == "--install-video-tools") {
+        video_dl::install_helper();
+        return;
+    }
     if args.iter().any(|a| a.starts_with("chrome-extension://")) {
         std::process::exit(native_host::run(&args));
     }
@@ -267,6 +272,14 @@ fn main() {
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
+            commands::video_tools_status,
+            commands::video_tools_install,
+            commands::video_tools_update,
+            commands::video_open_folder,
+            commands::video_download,
+            commands::video_job,
+            commands::video_jobs,
+            commands::video_cancel,
             commands::dashboard_summary,
             commands::backup_export,
             commands::clipboard_list,

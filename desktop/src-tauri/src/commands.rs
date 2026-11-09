@@ -246,3 +246,19 @@ pub fn electricity_save(state: St, data: Electricity) -> Result<(), String> {
 pub fn electricity_estimate(data: Electricity) -> Result<Estimate, String> {
     electricity::estimate(&data)
 }
+#[tauri::command]
+pub fn video_tools_status() -> Result<crate::video_dl::ToolStatus, String> { crate::video_dl::status() }
+#[tauri::command]
+pub fn video_tools_install() -> Result<(), String> { crate::video_dl::begin_install() }
+#[tauri::command]
+pub async fn video_tools_update() -> Result<(), String> { tauri::async_runtime::spawn_blocking(crate::video_dl::update).await.map_err(|e| e.to_string())? }
+#[tauri::command]
+pub fn video_open_folder() -> Result<(), String> { crate::video_dl::open_folder() }
+#[tauri::command]
+pub fn video_download(url: String, mode: String) -> Result<String, String> { crate::video_dl::start(&url, &mode) }
+#[tauri::command]
+pub fn video_job(job_id: String) -> Result<crate::video_dl::JobStatus, String> { crate::video_dl::job_status(&job_id) }
+#[tauri::command]
+pub fn video_jobs() -> Result<Vec<crate::video_dl::JobStatus>, String> { crate::video_dl::list() }
+#[tauri::command]
+pub fn video_cancel(job_id: String) -> Result<(), String> { crate::video_dl::cancel(&job_id) }

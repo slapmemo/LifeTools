@@ -165,6 +165,12 @@ fn dispatch(conn: &Connection, req: &Json) -> Result<Map<String, Json>, String> 
     let op = req.get("op").and_then(Json::as_str).ok_or("op eksik")?;
     let mut out = Map::new();
     match op {
+        "video_tools_status" => { out.insert("status".into(), json!(crate::video_dl::status()?)); }
+        "video_tools_install" => { crate::video_dl::begin_install()?; }
+        "video_download" => { let url = req.get("url").and_then(Json::as_str).ok_or("url eksik")?; let mode = req.get("mode").and_then(Json::as_str).ok_or("mode eksik")?; out.insert("jobId".into(), json!(crate::video_dl::start(url, mode)?)); }
+        "video_job" => { let id = req.get("jobId").and_then(Json::as_str).ok_or("jobId eksik")?; out.insert("job".into(), json!(crate::video_dl::job_status(id)?)); }
+        "video_jobs" => { out.insert("jobs".into(), json!(crate::video_dl::list()?)); }
+        "video_cancel" => { let id = req.get("jobId").and_then(Json::as_str).ok_or("jobId eksik")?; crate::video_dl::cancel(id)?; }
         "ping" => {
             out.insert("app".into(), json!("LifeTools"));
             out.insert("version".into(), json!(env!("CARGO_PKG_VERSION")));
@@ -209,6 +215,7 @@ pub fn handle(conn: &Connection, req: &Json) -> Json {
             obj.insert("ok".into(), Json::Bool(true));
             Json::Object(obj)
         }
+        Err(e) if e.starts_with("TOOLS_MISSING:") => json!({ "id": id, "ok": false, "code": "TOOLS_MISSING", "error": e.trim_start_matches("TOOLS_MISSING: ") }),
         Err(e) => json!({ "id": id, "ok": false, "error": e }),
     }
 }

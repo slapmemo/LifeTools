@@ -82,6 +82,9 @@ export interface NativeStatus {
   registered_exe: string | null;
 }
 
+export interface VideoToolsStatus { ytdlp: { installed: boolean; version: string | null }; ffmpeg: boolean; installing: boolean; folder: string; error: string | null }
+export interface VideoJob { id: string; url: string; mode: string; pid: number; started_at: number; output_dir: string; cancelled: boolean; state: 'running' | 'done' | 'error' | 'cancelled'; percent: string | null; speed: string | null; eta: string | null; file: string | null; error: string | null }
+
 export interface AmbientPreset {
   id: number;
   name: string;
@@ -90,6 +93,14 @@ export interface AmbientPreset {
 }
 
 export const api = {
+  videoToolsStatus: () => invoke<VideoToolsStatus>('video_tools_status'),
+  videoToolsInstall: () => invoke<void>('video_tools_install'),
+  videoToolsUpdate: () => invoke<void>('video_tools_update'),
+  videoOpenFolder: () => invoke<void>('video_open_folder'),
+  videoDownload: (url: string, mode: string) => invoke<string>('video_download', { url, mode }),
+  videoJob: (jobId: string) => invoke<VideoJob>('video_job', { jobId }),
+  videoJobs: () => invoke<VideoJob[]>('video_jobs'),
+  videoCancel: (jobId: string) => invoke<void>('video_cancel', { jobId }),
   dashboardSummary: () => invoke<DashboardSummary>('dashboard_summary'),
   snippetList: (query: string) => invoke<Snippet[]>('snippet_list', { query }),
   snippetSave: (id: number | null, trigger: string, title: string, body: string) =>

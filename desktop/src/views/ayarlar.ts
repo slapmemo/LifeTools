@@ -97,6 +97,15 @@ export function settingsView(): View {
   const nativeRemove = h('button', { class: 'danger' }, 'Bağlantıyı kaldır');
   const backupBtn = h('button', { type: 'button' }, 'Yedeği indir');
   const backupStatus = h('p', { class: 'muted', role: 'status', style: 'user-select: text; overflow-wrap: anywhere' });
+  const videoStatus = h('p', { class: 'muted', role: 'status' });
+  const videoFolder = h('p', { class: 'muted', style: 'user-select: text; overflow-wrap: anywhere' });
+  const videoInstall = h('button', { type: 'button' }, 'Kur');
+  const videoUpdate = h('button', { type: 'button' }, 'Güncelle');
+  const videoOpen = h('button', { type: 'button' }, 'Klasörü aç');
+  const refreshVideo = async () => { try { const s = await api.videoToolsStatus(); videoStatus.textContent = s.installing ? 'Araçlar kuruluyor…' : `yt-dlp: ${s.ytdlp.installed ? s.ytdlp.version ?? 'kurulu' : 'kurulu değil'} · ffmpeg: ${s.ffmpeg ? 'kurulu' : 'kurulu değil'}`; if (s.error && !s.installing) videoStatus.textContent += ` · ${s.error}`; videoFolder.textContent = s.folder; videoInstall.disabled = s.installing; if (s.installing) setTimeout(() => void refreshVideo(), 3000); } catch (e) { videoStatus.textContent = `Hata: ${errText(e)}`; } };
+  videoInstall.addEventListener('click', async () => { try { await api.videoToolsInstall(); await refreshVideo(); } catch (e) { videoStatus.textContent = `Hata: ${errText(e)}`; } });
+  videoUpdate.addEventListener('click', async () => { videoUpdate.disabled = true; try { await api.videoToolsUpdate(); await refreshVideo(); } catch (e) { videoStatus.textContent = `Hata: ${errText(e)}`; } finally { videoUpdate.disabled = false; } });
+  videoOpen.addEventListener('click', async () => { try { await api.videoOpenFolder(); } catch (e) { videoStatus.textContent = `Hata: ${errText(e)}`; } });
 
   const themeBtns = new Map<ThemeMode, HTMLButtonElement>();
   const themeGroup = h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'Görünüm' });
@@ -137,6 +146,7 @@ export function settingsView(): View {
     'section',
     { class: 'settings-view' },
     h('h2', {}, 'Ayarlar'),
+    h('div', { class: 'card settings-card' }, h('h3', {}, 'İndirme araçları'), videoStatus, videoFolder, h('div', { class: 'toolbar' }, videoInstall, videoUpdate, videoOpen)),
     h('div', { class: 'card settings-card' }, h('h3', {}, 'Başlangıç'),
       h('label', { class: 'settings-row' }, 'Windows açılışında başlat', autostart),
       h('label', { class: 'settings-row' }, 'Pil %20 altına düşünce bildir', battNotify)),
@@ -238,6 +248,7 @@ export function settingsView(): View {
     el,
     refresh: async () => {
       msg.textContent = '';
+      void refreshVideo();
       syncThemeUi(await loadTheme());
       const s = await api.settingsGet();
       fill(s.expire_days, s.max_items, s.exclusions);
