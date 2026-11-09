@@ -308,8 +308,9 @@ const xVideoPanel = document.querySelector('#x-video-panel') as HTMLElement;
 const instagramPanel = document.querySelector('#instagram-panel') as HTMLElement;
 const instagramDownload = document.querySelector('#instagram-download') as HTMLInputElement;
 const instagramSeek = document.querySelector('#instagram-seek') as HTMLInputElement;
-for (const control of [instagramDownload, instagramSeek]) control.addEventListener('change', () => {
-  void chrome.storage.local.get({ [INSTAGRAM_SETTINGS_KEY]: instagramDefaults }).then(data => chrome.storage.local.set({ [INSTAGRAM_SETTINGS_KEY]: { ...data[INSTAGRAM_SETTINGS_KEY], downloadButton: instagramDownload.checked, seekBar: instagramSeek.checked } }));
+const instagramSpeed = document.querySelector('#instagram-speed') as HTMLInputElement;
+for (const control of [instagramDownload, instagramSeek, instagramSpeed]) control.addEventListener('change', () => {
+  void chrome.storage.local.get({ [INSTAGRAM_SETTINGS_KEY]: instagramDefaults }).then(data => chrome.storage.local.set({ [INSTAGRAM_SETTINGS_KEY]: { ...data[INSTAGRAM_SETTINGS_KEY], downloadButton: instagramDownload.checked, seekBar: instagramSeek.checked, speedControl: instagramSpeed.checked } }));
 });
 const xVideoStatus = document.getElementById('x-video-status');
 const xVideoHowtoIcon = document.getElementById('x-video-howto-icon');
@@ -340,6 +341,7 @@ async function refresh(): Promise<void> {
   const instagramSettings = { ...instagramDefaults, ...instagramData[INSTAGRAM_SETTINGS_KEY] };
   instagramDownload.checked = instagramSettings.downloadButton;
   instagramSeek.checked = instagramSettings.seekBar;
+  instagramSpeed.checked = instagramSettings.speedControl;
   xVideoPanel.hidden = !xEnabled;
   if (xVideoStatus) xVideoStatus.textContent = xEnabled ? 'Etkin' : 'Kapalı';
 
