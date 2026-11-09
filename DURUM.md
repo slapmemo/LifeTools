@@ -1,6 +1,6 @@
 # LifeTools — Kaldığımız Yer
 
-> Son güncelleme: 10 Kasım 2026 · sürüm 0.5.1 · dal master · son commit f4acbb9
+> Son güncelleme: 10 Kasım 2026 · sürüm 0.5.2 · dal master
 > Yeni bir sohbete/oturuma başlarken önce bu dosyayı, sonra iki planı oku:
 > `../LifeTools_Plan_v3_2026-11-06.md` (özellik yol haritası) ve `../LifeTools_Arayuz_Plani_2026-11-06.md` (arayüz düzenlemesi).
 
@@ -13,7 +13,7 @@ LifeTools GitHub'da herkese açık; README klasörleri, özellikleri, Releases v
 | Eklenti ve masaüstü | U1–U3 tamamlandı; eklenti ve masaüstü Native Messaging ile bağlı. |
 | Varsayılanlar | Yeni kurulumda tüm modüller ve özellikler açık; otomatik sekme uyutma kapalı, isteğe bağlı site izni gerektiren özellikler izin verilince çalışır. Masaüstünde «yalnızca panoya kopyala» kapalıdır. |
 | Testler | Eklenti: 51 test dosyası, ~200 test (vitest); masaüstü 62 test (cargo test). |
-| Sürümler | Eklenti ve masaüstü aynı sürümü kullanır: 0.5.1. Popup, Panel, masaüstü Ayarlar ve tepsi sürümü gösterir; eski masaüstü için uyarı vardır. |
+| Sürümler | Eklenti ve masaüstü aynı sürümü kullanır: 0.5.2. X indirmesi tek tıkla en yüksek kalite, Panel'de «Kalite sor» ve İndirilenler alt klasörü ayarı var. Popup, Panel, masaüstü Ayarlar ve tepsi sürümü gösterir; eski masaüstü için uyarı vardır. |
 | Dağıtım | v0.4.0, v0.5.0 ve v0.5.1 Releases yayımlandı; her birinde eklenti ZIP'i ve kullanıcı başına NSIS yükleyicisi bulunur. |
 
 Instagram Reels hız kontrolü (0,5×–3×, fare videodayken < / >, hız hatırlanır) ve sekme başına Ses Yükseltici (%0–600) eklendi. Ses Yükseltici tabCapture ve offscreen AudioContext kullanır; Chrome sekme paylaşımı göstergesini gösterir, chrome:// sayfalarında çalışmaz. LifeBrowser'ın otomatik aynı-site gruplaması kaldırıldı; elle «Siteye göre grupla» duruyor.
