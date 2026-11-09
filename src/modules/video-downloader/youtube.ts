@@ -1,10 +1,11 @@
 import { PAGE_THEME } from '../../core/page-theme';
-import { formatChip, menuPosition, MODE_LABELS, youtubePage, type VideoJob } from './logic';
+import { cacheFresh, formatChip, formatQualityLabel, menuPosition, MODE_LABELS, youtubePage, youtubeVideoId, type VideoFormats, type VideoJob } from './logic';
 
 let host: HTMLElement | null = null;
 let route = '';
 let frame = 0;
 let refreshChip: (() => void) | undefined;
+const formatsCache = new Map<string, { timestamp: number; data: VideoFormats }>();
 const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); }); };
 
 function render(): void {
@@ -28,11 +29,30 @@ function render(): void {
   const chip = document.createElement('span'); chip.className = 'chip'; chip.hidden = true;
   const menu = document.createElement('div'); menu.className = 'menu'; menu.hidden = true;
   const position = () => { const p = menuPosition(button.getBoundingClientRect(), menu.getBoundingClientRect(), { width: innerWidth, height: innerHeight }); menu.style.left = `${p.left}px`; menu.style.top = `${p.top}px`; };
-  for (const [mode, label] of Object.entries(MODE_LABELS)) {
+  const addItem = (mode: string, label: string, url: string) => {
     const item = document.createElement('button'); item.type = 'button'; item.textContent = label;
-    item.addEventListener('click', () => { menu.hidden = true; void chrome.runtime.sendMessage({ type: 'video-downloader:start', url: location.href, mode }).then(() => refreshChip?.()).catch(() => {}); }); menu.append(item);
-  }
-  button.addEventListener('click', () => { menu.hidden = !menu.hidden; if (!menu.hidden) position(); });
+    item.addEventListener('click', () => { menu.hidden = true; void chrome.runtime.sendMessage({ type: 'video-downloader:start', url, mode }).then(() => refreshChip?.()).catch(() => {}); }); menu.append(item);
+  };
+  let request = 0;
+  button.addEventListener('click', () => {
+    menu.hidden = !menu.hidden;
+    if (menu.hidden) { request++; return; }
+    const url = location.href; const id = youtubeVideoId(url); const current = ++request;
+    const show = (data: VideoFormats) => { menu.replaceChildren(); for (const format of data.formats) addItem(`height:${format.height}`, formatQualityLabel(format.label, format), url); addItem('audio_mp3', formatQualityLabel(MODE_LABELS.audio_mp3, data.audio), url); position(); };
+    const cached = id ? formatsCache.get(id) : undefined;
+    if (cached && cacheFresh(cached.timestamp)) { show(cached.data); return; }
+    const loading = document.createElement('div'); loading.style.cssText = 'color:white;font:14px Arial;padding:9px 14px'; loading.textContent = 'Kaliteler yükleniyor…'; menu.replaceChildren(loading); position();
+    void chrome.runtime.sendMessage({ type: 'video-downloader:formats', url }).then(response => {
+      if (current !== request || !wrapper.isConnected || location.href !== url || menu.hidden) return;
+      if (!response?.ok) throw Object.assign(new Error(response?.message || 'Kaliteler yüklenemedi.'), { code: response?.code });
+      const data = response.data as VideoFormats; if (id) formatsCache.set(id, { timestamp: Date.now(), data }); show(data);
+    }).catch(error => {
+      if (current !== request || !wrapper.isConnected || location.href !== url || menu.hidden) return;
+      menu.replaceChildren(); const message = document.createElement('div'); message.style.cssText = 'color:white;font:14px Arial;padding:9px 14px'; message.textContent = error.message || 'Kaliteler yüklenemedi.'; menu.append(message);
+      if (error.code === 'TOOLS_MISSING') { const install = document.createElement('button'); install.type = 'button'; install.textContent = 'Araçları kur'; install.addEventListener('click', () => { install.disabled = true; void chrome.runtime.sendMessage({ type: 'video-downloader:install' }).then(result => { message.textContent = result?.ok ? 'Kurulum başladı. Bir dakika sonra tekrar deneyin.' : result?.message || 'Kurulum başlatılamadı.'; position(); }).catch(() => { message.textContent = 'Kurulum başlatılamadı.'; position(); }); }); menu.append(install); }
+      for (const [mode, label] of Object.entries(MODE_LABELS)) addItem(mode, label, url); position();
+    });
+  });
   for (const event of ['click', 'pointerdown', 'mousedown', 'keydown']) shadow.addEventListener(event, e => e.stopPropagation());
   row.append(button, chip); shadow.append(style, row, menu);
   if (actions) actions.append(wrapper); else target!.insertAdjacentElement('afterend', wrapper);

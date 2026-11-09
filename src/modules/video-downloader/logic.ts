@@ -2,7 +2,15 @@ export const VIDEO_ID = 'video-downloader';
 export const YOUTUBE_ORIGINS = ['https://www.youtube.com/*'];
 export const YOUTUBE_BUTTON_KEY = 'videoDownloaderYoutubeButton';
 export const MODE_LABELS = { video_best: 'En iyi kalite', video_1080: '1080p', video_720: '720p', audio_mp3: 'Sadece ses (MP3)' } as const;
-export type VideoMode = keyof typeof MODE_LABELS;
+export type VideoMode = keyof typeof MODE_LABELS | `height:${number}`;
+export interface SizeEstimate { sizeBytes: number | null; approx: boolean }
+export interface VideoFormat extends SizeEstimate { height: number; fps: number | null; label: string }
+export interface VideoFormats { formats: VideoFormat[]; audio: SizeEstimate; title: string | null; duration: number | null }
+export const FORMATS_CACHE_TTL = 10 * 60 * 1000;
+export function cacheFresh(timestamp: number, now = Date.now()): boolean { return now >= timestamp && now - timestamp < FORMATS_CACHE_TTL; }
+export function youtubeVideoId(raw: string): string | null { if (youtubePage(raw) === 'other') return null; const u = new URL(raw); return u.pathname === '/watch' ? u.searchParams.get('v') : u.pathname.split('/')[2] || null; }
+export function formatSize(sizeBytes: number | null, approx: boolean): string { if (sizeBytes == null) return 'boyut bilinmiyor'; const prefix = approx ? '~' : ''; return sizeBytes < 1024 ** 3 ? `${prefix}${Math.round(sizeBytes / 1024 ** 2)} MB` : `${prefix}${(sizeBytes / 1024 ** 3).toFixed(1).replace('.', ',')} GB`; }
+export function formatQualityLabel(label: string, estimate: SizeEstimate): string { return `${label} · ${formatSize(estimate.sizeBytes, estimate.approx)}`; }
 export interface VideoJob { id: string; url: string; mode: string; state: string; percent: string | null; speed: string | null; eta: string | null; file: string | null; error: string | null }
 export interface ToolStatus { ytdlp: { installed: boolean; version: string | null }; ffmpeg: boolean; installing: boolean; error: string | null; folder: string }
 export function acceptsUrl(raw: string): boolean { try { const u = new URL(raw); return ['http:', 'https:'].includes(u.protocol) && !!u.hostname; } catch { return false; } }

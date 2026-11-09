@@ -64,8 +64,12 @@ export function initVideoBackground(): void {
       })().then(jobs => respond({ ok: true, jobs })).catch(e => respond({ ok: false, message: e.message }));
       return true;
     }
-    if (msg?.type !== 'video-downloader:start' || !sender.tab) return;
-    void (async () => { if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.'); if (!(msg.mode in MODE_LABELS) || typeof msg.url !== 'string' || msg.url !== sender.tab?.url) throw new Error('Geçersiz istek.'); return startDownload(msg.url, msg.mode as VideoMode); })().then(message => respond({ ok: true, message })).catch(e => respond({ ok: false, message: e.message })); return true;
+    if (!sender.tab) return;
+    if (msg?.type === 'video-downloader:formats' || msg?.type === 'video-downloader:install') {
+      void (async () => { if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.'); if (msg.type === 'video-downloader:install') return videoCall('video_tools_install'); if (typeof msg.url !== 'string' || msg.url !== sender.tab?.url || !acceptsUrl(msg.url)) throw new Error('Geçersiz istek.'); return videoCall('video_formats', { url: msg.url }); })().then(data => respond({ ok: true, data })).catch(e => respond({ ok: false, message: e.message, code: e.name })); return true;
+    }
+    if (msg?.type !== 'video-downloader:start') return;
+    void (async () => { if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.'); const height = typeof msg.mode === 'string' && /^height:\d+$/.test(msg.mode) ? Number(msg.mode.slice(7)) : 0; if (!(typeof msg.mode === 'string' && (Object.hasOwn(MODE_LABELS, msg.mode) || (height >= 144 && height <= 4320))) || typeof msg.url !== 'string' || msg.url !== sender.tab?.url) throw new Error('Geçersiz istek.'); return startDownload(msg.url, msg.mode as VideoMode); })().then(message => respond({ ok: true, message })).catch(e => respond({ ok: false, message: e.message })); return true;
   });
   void tracked().then(ids => { if (ids.length) return chrome.alarms.create(ALARM, { delayInMinutes: 0.025 }); });
 }
