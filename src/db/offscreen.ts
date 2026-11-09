@@ -1,6 +1,7 @@
 import type { DbRequest, DbResponse } from './protocol';
 import { OFFSCREEN_CHANNEL } from './protocol';
 import '../modules/x-video/gif-offscreen';
+import '../modules/volume-booster/offscreen-audio';
 
 // Offscreen belge yalnızca Worker'ı barındırır ve mesajları ona aktarır.
 const worker = new Worker(new URL('db-worker.js', location.href), { type: 'module' });

@@ -1,3 +1,4 @@
+import { initVolumePopup } from '../modules/volume-booster/popup';
 import { popupDb, pingDesktop } from '../db/client';
 import { getBackend } from '../db/backend';
 import { createNotesRepo } from '../modules/slapmemo/repo';
@@ -75,6 +76,7 @@ el('task').onclick = () => void save('task');
 async function summary(): Promise<void> {
   const flags = (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
   const visible = popupVisibility(flags);
+  el('volume-booster').hidden = !resolveEnabled(flags, 'volume-booster');
   el('tab-manager').hidden = !resolveEnabled(flags, 'tab-manager');
   el('note').hidden = el('category').hidden = !visible.notes;
   el('task').hidden = el('today-tasks').hidden = !visible.tasks;
@@ -184,6 +186,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+void initVolumePopup().catch(() => {});
 void applyTheme();
 void summary().catch(() => {});
 void (async () => {

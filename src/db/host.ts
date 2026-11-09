@@ -20,7 +20,7 @@ export function ensureOffscreen(): Promise<void> {
     if (existing.length > 0) return;
     await chrome.offscreen.createDocument({
       url: 'offscreen.html',
-      reasons: ['WORKERS' as chrome.offscreen.Reason, 'CLIPBOARD' as chrome.offscreen.Reason, 'BLOBS' as chrome.offscreen.Reason],
+      reasons: ['WORKERS' as chrome.offscreen.Reason, 'CLIPBOARD' as chrome.offscreen.Reason, 'BLOBS' as chrome.offscreen.Reason, 'USER_MEDIA' as chrome.offscreen.Reason],
       justification: 'SQLite veritabanını çalıştırmak, linkleri kopyalamak ve GIF hazırlamak için.'
     });
   })().finally(() => { inflight = null; });
