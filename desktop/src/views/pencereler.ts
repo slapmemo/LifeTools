@@ -14,7 +14,7 @@ export function windowsView(): View {
     h(
       'p',
       { class: 'muted' },
-      'Herhangi bir pencerede Ayarlardaki k?sayolla o pencereyi üstte tut / bırak. Tepsi menüsünden de yapılabilir.'
+      'Herhangi bir pencerede Ayarlardaki kısayolla o pencereyi üstte tut / bırak. Tepsi menüsünden de yapılabilir.'
     ),
     h('div', { class: 'toolbar' }, search, releaseAll),
     list
@@ -26,7 +26,7 @@ export function windowsView(): View {
     const query = search.value.trim().toLocaleLowerCase('tr-TR');
     const filtered = items.filter((w) => `${w.title} ${w.exe}`.toLocaleLowerCase('tr-TR').includes(query));
     if (filtered.length === 0) {
-      list.append(emptyState(query ? 'Sonuç yok' : 'Üstte tutulan pencere yok', query ? 'Başka bir arama deneyin.' : 'Ayarlardaki k?sayolla bir pencereyi üstte tutabilirsiniz.'));
+      list.append(emptyState(query ? 'Sonuç yok' : 'Üstte tutulan pencere yok', query ? 'Başka bir arama deneyin.' : 'Ayarlardaki kısayolla bir pencereyi üstte tutabilirsiniz.'));
       return;
     }
     for (const w of filtered) {

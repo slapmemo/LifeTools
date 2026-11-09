@@ -30,15 +30,15 @@ struct ActiveShortcuts(Mutex<[Option<Shortcut>; 3]>);
 
 fn parse_shortcuts(picker: &str, snippets: &str, topmost: &str) -> Result<[Shortcut; 3], String> {
     let parse = |value: &str| -> Result<Shortcut, String> {
-        let shortcut: Shortcut = value.parse().map_err(|_| "Ge?ersiz k?sayol".to_string())?;
+        let shortcut: Shortcut = value.parse().map_err(|_| "Geçersiz kısayol".to_string())?;
         if !shortcut.mods.intersects(Modifiers::CONTROL | Modifiers::ALT | Modifiers::SUPER) {
-            return Err("K?sayol Ctrl, Alt veya Win i?ermeli".into());
+            return Err("Kısayol Ctrl, Alt veya Win içermeli".into());
         }
         Ok(shortcut)
     };
     let values = [parse(picker)?, parse(snippets)?, parse(topmost)?];
     if values[0] == values[1] || values[0] == values[2] || values[1] == values[2] {
-        return Err("K?sayollar birbirinden farkl? olmal?".into());
+        return Err("Kısayollar birbirinden farklı olmalı".into());
     }
     Ok(values)
 }
@@ -59,7 +59,7 @@ fn shortcuts_set(app: AppHandle, picker: String, snippets: String, topmost: Stri
                     if manager.register(shortcut).is_err() { restored[index] = None; }
                 }
                 *current = restored;
-                return Err(if restored == old { format!("K?sayol kald?r?lamad?: {e}") } else { format!("K?sayol kald?r?lamad?: {e}; ?nceki k?sayollardan baz?lar? geri y?klenemedi") });
+                return Err(if restored == old { format!("Kısayol kaldırılamadı: {e}") } else { format!("Kısayol kaldırılamadı: {e}; önceki kısayollardan bazıları geri yüklenemedi") });
             }
             removed.push((i, *sc));
         }
@@ -67,7 +67,7 @@ fn shortcuts_set(app: AppHandle, picker: String, snippets: String, topmost: Stri
     let mut registered = Vec::new();
     let result = (|| -> Result<(), String> {
         for sc in new {
-            manager.register(sc).map_err(|_| "Bu k?sayol ba?ka bir uygulama taraf?ndan kullan?l?yor".to_string())?;
+            manager.register(sc).map_err(|_| "Bu kısayol başka bir uygulama tarafından kullanılıyor".to_string())?;
             registered.push(sc);
         }
         let state = app.state::<Arc<AppState>>();
@@ -86,7 +86,7 @@ fn shortcuts_set(app: AppHandle, picker: String, snippets: String, topmost: Stri
             if let Some(sc) = sc { if manager.register(*sc).is_ok() { restored[i] = Some(*sc); } }
         }
         *current = restored;
-        if restored != old { return Err(format!("{error}; ?nceki k?sayollardan baz?lar? geri y?klenemedi")); }
+        if restored != old { return Err(format!("{error}; önceki kısayollardan bazıları geri yüklenemedi")); }
         return Err(error);
     }
     *current = new.map(Some);
@@ -406,7 +406,7 @@ fn main() {
             for (i, sc) in shortcuts.into_iter().enumerate() {
                 match app.global_shortcut().register(sc) {
                     Ok(()) => registered[i] = Some(sc),
-                    Err(e) => eprintln!("K?sayol kaydedilemedi ({sc:?}): {e}"),
+                    Err(e) => eprintln!("Kısayol kaydedilemedi ({sc:?}): {e}"),
                 }
             }
             app.manage(ActiveShortcuts(Mutex::new(registered)));

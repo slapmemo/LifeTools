@@ -115,7 +115,7 @@ export function settingsView(): View {
     return button;
   });
   function renderShortcuts(): void {
-    shortcutButtons.forEach((button, index) => { button.textContent = recording === index ? 'Tu?lara bas?' : shortcuts[index]; button.disabled = saving; });
+    shortcutButtons.forEach((button, index) => { button.textContent = recording === index ? 'Tuşlara bas…' : shortcuts[index]; button.disabled = saving; });
   }
   async function saveShortcuts(next: string[]): Promise<void> {
     saving = true;
@@ -131,7 +131,7 @@ export function settingsView(): View {
       renderShortcuts();
     }
   }
-  const resetShortcuts = h('button', { type: 'button' }, 'Varsay?lana d?n');
+  const resetShortcuts = h('button', { type: 'button' }, 'Varsayılana dön');
   resetShortcuts.addEventListener('click', () => { if (!saving) { recording = null; void saveShortcuts([...defaults]); } });
   const autostart = h('input', { type: 'checkbox' });
   const copyOnly = h('input', { type: 'checkbox' });
