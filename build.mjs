@@ -46,6 +46,7 @@ await build({
     'slapmemo-bubble': 'src/modules/slapmemo/bubble-content.ts',
     'pip-hover-button': 'src/modules/pip/hover-button.ts',
     'watchlist-page-button': 'src/modules/watchlist/page-button.ts',
+    'video-downloader-youtube': 'src/modules/video-downloader/youtube.ts',
     'site-blocker-content': 'src/modules/site-blocker/content.ts'
   }
 });

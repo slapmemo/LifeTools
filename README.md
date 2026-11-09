@@ -15,6 +15,8 @@ Yerel çalışan Chrome eklentisi ve masaüstü verimlilik araçları.
 
 ## Özellikler
 
+- **Video İndirici:** YouTube ve diğer sayfalardan video veya MP3 indir; işleri Panel'den takip et.
+
 Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını açar. Yeni kurulumda modüller varsayılan olarak açıktır. Ek site izni isteyen özellikler izin verildiğinde çalışır; otomatik sekme uyutma ve otomatik oturum kaydı başlangıçta kapalıdır. Kısayolları `chrome://extensions/shortcuts` üzerinden değiştirebilirsin.
 
 ### Chrome eklentisi
@@ -79,6 +81,8 @@ npm run build
 `chrome://extensions` sayfasında **Geliştirici modu**nu aç ve **Paketlenmemiş öğe yükle** ile `dist/` klasörünü seç. Masaüstü uygulaması için [desktop/README.md](desktop/README.md) dosyasına bak.
 
 ## İlk kurulumdan sonra
+
+Video indirmek için masaüstü uygulaması açık ve Chrome bağlantısı kurulmuş olmalıdır. İlk kullanımda Panel'den veya araçlar eksik bildiriminden yt-dlp ve ffmpeg araçlarını indirebilirsin.
 
 Chrome araç çubuğundaki yapboz simgesinden LifeTools'u sabitle; eklenti simgesine tıklayıp **Panel**'i aç.
 

@@ -21,6 +21,10 @@ import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
 import { parseTurkishDue } from '../modules/command-center/search';
 import { openTabManager } from '../modules/tab-manager/open';
 import { downloadBackup } from './auto-backup-background';
+import { startDownload } from '../modules/video-downloader/background';
+import { VIDEO_ID } from '../modules/video-downloader/logic';
+
+registerAction({ id: 'video.download', title: 'Video indir', keywords: ['video indir', 'indir', 'download'], moduleId: VIDEO_ID, async run({ tab }) { return startDownload(tab?.url ?? ''); } });
 
 const notes = createNotesRepo(backgroundDb);
 const tasks = createTasksRepo(backgroundDb, Date.now, rescheduleTaskReminders);

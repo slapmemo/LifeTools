@@ -13,7 +13,7 @@ export const groups = [
     modules: ['life-browser', 'zombie-tabs', 'pinned-guard', 'tab-labels', 'tab-notes', 'title-cleaner', 'tab-switcher', 'site-toolbar']
   },
   { id: 'odak', label: 'Odak', icon: 'timer', star: false, modules: ['site-blocker', 'time-tracker'] },
-  { id: 'medya', label: 'Medya', icon: 'clapperboard', star: false, modules: ['x-video', 'instagram', 'pip'] },
+  { id: 'medya', label: 'Medya', icon: 'clapperboard', star: false, modules: ['x-video', 'instagram', 'pip', 'video-downloader'] },
   { id: 'ayarlar', label: 'Ayarlar', icon: 'settings', star: false, modules: [] }
 ] as const;
 

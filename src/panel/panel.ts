@@ -48,6 +48,8 @@ import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
 import { initTimeTrackerPanel } from '../modules/time-tracker/panel';
 import { WATCHLIST_ID } from '../modules/watchlist/background';
 import { initWatchlistPanel } from '../modules/watchlist/panel';
+import { initVideoPanel } from '../modules/video-downloader/panel';
+import { VIDEO_ID } from '../modules/video-downloader/logic';
 import { defaults as xVideoDefaults, SETTINGS_KEY as X_VIDEO_SETTINGS_KEY, X_VIDEO_ID } from '../modules/x-video/shared';
 import { defaults as instagramDefaults, SETTINGS_KEY as INSTAGRAM_SETTINGS_KEY, INSTAGRAM_ID } from '../modules/instagram/shared';
 import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
@@ -57,6 +59,7 @@ import { confirmSecondClick, showToast } from './ui';
 
 const watchSection = document.querySelector('#watchlist-panel') as HTMLElement;
 const watch = initWatchlistPanel();
+const videoPanel = initVideoPanel();
 const clipSection = document.querySelector('#clip-slots-panel') as HTMLElement;
 const clip = initClipSlotsPanel();
 const pipSection = document.querySelector('#pip-panel') as HTMLElement;
@@ -336,6 +339,9 @@ for (const control of [xQuality, xOneClick, xSaveAs]) {
 async function refresh(): Promise<void> {
   const flags = (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
   const xEnabled = resolveEnabled(flags, X_VIDEO_ID);
+  const videoEnabled = resolveEnabled(flags, VIDEO_ID);
+  (document.querySelector('#video-downloader-panel') as HTMLElement).hidden = !videoEnabled;
+  if (videoEnabled) void videoPanel.render();
   instagramPanel.hidden = !resolveEnabled(flags, INSTAGRAM_ID);
   const instagramData = await chrome.storage.local.get({ [INSTAGRAM_SETTINGS_KEY]: instagramDefaults });
   const instagramSettings = { ...instagramDefaults, ...instagramData[INSTAGRAM_SETTINGS_KEY] };
