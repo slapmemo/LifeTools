@@ -259,7 +259,7 @@ pub async fn video_tools_update() -> Result<(), String> { tauri::async_runtime::
 #[tauri::command]
 pub fn video_open_folder() -> Result<(), String> { crate::video_dl::open_folder() }
 #[tauri::command]
-pub fn video_download(url: String, mode: String) -> Result<String, String> { crate::video_dl::start(&url, &mode) }
+pub fn video_download(url: String, mode: String) -> Result<String, String> { crate::video_dl::start(&url, &mode, None) }
 #[tauri::command]
 pub fn video_job(job_id: String) -> Result<crate::video_dl::JobStatus, String> { crate::video_dl::job_status(&job_id) }
 #[tauri::command]

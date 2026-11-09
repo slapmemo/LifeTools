@@ -27,6 +27,9 @@ windows = { version = "=0.61.3", features = [
   "Win32_Devices_Properties",
   "Win32_System_Power",
   "Win32_System_Registry",
+  "Win32_System_Com",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_Common",
 ] }
 arboard = "=3.6.1"
 sha2 = "=0.10.9"
