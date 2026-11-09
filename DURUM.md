@@ -1,41 +1,44 @@
 # LifeTools — Kaldığımız Yer
 
-> **Son güncelleme:** 9 Kasım 2026 · son commit `1e3578a` (dal: `master`)
+> Son güncelleme: 10 Kasım 2026 · sürüm 0.5.1 · dal master · son commit f4acbb9
 > Yeni bir sohbete/oturuma başlarken önce bu dosyayı, sonra iki planı oku:
 > `../LifeTools_Plan_v3_2026-11-06.md` (özellik yol haritası) ve `../LifeTools_Arayuz_Plani_2026-11-06.md` (arayüz düzenlemesi).
 
 ## 1. Durum özeti
 
+LifeTools GitHub'da herkese açık; README klasörleri, özellikleri, Releases veya kaynaktan kurulumu, ilk kurulum sonrası adımları ve gizliliği anlatıyor. Masaüstü README'si de güncellendi. Projeye bilerek lisans eklenmedi.
+
 | Alan | Durum |
 |---|---|
-| Özellikler v0.1–v0.4 | **Yazıldı.** Eklentide 21 araç, masaüstünde 8 bölüm + eklenti köprüsü |
-| Arayüz U1 (tasarım dili, sade popup, Panel iskeleti) | **Bitti** |
-| Arayüz U2 (Panel kategorileri, tek kök sağ tık, kapalı araçlar gizli) | **Bitti** — Chrome'da henüz gözle kontrol edilmedi |
-| Arayüz U3 (masaüstü tasarımı + Ana sayfa) | **Bitti** — gözle kontrol edilmedi |
-| Arayüz U4 (masaüstünde notlar/görevler/izleme listesi) | Bekliyor |
-| Arayüz U5 (gerçek CC0 ortam sesleri) | Bekliyor — önce aday listesi, kullanıcı dinleyip onaylayacak |
-| Testler | Eklenti **123** (vitest), masaüstü **54** (cargo test) — hepsi geçiyor |
+| Eklenti ve masaüstü | U1–U3 tamamlandı; eklenti ve masaüstü Native Messaging ile bağlı. |
+| Varsayılanlar | Yeni kurulumda tüm modüller ve özellikler açık; otomatik sekme uyutma kapalı, isteğe bağlı site izni gerektiren özellikler izin verilince çalışır. Masaüstünde «yalnızca panoya kopyala» kapalıdır. |
+| Testler | Eklenti: 51 test dosyası, ~200 test (vitest); masaüstü 62 test (cargo test). |
+| Sürümler | Eklenti ve masaüstü aynı sürümü kullanır: 0.5.1. Popup, Panel, masaüstü Ayarlar ve tepsi sürümü gösterir; eski masaüstü için uyarı vardır. |
+| Dağıtım | v0.4.0, v0.5.0 ve v0.5.1 Releases yayımlandı; her birinde eklenti ZIP'i ve kullanıcı başına NSIS yükleyicisi bulunur. |
 
-Kullanıcı eklentiyi Chrome'da denedi: popup çok karışıktı → U1/U2 bu yüzden yapıldı. X video indirme butonu kötü duruyordu → `4c4c300` ile düzeltildi (ikon + gölge-DOM menü); düzeltme X'te henüz denenmedi.
+Instagram Reels hız kontrolü (0,5×–3×, fare videodayken < / >, hız hatırlanır) ve sekme başına Ses Yükseltici (%0–600) eklendi. Ses Yükseltici tabCapture ve offscreen AudioContext kullanır; Chrome sekme paylaşımı göstergesini gösterir, chrome:// sayfalarında çalışmaz. LifeBrowser'ın otomatik aynı-site gruplaması kaldırıldı; elle «Siteye göre grupla» duruyor.
+
+Video İndirici YouTube ve Shorts'ta başlık altındaki «↓ İndir» menüsünden tüm kaliteleri, tahmini boyutları ve MP3'ü sunar; klasör seçilir ve son klasör hatırlanır. Satır içi ilerleme, iptal ve tamamlandı durumu vardır. Diğer sitelerde sağ tık veya Komut Merkezi'ndeki «video indir» kullanılır; Panel › Video İndirici iş geçmişini, iptali ve araç durumunu gösterir. Masaüstü ilk kullanımda yt-dlp ve ffmpeg'i SHA-256 doğrulamasıyla `%APPDATA%\\LifeTools\\tools` altına indirir; işler gizli çalışır ve native host kapansa da sürer. Bağımsız güvenlik incelemesinde sorun bulunmadı.
+
+Masaüstü genel kısayolları Ayarlar › Kısayollar'dan değiştirilebilir: pano seçici Ctrl+Alt+V, şablonlar Ctrl+Shift+Space, üstte tut Ctrl+Alt+T. Eski pano kısayolu Ctrl+Shift+V terminallerde yapıştırmayı bozuyordu. Desteklenmeyen komutlarda masaüstünü güncelleme mesajı gösterilir.
+
+Yeni LT ve yaprak logosunun kaynakları `design/logo/`, eklenti simgeleri `src/icons/`, masaüstü simgesi `desktop/src-tauri/icons/icon.ico` içindedir. Derleme simgeleri `src/icons/` içinden alır. Sürüm artışları küçük yama adımlarıyla yapılır; `package.json`, `src/manifest.json`, `desktop/package.json`, `desktop/src-tauri/tauri.conf.json`, `Cargo.toml` ve kilit dosyaları birlikte güncellenir.
+
+Masaüstü yükleyicisi `npm run tauri build` ile `LifeTools_<sürüm>_x64-setup.exe` olarak üretilir. Release ZIP'i Python `zipfile` ile hazırlanmalı: PowerShell Compress-Archive ters eğik çizgili yollar üretip başka makinelerde «Could not load icon» hatasına yol açtı; v0.4.0 ve v0.5.0 ZIP'leri yeniden paketlendi. İş akışı: özellik dalı, yerel kullanıcı testi, ardından birleştirme ve push. Commit öncesi Türkçe karakter bozulmalarını tara.
 
 ## 2. Sıradaki adımlar
 
-> **9 Kasım (son oturum):**
-> - **Instagram modülü** (Panel › Medya › Instagram, ikisi de varsayılan açık): videolarda ↓ indir düğmesi (taşıma/carousel'de `Hepsini indir`, ad `LifeTools/instagram-<kullanıcı>-<kod>[-n].mp4`) ve YouTube tarzı ilerleme çubuğu (tıkla/sürükle, süre yazısı, fare videodayken ←/→ ±5 sn). Çubuk önce Instagram katmanlarının altında kalıyordu → `1e3578a` ile `position:fixed` en üst katmana alındı. CDP testinde çubuk ve düğme göründü; **ileri sarma kullanıcının Chrome'unda henüz denenmedi** (girişsiz test tarayıcısında video yüklenmedi). Çubuk çıkmazsa: eklentide ↻, sekmeyi yenile, paneldeki anahtar açık mı.
-> - Seçim baloncuğu: `×` artık sadece kapatır; site gizleme `⋯` › "Bu sitede gösterme" (Geri al'lı). Kullanıcı eskiden `×`'e bastığı için x.com gizli listedeydi.
-> - Test ipucu: markalı Chrome `--load-extension`'ı yok sayıyor; içerik betikleri CDP ile (port 9333, ayrı profil, chrome stub + `dist/*.js` `Page.addScriptToEvaluateOnNewDocument`) denendi.
-> - **Sıradaki:** kullanıcı Instagram'da sarmayı ve diğer yeni özellikleri dener → geri bildirim düzeltmeleri; açık kalan öneri: baloncuğu daha az rahatsız edici yapmak (gecikme / Ctrl ile / en az uzunluk); sonra U4/U5 (masaüstü).
+1. YouTube dışı sitelerde video indirmeyi, klasör seçicinin Chrome arkasında açılıp açılmadığını, Ses Yükseltici'yi ve Reels hızını yerel olarak dene; geri bildirimleri düzelt.
+2. U4: masaüstüne Notlar, Görevler ve İzleme listesi ekle.
+3. U5: CC0 ortam sesleri için önce aday listesi hazırla; kullanıcı dinleyip onayladıktan sonra uygula.
+4. Seçim baloncuğunu daha az rahatsız edici yapmayı değerlendir: gecikme, Ctrl veya en az seçim uzunluğu.
+5. Eski v0.4.0 sürümünün silinmesini ve SmartScreen uyarısı için yükleyicinin kod imzalanmasını değerlendir.
 
-> **8 Kasım:** Yeni yol haritası `../LifeTools_Ozellik_Rehberi_2026-11-08.md`. **K1–K6 hepsi yazıldı, Chrome'da denenmedi.** K1 SlapMemo (tek kat sağ tık, Alt+S, sayfa mesajı + Geri al, seçim baloncuğu) · K2 baloncukta Görev/İzle/Temiz link/Yuva · K3 sekme değiştirici merkez (Alt+Q, E/N/S, Grupla/Kopyalar/Oturum/Zombiler), etiket başlıkta, not sayfada · K4 Komut Merkezi (Alt+K, `görev … yarın`, izle, yuva, grupla, süre…), Alt+P · K5 YouTube/IMDb ＋ İzle, engel sayfası + X'te Engelle, videoda ⧉ · K6 otomatikler (hepsi varsayılan kapalı): link temizliği, otomatik grupla, kapanan pencereyi kaydet, zombileri uyut, görev hatırlatma, günlük süre limiti. **Sekme Yöneticisi** (`tabs.html`, OneTab tarzı): her pencerenin başında sabit sekme (varsayılan açık), seçip gruba al, grup adı/rengi, Kaydet ve kapat + Kaydedilenler; diğer araçlar bu iç sekmeyi `isInternalTabUrl` ile yok sayar. İçerik betikleri artık `iife` derleniyor (esm'de birbirini eziyordu). **Çalışma alanları** (Workona tarzı, varsayılan mod; Sekme Yöneticisi başlığından `Chrome grupları` moduna dönülebilir; tamamen geri almak için git etiketi `before-workspaces`). Motor bağımsız incelemeden geçti, 6 veri kaybı bulgusu düzeltildi. **Gizle** (Chrome'un kendi gizli grupları eklentiye görünmez; bu yüzden kendi gizlememiz): grup kartında `Gizle` → LifeBrowser oturumu olarak saklanır, en üstte **Gizlenen gruplar** kartları içindeki linklerle görünür (link tek tek açılır, `×` ile silinir, `Grubu aç` tümünü geri açar, `⋯`: Aç, listede kalsın / Yeniden adlandır / Sil). Komut Merkezi tema renklerine geçti (koyu temada beyaz satır hatası). IMDb/YouTube ＋ İzle varsayılan kapalı: panel → İzleme listesi → anahtar + izin. **Yeni tasarım "Sade"** (Arc/Linear tarzı: soğuk griler, tek indigo vurgu, ince çizgiler, solda simge menüsü): `design/tokens.css` + `components.css` (masaüstüyle ortak), panel, Sekme Yöneticisi, Alt+Q, Komut Merkezi, popup, engel sayfası, sayfa içi parçalar (`src/core/page-theme.ts`, `--lt-` değişkenleri). Geri almak için git etiketi `before-redesign`. **Çalışma alanları kaldırıldı** (kayıtlı alanlar açılışta `Çalışma alanı: <ad>` oturumlarına taşınır). Yeni: baloncukta 🌐 Çevir (Google `translate.googleapis.com` gtx isteği arka planda; cihaz içi model kaldırıldı), 🔎 Ara, 📍 Haritada aç, 📅 tarihli görev; kısa link çözme (sağ tık, varsayılan kapalı); X'te Hepsini indir (ad eskisi gibi, çoklu ise `-n`) ve GIF olarak indir (kendi GIF kodlayıcısı, offscreen); SlapMemo: notu olan sayfada hatırlatma, sayfa kopyası (v9 `note_pages`), ekran görüntüsü notu (v9 `note_images`) — hepsi varsayılan kapalı; haftalık otomatik yedek (`İndirilenler/LifeTools/Yedekler`), masaüstünde Ayarlar › Yedeği indir (aynı biçim, `settings` boş; geri yüklerken eklenti ayarları korunur). Sıradaki: kullanıcı denemesi ve geri bildirim düzeltmeleri; sonra U4/U5 (masaüstü).
+### Geçmiş
 
-1. Kullanıcı U2'yi Chrome'da açık ve koyu temada dener; ekran görüntüsüyle geri bildirim verir.
-2. Geri bildirim düzeltmeleri.
-3. **U3** — masaüstü, küçük görevlere bölündü (kullanıcı tek büyük görevin yavaşlığından rahatsız oldu):
-   - **U3.1** Kabuk: tasarım dili bağlanır, ikonlu kenar çubuğu + katlanabilir "Diğer" (Pencereler, Piller, Elektrik), tema seçimi, `app.ts` → `desktop/src/views/*.ts`. ✅ bitti
-   - **U3.2** Pano + Şablonlar bölümleri ve Ctrl+Shift+V / Ctrl+Shift+Space seçicileri yeni bileşenlerle ✅ bitti
-   - **U3.3** Ortam sesi (U5'e hazır kart düzeni), Piller, Pencereler, Elektrik, Ayarlar yeni bileşenlerle ✅ bitti
-   - **U3.4** Ana sayfa kartları (Rust tarafında özet komutu) ✅ bitti
-4. **U4**, **U5** (planın 5.3 ve 5.4 bölümleri).
+- **9 Kasım:** Instagram video indirme ve ilerleme çubuğu eklendi; çubuk üst katmana taşındı. İleri sarma yerel Chrome'da denenecekti. Seçim baloncuğunda × yalnızca kapatır; site gizleme ⋯ menüsündedir ve geri alınabilir.
+- **8 Kasım:** K1–K6, Sekme Yöneticisi, grup gizleme ve Sade tasarım uygulandı. Çalışma alanları sonradan kaldırıldı; kayıtlı alanlar oturumlara taşındı. Geri dönüş etiketleri `before-workspaces` ve `before-redesign`. Baloncuk çeviri, arama, harita ve tarihli görev; kısa link çözme; X çoklu video ve GIF indirme; not hatırlatma, sayfa kopyası ve ekran görüntüsü; otomatik ve masaüstü yedek eklendi.
+- **7 Kasım:** U3 masaüstü kabuğu, Pano, Şablonlar, ortam sesi, Piller, Pencereler, Elektrik, Ayarlar ve Ana sayfa tamamlandı. U4 ve U5 bekliyor.
 
 ## 3. Nasıl çalıştırılır
 
@@ -45,7 +48,7 @@ Kullanıcı eklentiyi Chrome'da denedi: popup çok karışıktı → U1/U2 bu y�
 
 ## 4. Bilinmesi gerekenler (tuzaklar)
 
-- **Eklenti kimliği sabit:** `laejkffjeefcodgkhkgppbfimbkoppih`. Açık anahtar `src/manifest.key.txt` (depoda, gizli değil); `build.mjs` onu `dist/manifest.json`'a yazar. Özel anahtar `C:\Users\slapm\.lifetools-keys\ext-key.pem` — **silme, depoya koyma.**
+- **Eklenti kimliği sabit:** `laejkffjeefcodgkhkgppbfimbkoppih`. Açık anahtar `src/manifest.key.txt` (depoda, gizli değil); `build.mjs` onu `dist/manifest.json`'a yazar. Özel anahtar `%USERPROFILE%\.lifetools-keys\ext-key.pem` — **silme, depoya koyma.**
 - **Tauri 2.11'e sabit:** `Cargo.lock` içinde `tauri-runtime 2.11.3`, `tauri-runtime-wry 2.11.4`, `tauri-macros/codegen 2.6.3`. 2.12 runtime geriye uyumsuz; `cargo update` çalıştırma. npm tarafı `@tauri-apps/api 2.11.1`, `@tauri-apps/cli 2.11.5`.
 - **Tauri CLI** `npm run tauri dev` sırasında `Cargo.toml`'u kendi biçimine çevirebilir (`tauri-build = { version = "2", features = [] }`). Zararsız.
 - **BOM yok:** Rust/JSON dosyalarına UTF-8 BOM girerse `tauri.conf.json` okunamaz. Delegelere her görevde "UTF-8 without BOM" yaz.
