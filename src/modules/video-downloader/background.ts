@@ -1,7 +1,7 @@
 import { setContextMenuContributions } from '../../core/context-menu';
 import { isModuleEnabled, MODULE_FLAGS_KEY, resolveEnabled } from '../../core/module-state';
 import { replaceSiteScript } from '../../core/site-scripts';
-import { acceptsUrl, formatJob, MODE_LABELS, VIDEO_ID, YOUTUBE_BUTTON_KEY, YOUTUBE_ORIGINS, type VideoJob, type VideoMode } from './logic';
+import { acceptsUrl, MODE_LABELS, VIDEO_ID, YOUTUBE_BUTTON_KEY, YOUTUBE_ORIGINS, type VideoJob, type VideoMode } from './logic';
 import { videoCall, UNREACHABLE } from './native';
 
 const KEY = 'videoDownloadJobs';
@@ -17,10 +17,11 @@ async function tracked(): Promise<string[]> { const data = await chrome.storage.
 export async function startDownload(url: string, mode: VideoMode = 'video_best'): Promise<string> {
   if (!acceptsUrl(url)) { const message = 'Yalnızca HTTP veya HTTPS bağlantıları indirilebilir.'; await notify('video-error', message); throw new Error(message); }
   try {
-    const result = await videoCall('video_download', { url, mode });
+    const picked = await videoCall('video_pick_folder');
+    if (!picked.path) return 'İndirme iptal edildi.';
+    const result = await videoCall('video_download', { url, mode, dir: picked.path });
     await updateTracked(ids => [...ids, String(result.jobId)]);
     await chrome.alarms.create(ALARM, { delayInMinutes: 0.025 });
-    await notify(`video-${result.jobId}`, 'İndirme başlatıldı.');
     return 'İndirme başlatıldı.';
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
@@ -34,8 +35,7 @@ async function poll(): Promise<void> {
   for (const id of ids) {
     try {
       const job = (await videoCall('video_job', { jobId: id })).job as VideoJob;
-      if (job.state === 'running') await notify(`video-${id}`, formatJob(job));
-      else { if (job.state === 'done') await notify(`video-${id}`, `İndirildi: ${(job.file || '').split(/[\\/]/).pop() || 'dosya'}`); else await notify(`video-${id}`, formatJob(job)); finished.push(id); }
+      if (job.state !== 'running') { if (job.state === 'done') await notify(`video-${id}`, `İndirildi: ${(job.file || '').split(/[\\/]/).pop() || 'dosya'}`); finished.push(id); }
     } catch { /* Bağlantı döndüğünde yeniden dene. */ }
   }
   await updateTracked(current => current.filter(id => !finished.includes(id)));
@@ -52,6 +52,18 @@ export function initVideoBackground(): void {
   chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === ALARM) void poll(); });
   chrome.notifications.onButtonClicked.addListener((id) => { if (id === INSTALL) void videoCall('video_tools_install').then(() => notify(INSTALL, 'Kurulum başladı. Bir dakika sonra tekrar deneyin.')).catch(() => notify(INSTALL, UNREACHABLE)); });
   chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+    if (sender.tab && (msg?.type === 'video-downloader:jobs' || msg?.type === 'video-downloader:cancel')) {
+      void (async () => {
+        if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.');
+        const jobs = (await videoCall('video_jobs')).jobs as VideoJob[];
+        if (msg.type === 'video-downloader:cancel') {
+          if (!jobs.some(job => job.id === msg.jobId && job.url === sender.tab?.url && job.state === 'running')) throw new Error('Geçersiz iş.');
+          await videoCall('video_cancel', { jobId: msg.jobId });
+        }
+        return jobs.filter(job => job.url === sender.tab?.url);
+      })().then(jobs => respond({ ok: true, jobs })).catch(e => respond({ ok: false, message: e.message }));
+      return true;
+    }
     if (msg?.type !== 'video-downloader:start' || !sender.tab) return;
     void (async () => { if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.'); if (!(msg.mode in MODE_LABELS) || typeof msg.url !== 'string' || msg.url !== sender.tab?.url) throw new Error('Geçersiz istek.'); return startDownload(msg.url, msg.mode as VideoMode); })().then(message => respond({ ok: true, message })).catch(e => respond({ ok: false, message: e.message })); return true;
   });

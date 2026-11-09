@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { acceptsUrl, formatJob, MODE_LABELS, youtubePage, type VideoJob } from '../src/modules/video-downloader/logic';
+import { acceptsUrl, formatJob, formatChip, menuPosition, MODE_LABELS, youtubePage, type VideoJob } from '../src/modules/video-downloader/logic';
 describe('video indirici', () => {
   it('yalnızca web adreslerini kabul eder', () => { expect(acceptsUrl('https://example.com/a')).toBe(true); expect(acceptsUrl('http://example.com')).toBe(true); expect(acceptsUrl('file:///a')).toBe(false); expect(acceptsUrl('invalid')).toBe(false); });
   it('YouTube sayfalarını ayırır', () => { expect(youtubePage('https://www.youtube.com/watch?v=abc')).toBe('watch'); expect(youtubePage('https://www.youtube.com/shorts/abc')).toBe('shorts'); expect(youtubePage('https://www.youtube.com/')).toBe('other'); expect(youtubePage('https://example.com/watch?v=abc')).toBe('other'); });
   it('mod ve iş durumlarını gösterir', () => { expect(MODE_LABELS.audio_mp3).toBe('Sadece ses (MP3)'); expect(formatJob({ state: 'running', percent: '12%' } as VideoJob)).toBe('İndiriliyor — 12%'); expect(formatJob({ state: 'error', error: 'başarısız' } as VideoJob)).toBe('Hata — başarısız'); });
+  it('ilerleme ve sonuç metnini biçimler', () => { expect(formatChip({ state: 'running', percent: '42%', speed: '3.1MiB/s', eta: '0:12' } as VideoJob)).toBe('%42 · 3.1MiB/s · 0:12'); expect(formatChip({ state: 'running' } as VideoJob)).toBe('İndiriliyor'); expect(formatChip({ state: 'done' } as VideoJob)).toBe('Bitti ✓'); expect(formatChip({ state: 'error' } as VideoJob)).toBe('Hata'); });
+  it('menüyü görünür alanda tutar ve gerektiğinde yukarı açar', () => { expect(menuPosition({ left: -20, top: 20, bottom: 50 }, { width: 180, height: 100 }, { width: 300, height: 300 })).toEqual({ left: 8, top: 54 }); expect(menuPosition({ left: 280, top: 260, bottom: 290 }, { width: 180, height: 100 }, { width: 300, height: 300 })).toEqual({ left: 112, top: 156 }); });
 });
