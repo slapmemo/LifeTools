@@ -1,8 +1,8 @@
 import { isModuleEnabled } from '../../core/module-state';
 import { flashBadge } from '../../core/badge';
-import { CHANNEL, X_VIDEO_ID, SETTINGS_KEY, defaults, validUrl, filename } from './shared';
+import { CHANNEL, X_VIDEO_ID, validUrl, filename } from './shared';
 import { ensureOffscreen } from '../../db/host';
-import { downloadPath } from '../../core/download-path';
+import { downloadPath, loadSubfolder } from '../../core/download-path';
 const GIF_CHANNEL = 'lifetools:x-gif-offscreen';
 const jobs = new Map<string, number>();
 export function initXVideoBackground(): void {
@@ -16,7 +16,7 @@ export function initXVideoBackground(): void {
   void (async () => { try {
    const host = new URL(sender.tab?.url ?? '').hostname;
    if (!/^(www\.)?(x|twitter)\.com$/.test(host) || !await isModuleEnabled(X_VIDEO_ID) || typeof msg.url !== 'string' || !validUrl(msg.url) || (msg.mediaIndex !== undefined && (!Number.isSafeInteger(msg.mediaIndex) || msg.mediaIndex < 0 || msg.mediaIndex > 999))) throw new Error('Geçersiz indirme.');
-   const data = await chrome.storage.local.get({[SETTINGS_KEY]: defaults});
+   const folder = await loadSubfolder();
    let url = msg.url; let gifUrl: string | undefined;
    if (msg.action === 'download-gif') {
     if (typeof msg.id !== 'string' || msg.id.length > 100 || sender.tab?.id === undefined) throw new Error('Geçersiz istek');
@@ -31,7 +31,7 @@ export function initXVideoBackground(): void {
    const revoke = () => { if (gifUrl) void chrome.runtime.sendMessage({ channel: GIF_CHANNEL, action: 'revoke', url: gifUrl }).catch(() => {}); };
    try {
     const name = filename(msg.screenName, msg.tweetId, msg.res, msg.mediaIndex);
-    const id = await chrome.downloads.download({url, filename:downloadPath(data[SETTINGS_KEY]?.downloadFolder, gifUrl ? name.replace(/\.mp4$/, '.gif') : name), saveAs:false});
+    const id = await chrome.downloads.download({url, filename:downloadPath(folder,gifUrl ? name.replace(/\.mp4$/, '.gif') : name), saveAs:false});
     if (gifUrl) {
      const listener = (delta: chrome.downloads.DownloadDelta) => { if (delta.id === id && (delta.state?.current === 'complete' || delta.state?.current === 'interrupted')) { chrome.downloads.onChanged.removeListener(listener); revoke(); } };
      chrome.downloads.onChanged.addListener(listener);

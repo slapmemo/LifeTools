@@ -20,7 +20,15 @@ async function refreshState(): Promise<void> {
   state = { enabled, settings, buttonEnabled: data.siteBlockerButtonEnabled !== false };
   update();
 }
+let route = location.href;
+let routeTimer: ReturnType<typeof setInterval> | undefined;
+function syncWatcher(): void {
+  const active = !!state && state.enabled && state.settings.enabled && state.buttonEnabled;
+  if (active && routeTimer === undefined) routeTimer = setInterval(() => { if (route !== location.href) { route = location.href; update(); } }, 500);
+  else if (!active && routeTimer !== undefined) { clearInterval(routeTimer); routeTimer = undefined; }
+}
 function update(): void {
+  syncWatcher();
   const handle = profilePageHandle(location.href);
   current = handle ?? '';
   host.hidden = !handle || !state || !state.enabled || !state.settings.enabled || !state.buttonEnabled;
@@ -36,8 +44,6 @@ function position(): void {
   else { host.style.left = '20px'; host.style.top = 'auto'; host.style.bottom = '20px'; }
 }
 button.addEventListener('click', () => { const handle = current; button.disabled = true; void chrome.runtime.sendMessage({ type: 'site-blocker:add', handle }).then(result => { if (result?.ok) pageToast({ ok: true, title: `@${handle} engellendi`, undoType: 'site-blocker:remove', handle }); else update(); }).catch(() => { update(); }); });
-let route = location.href;
-setInterval(() => { if (route !== location.href) { route = location.href; update(); } }, 500);
 window.addEventListener('popstate', () => { route = location.href; update(); });
 window.addEventListener('scroll', () => { if (!host.hidden && !frame) frame = requestAnimationFrame(() => { frame = 0; position(); }); }, { passive: true });
 chrome.storage.onChanged.addListener((_changes, area) => { if (area === 'local' && !refreshQueued) { refreshQueued = true; queueMicrotask(() => { refreshQueued = false; void refreshState(); }); } });

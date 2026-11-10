@@ -35,11 +35,28 @@ async function refreshSettings(): Promise<void> {
   enabled = await isModuleEnabled(X_VIDEO_ID);
   const data = await chrome.storage.local.get({ [SETTINGS_KEY]: defaults });
   settings = { ...defaults, ...data[SETTINGS_KEY] };
+  window.postMessage({ source: CHANNEL, type: 'hook-enabled', enabled }, location.origin);
   if (!enabled) {
+    stopWatchers();
     closeMenu();
     if (frame) { cancelAnimationFrame(frame); frame = 0; }
     if (wasEnabled) document.querySelectorAll('[data-lifetools-x-video]:not([data-lifetools-x-video="menu"])').forEach(node => node.remove());
-  } else schedule();
+  } else { startWatchers(); schedule(); }
+}
+let observer: MutationObserver | undefined;
+let routeTimer: ReturnType<typeof setInterval> | undefined;
+function startWatchers(): void {
+  if (!observer) {
+    observer = new MutationObserver(records => {
+      if (records.some(r => !(r.target instanceof Element && r.target.closest('[data-lifetools-x-video]')) && [...r.addedNodes, ...r.removedNodes].some(n => !(n instanceof Element) || !n.closest('[data-lifetools-x-video]') && !n.hasAttribute('data-lifetools-x-video')))) schedule();
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  }
+  if (routeTimer === undefined) routeTimer = setInterval(() => { if (location.href !== route) { route = location.href; closeMenu(); schedule(); } }, 500);
+}
+function stopWatchers(): void {
+  observer?.disconnect(); observer = undefined;
+  if (routeTimer !== undefined) { clearInterval(routeTimer); routeTimer = undefined; }
 }
 function schedule(): void { if (enabled && media.size && !frame) frame = requestAnimationFrame(() => { frame = 0; render(); }); }
 async function download(m: VideoMedia, v: Variant): Promise<boolean> {
@@ -174,15 +191,11 @@ window.addEventListener('message', e => {
   const list = media.get(m.tweetId) ?? []; const index = list.findIndex(x => x.mediaKey === m.mediaKey);
   if (index < 0) list.push(m); else list[index] = m; list.sort((a, b) => (a.mediaIndex ?? 0) - (b.mediaIndex ?? 0)); media.set(m.tweetId, list); schedule();
 });
-new MutationObserver(records => {
-  if (records.some(r => !(r.target instanceof Element && r.target.closest('[data-lifetools-x-video]')) && [...r.addedNodes, ...r.removedNodes].some(n => !(n instanceof Element) || !n.closest('[data-lifetools-x-video]') && !n.hasAttribute('data-lifetools-x-video')))) schedule();
-}).observe(document, { childList: true, subtree: true });
 document.addEventListener('click', e => { if (openButton && !e.composedPath().includes(host) && !e.composedPath().includes(openButton)) closeMenu(); }, true);
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && openButton) { e.preventDefault(); closeMenu(true); } }, true);
 window.addEventListener('scroll', () => { if (openButton) { const rect = openButton.getBoundingClientRect(); if (Math.abs(window.scrollX - scrollX) > 40 || Math.abs(window.scrollY - scrollY) > 40 || Math.abs(rect.top - buttonTop) > 40 || Math.abs(rect.left - buttonLeft) > 40) closeMenu(); } }, true);
 window.addEventListener('resize', () => closeMenu());
 window.addEventListener('popstate', () => { route = location.href; closeMenu(); schedule(); });
-setInterval(() => { if (location.href !== route) { route = location.href; closeMenu(); schedule(); } }, 500);
 chrome.storage.onChanged.addListener((c, area) => { if (area === 'local' && (c[MODULE_FLAGS_KEY] || c[SETTINGS_KEY])) void refreshSettings(); });
 void refreshSettings();
 

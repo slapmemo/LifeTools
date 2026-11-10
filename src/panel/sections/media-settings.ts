@@ -1,5 +1,5 @@
 import { icon } from '../../../design/icons';
-import { sanitizeDownloadFolder } from '../../core/download-path';
+import { loadSubfolder, sanitizeDownloadFolder, SUBFOLDER_KEY } from '../../core/download-path';
 import { resolveEnabled } from '../../core/module-state';
 import { defaults as instagramDefaults, SETTINGS_KEY as INSTAGRAM_SETTINGS_KEY, INSTAGRAM_ID } from '../../modules/instagram/shared';
 import { VIDEO_ID } from '../../modules/video-downloader/logic';
@@ -29,9 +29,9 @@ export function initMediaSettings(videoPanel: { render: () => unknown }): (flags
         .set({
           [X_VIDEO_SETTINGS_KEY]: {
             ...data[X_VIDEO_SETTINGS_KEY],
-            askQuality: xAskQuality.checked,
-            downloadFolder: xDownloadFolder.value
-          }
+            askQuality: xAskQuality.checked
+          },
+          [SUBFOLDER_KEY]: xDownloadFolder.value
         }))
         .then(() => showToast('X Video İndirici ayarları kaydedildi.', 'info'));
     });
@@ -54,6 +54,6 @@ export function initMediaSettings(videoPanel: { render: () => unknown }): (flags
     const xData = await chrome.storage.local.get({ [X_VIDEO_SETTINGS_KEY]: xVideoDefaults });
     const xSettings = { ...xVideoDefaults, ...xData[X_VIDEO_SETTINGS_KEY] };
     xAskQuality.checked = xSettings.askQuality;
-    xDownloadFolder.value = sanitizeDownloadFolder(xSettings.downloadFolder);
+    xDownloadFolder.value = await loadSubfolder();
   };
 }
