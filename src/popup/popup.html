@@ -16,6 +16,12 @@
     <button id="settings" class="icon-button" title="Ayarlar" aria-label="Ayarlar"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.86 3.22-.08-.02a1.7 1.7 0 0 0-1.8.65l-.05.07h-3.72l-.05-.07a1.7 1.7 0 0 0-1.8-.65l-.08.02-1.86-3.22.06-.06A1.7 1.7 0 0 0 8.9 15l-.08-.02v-3.72l.08-.02a1.7 1.7 0 0 0 .34-1.88l-.06-.06 1.86-3.22.08.02a1.7 1.7 0 0 0 1.8-.65l.05-.07h3.72l.05.07a1.7 1.7 0 0 0 1.8.65l.08-.02 1.86 3.22-.06.06a1.7 1.7 0 0 0-.34 1.88l.08.02v3.72z" transform="translate(-2 -1)"></path></svg></button>
     <button id="panel" class="icon-button" title="Paneli aç" aria-label="Paneli aç"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg></button>
   </header>
+  <section id="volume-booster" class="card">
+    <label for="volume-slider" class="volume-heading"><span>Bu sekmenin sesi</span><output id="volume-value">100%</output></label>
+    <input id="volume-slider" type="range" min="0" max="600" step="10" value="100">
+    <div class="volume-presets"><button data-volume="100">100%</button><button data-volume="200">200%</button><button data-volume="400">400%</button><button id="volume-reset">Sıfırla</button></div>
+    <p id="volume-error" role="status"></p>
+  </section>
   <div id="search-area">
     <label class="search-field"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input id="search" type="search" placeholder="Ara veya komut yaz…" aria-label="Ara veya komut yaz"></label>
     <div id="results"></div>
@@ -29,12 +35,6 @@
   <section class="today"><h2>Bugün</h2><button id="today-tasks" class="summary"></button></section>
   <button id="tab-manager">Sekme yöneticisi</button>
   <button id="today-sites" class="summary" hidden></button>
-  <section id="volume-booster" class="card">
-    <label for="volume-slider" class="volume-heading"><span>Bu sekmenin sesi</span><output id="volume-value">100%</output></label>
-    <input id="volume-slider" type="range" min="0" max="600" step="10" value="100">
-    <div class="volume-presets"><button data-volume="100">100%</button><button data-volume="200">200%</button><button data-volume="400">400%</button><button id="volume-reset">Sıfırla</button></div>
-    <p id="volume-error" role="status"></p>
-  </section>
   <div id="desktop-banner" class="banner" hidden>Masaüstü uygulamasına ulaşılamıyor. <button id="desktop-banner-switch">Depolama ayarları</button></div>
 </main>
 <script src="popup.js" type="module"></script>
