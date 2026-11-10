@@ -1,63 +1,56 @@
 # LifeTools — Kaldığımız Yer
 
-> Son güncelleme: 10 Kasım 2026 · sürüm 0.5.2 · dal master
-> Yeni bir sohbete/oturuma başlarken önce bu dosyayı, sonra iki planı oku:
-> `../LifeTools_Plan_v3_2026-11-06.md` (özellik yol haritası) ve `../LifeTools_Arayuz_Plani_2026-11-06.md` (arayüz düzenlemesi).
+> Son güncelleme: 10 Kasım 2026 (akşam) · sürüm 0.5.5 · dal master (push edildi, `v0.5.5` etiketi gönderildi)
+> Yeni bir sohbete/oturuma başlarken önce bu dosyayı oku. Eski planlar: `../LifeTools_Plan_v3_2026-11-06.md`, `../LifeTools_Arayuz_Plani_2026-11-06.md`, `../LifeTools_Ozellik_Rehberi_2026-11-08.md`.
 
 ## 1. Durum özeti
 
-LifeTools GitHub'da herkese açık; README klasörleri, özellikleri, Releases veya kaynaktan kurulumu, ilk kurulum sonrası adımları ve gizliliği anlatıyor. Masaüstü README'si de güncellendi. Projeye bilerek lisans eklenmedi.
+LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisans eklenmedi. Eklenti (Chrome MV3) ve masaüstü (Tauri 2.11, Windows) aynı sürümü kullanır ve Native Messaging ile bağlıdır.
 
 | Alan | Durum |
 |---|---|
-| Eklenti ve masaüstü | U1–U3 tamamlandı; eklenti ve masaüstü Native Messaging ile bağlı. |
-| Varsayılanlar | Yeni kurulumda tüm modüller ve özellikler açık; otomatik sekme uyutma kapalı, isteğe bağlı site izni gerektiren özellikler izin verilince çalışır. Masaüstünde «yalnızca panoya kopyala» kapalıdır. |
-| Testler | Eklenti: 51 test dosyası, ~200 test (vitest); masaüstü 62 test (cargo test). |
-| Sürümler | Eklenti ve masaüstü aynı sürümü kullanır: 0.5.2. X indirmesi tek tıkla en yüksek kalite, Panel'de «Kalite sor» ve İndirilenler alt klasörü ayarı var. Popup, Panel, masaüstü Ayarlar ve tepsi sürümü gösterir; eski masaüstü için uyarı vardır. |
-| Dağıtım | v0.4.0, v0.5.0, v0.5.1 ve v0.5.2 Releases yayımlandı; her birinde eklenti ZIP'i ve kullanıcı başına NSIS yükleyicisi bulunur. |
+| Sürüm | 0.5.5. `v0.5.5` etiketi GitHub Actions yayım iş akışını başlattı (ilk otomatik yayın; sonucu Releases'te kontrol et). |
+| Otomatik güncelleme | Yeni. Masaüstü imzalı güncellemeyi kendisi kurar; eklentiyi `%LOCALAPPDATA%\LifeTools\extension` klasöründe güncel tutar; eklenti oradan yüklendiyse kendini yeniden yükler. İlk gerçek deneme 0.5.6 yayınında olacak. |
+| Testler | Eklenti 256 test (vitest), masaüstü 77 test (`cargo test`). |
+| İlk kurulum | Yeni kurulumda karşılama sayfası (`welcome.html`) açılır; önerilen modüller açık gelir (`src/core/onboarding.ts` `RECOMMENDED_MODULES`). Panel › Ayarlar'dan yeniden açılır. Güncellemede açılmaz. |
+| Arayüz | Panel, sekme değiştirici ve popup «yeni» tasarımda (yazılı kenar menüsü, mor vurgu #A69CFF, gerçek LT logosu satır içi SVG). Tasarım tuvali: claude.ai artifact «LifeTools Yeni Arayüz». |
 
-Instagram Reels hız kontrolü (0,5×–3×, fare videodayken < / >, hız hatırlanır) ve sekme başına Ses Yükseltici (%0–600) eklendi. Ses Yükseltici tabCapture ve offscreen AudioContext kullanır; Chrome sekme paylaşımı göstergesini gösterir, chrome:// sayfalarında çalışmaz. LifeBrowser'ın otomatik aynı-site gruplaması kaldırıldı; elle «Siteye göre grupla» duruyor.
-
-Video İndirici YouTube ve Shorts'ta başlık altındaki «↓ İndir» menüsünden tüm kaliteleri, tahmini boyutları ve MP3'ü sunar; klasör seçilir ve son klasör hatırlanır. Satır içi ilerleme, iptal ve tamamlandı durumu vardır. Diğer sitelerde sağ tık veya Komut Merkezi'ndeki «video indir» kullanılır; Panel › Video İndirici iş geçmişini, iptali ve araç durumunu gösterir. Masaüstü ilk kullanımda yt-dlp ve ffmpeg'i SHA-256 doğrulamasıyla `%APPDATA%\\LifeTools\\tools` altına indirir; işler gizli çalışır ve native host kapansa da sürer. Bağımsız güvenlik incelemesinde sorun bulunmadı.
-
-Masaüstü genel kısayolları Ayarlar › Kısayollar'dan değiştirilebilir: pano seçici Ctrl+Alt+V, şablonlar Ctrl+Shift+Space, üstte tut Ctrl+Alt+T. Eski pano kısayolu Ctrl+Shift+V terminallerde yapıştırmayı bozuyordu. Desteklenmeyen komutlarda masaüstünü güncelleme mesajı gösterilir.
-
-Yeni LT ve yaprak logosunun kaynakları `design/logo/`, eklenti simgeleri `src/icons/`, masaüstü simgesi `desktop/src-tauri/icons/icon.ico` içindedir. Derleme simgeleri `src/icons/` içinden alır. Sürüm artışları küçük yama adımlarıyla yapılır; `package.json`, `src/manifest.json`, `desktop/package.json`, `desktop/src-tauri/tauri.conf.json`, `Cargo.toml` ve kilit dosyaları birlikte güncellenir.
-
-Masaüstü yükleyicisi `npm run tauri build` ile `LifeTools_<sürüm>_x64-setup.exe` olarak üretilir. Release ZIP'i Python `zipfile` ile hazırlanmalı: PowerShell Compress-Archive ters eğik çizgili yollar üretip başka makinelerde «Could not load icon» hatasına yol açtı; v0.4.0 ve v0.5.0 ZIP'leri yeniden paketlendi. İş akışı: özellik dalı, yerel kullanıcı testi, ardından birleştirme ve push. Commit öncesi Türkçe karakter bozulmalarını tara.
+### Bu oturumda eklenenler (10 Kasım)
+- **Instagram:** görünmeyen/kırpılmış/pencere arkasındaki videolarda düğme ve çubuk yok; Keşfet ızgarasında kontrol yok; ana sayfa düzeltmesi (`<html>`/`<body>` kırpıcı sayılmaz); hız düğmesi menü açar (0,5×–3×, tekerlekle adım). Tek ortak zamanlayıcı (`src/modules/instagram/scheduler.ts`), oynatırken kare başı hesap yok.
+- **Video İndirici (YouTube):** boyutlar sayfadaki oynatıcı verisinden anında (`yt-main.ts`, MAIN dünyası); oynatma listesi indirme (tümü veya «Videoları seç…» ile seçilenler, onay kutuları + alt çubuk, Shift ile aralık); düğme «Tümünü oynat» satırının altında, bulunamazsa sol altta yüzer; gizli liste uyarısı; MP3 en yüksek VBR (`--audio-quality 0`); durum etiketi yalnızca o sayfanın indirmesini gösterir; masaüstü yalnızca süren iş varken ve sekme görünürken sorgulanır.
+- **Döviz Çevirici (yeni modül `currency`):** ECB kuru (api.frankfurter.dev, 6 saat önbellek); Steam'in tüm mağaza sayfalarında fiyatlar Steam'in kendi kutusunda TL (tıklayınca o sayfada dolar); tüm sitelerde üstüne gelince/seçince TL ipucu (varsayılan kapalı, tüm site izni ister); «5 Mark», «5 euro», «10 dolar» gibi yazılar (DM sabit kur 1,95583); SlapMemo baloncuğunda seçili fiyatın TL'si.
+- **Performans:** iki bağımsız inceleme turu yapıldı, bulunan 20 sorunun hepsi düzeltildi (sonsuz rAF döngüleri, saniyelik native host çağrısı, kapalıyken dinleyiciler, Steam tam sayfa taramaları).
+- **Diğer:** worker.ts bozuk yorum, `db.rs` → `db/` alt modülleri, `panel.ts` → `src/panel/sections/`, eski dallar silindi, eski notlar `../arsiv/`.
 
 ## 2. Sıradaki adımlar
 
-1. YouTube dışı sitelerde video indirmeyi, klasör seçicinin Chrome arkasında açılıp açılmadığını, Ses Yükseltici'yi ve Reels hızını yerel olarak dene; geri bildirimleri düzelt.
-2. U4: masaüstüne Notlar, Görevler ve İzleme listesi ekle.
-3. U5: CC0 ortam sesleri için önce aday listesi hazırla; kullanıcı dinleyip onayladıktan sonra uygula.
-4. Seçim baloncuğunu daha az rahatsız edici yapmayı değerlendir: gecikme, Ctrl veya en az seçim uzunluğu.
-5. Eski v0.4.0 sürümünün silinmesini ve SmartScreen uyarısı için yükleyicinin kod imzalanmasını değerlendir.
-
-### Geçmiş
-
-- **9 Kasım:** Instagram video indirme ve ilerleme çubuğu eklendi; çubuk üst katmana taşındı. İleri sarma yerel Chrome'da denenecekti. Seçim baloncuğunda × yalnızca kapatır; site gizleme ⋯ menüsündedir ve geri alınabilir.
-- **8 Kasım:** K1–K6, Sekme Yöneticisi, grup gizleme ve Sade tasarım uygulandı. Çalışma alanları sonradan kaldırıldı; kayıtlı alanlar oturumlara taşındı. Geri dönüş etiketleri `before-workspaces` ve `before-redesign`. Baloncuk çeviri, arama, harita ve tarihli görev; kısa link çözme; X çoklu video ve GIF indirme; not hatırlatma, sayfa kopyası ve ekran görüntüsü; otomatik ve masaüstü yedek eklendi.
-- **7 Kasım:** U3 masaüstü kabuğu, Pano, Şablonlar, ortam sesi, Piller, Pencereler, Elektrik, Ayarlar ve Ana sayfa tamamlandı. U4 ve U5 bekliyor.
+1. Actions'taki `v0.5.5` yayınının başarılı olduğunu, Releases'te yükleyici, `.sig`, `latest.json` ve eklenti ZIP'i olduğunu kontrol et.
+2. 0.5.5'i kur, eklentiyi `%LOCALAPPDATA%\LifeTools\extension` klasöründen yükle; sonra küçük bir 0.5.6 yayınlayıp masaüstü ve eklenti otomatik güncellemesini gerçekten dene.
+3. Kullanıcı testleri: YouTube liste seçerek indirme, Steam ana sayfa TL, Instagram ana sayfa/Keşfet, popup ses kartı.
+4. U4 (masaüstünde Notlar, Görevler, İzleme listesi) ve U5 (CC0 ortam sesleri; önce aday listesi, kullanıcı onayı) bekliyor.
+5. İsteğe bağlı: hafif takip engelleme modülü (önerildi, kullanıcı «her neyse» dedi), SmartScreen için kod imzalama.
 
 ## 3. Nasıl çalıştırılır
 
 - **Eklenti:** `npm install` → `npm run build` → `chrome://extensions` → Geliştirici modu → Paketlenmemiş öğe yükle → `dist/`. Değişiklikten sonra `npm run build` + eklentide ↻.
-- **Masaüstü:** yeni terminal → `cd desktop` → `npm install` → `npm run tauri dev`. Testler: `cd desktop/src-tauri && cargo test`.
-- **Bağlantı:** masaüstü Ayarlar › "Chrome eklentisini bağla" → eklenti Panel › Ayarlar › Depolama › "Verileri masaüstüne taşı".
+- **Masaüstü:** `cd desktop` → `npm install` → `npm run tauri dev`. Testler: `cd desktop/src-tauri && cargo test`. Yükleyici: `npm run tauri build` (önce kökte `npm run build`, çünkü `dist/` yükleyiciye `extension/` olarak gömülür).
+- **Yayın:** tüm sürüm dosyalarını yükselt (aşağıda), commit, `git tag vX.Y.Z` + `git push origin vX.Y.Z`. `.github/workflows/release.yml` sürüm uyuşmazsa durur; derler, imzalar, `latest.json` ve `LifeTools-extension-X.Y.Z.zip` yükler. README'de «Sürüm yayınlama ve otomatik güncelleme» bölümü var.
+- **Sürüm dosyaları:** `package.json`, `package-lock.json` (2 yer), `src/manifest.json`, `desktop/package.json`, `desktop/package-lock.json` (2 yer), `desktop/src-tauri/tauri.conf.json`, `desktop/src-tauri/Cargo.toml`, `Cargo.lock` (`lifetools-desktop` girdisi). Küçük yama adımları (0.5.5 → 0.5.6).
 
 ## 4. Bilinmesi gerekenler (tuzaklar)
 
-- **Eklenti kimliği sabit:** `laejkffjeefcodgkhkgppbfimbkoppih`. Açık anahtar `src/manifest.key.txt` (depoda, gizli değil); `build.mjs` onu `dist/manifest.json`'a yazar. Özel anahtar `%USERPROFILE%\.lifetools-keys\ext-key.pem` — **silme, depoya koyma.**
-- **Tauri 2.11'e sabit:** `Cargo.lock` içinde `tauri-runtime 2.11.3`, `tauri-runtime-wry 2.11.4`, `tauri-macros/codegen 2.6.3`. 2.12 runtime geriye uyumsuz; `cargo update` çalıştırma. npm tarafı `@tauri-apps/api 2.11.1`, `@tauri-apps/cli 2.11.5`.
-- **Tauri CLI** `npm run tauri dev` sırasında `Cargo.toml`'u kendi biçimine çevirebilir (`tauri-build = { version = "2", features = [] }`). Zararsız.
-- **BOM yok:** Rust/JSON dosyalarına UTF-8 BOM girerse `tauri.conf.json` okunamaz. Delegelere her görevde "UTF-8 without BOM" yaz.
-- **Delegeler `cargo` çalıştıramaz** (sandbox). Rust hataları doğrulayıcıdan sonra yöneticiye düşer; doğrulayıcı betiği `~/.cargo/bin`'i PATH'e eklemeli.
-- **Doğrulama komutlarında `!` kullanma** — doğrulayıcı `cmd.exe` ile çalışıyor. Koşulları bir bash betiğine koy (`bash script.sh`).
-- **Yeni migrasyon eklerken:** eski migrasyonlara dokunma; yeni tablolar `src/core/backup.ts` yedeğine eklenmeli. Şema sahibi eklentidir; masaüstü kendi sürümünü `desktop_schema_version` anahtarında tutar.
-- **Codex Terra bazen "geçti" deyip işi yarım bırakıyor** (yalnız yardımcı dosya yazıp hiçbir şeyi bağlamadı). Doğrulamaya bağlantı (wiring) kontrolleri koy: modül `src/modules/index.ts`'te mi, manifest/`build.mjs` güncel mi.
-- **Codex Terra Türkçe karakterleri bozabiliyor** (ç/ğ/ı/ş/ö/ü → `?`, U3.2'de oldu). Doğrulamaya `grep -E "[a-zA-Zçğışöü]\?[a-zA-Zçğışöü]"` kontrolü koy.
-- **Masaüstünde yazarken genişletme bilerek yok** (küresel klavye kancası = keylogger riski). Yerine Ctrl+Shift+Space şablon seçici.
+- **Anahtarlar `%USERPROFILE%\.lifetools-keys\`:** `ext-key.pem` (eklenti kimliği), `updater.key` + `updater.key.password` (güncelleme imzası). **Silme, depoya koyma, yedeğini al** — `updater.key` kaybolursa kurulu uygulamalara bir daha güncelleme gönderilemez. GitHub sırları: `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (eklendi).
+- **Eklenti kimliği sabit:** `laejkffjeefcodgkhkgppbfimbkoppih` (`src/manifest.key.txt`, açık anahtar).
+- **Tauri 2.11'e sabit:** `tauri 2.11.6`, `tauri-runtime 2.11.3`, `tauri-runtime-wry 2.11.4`, `tauri-macros/codegen 2.6.3`. `cargo update` çalıştırma. Güncelleyici `tauri-plugin-updater = "=2.12.0"` (2.13+ Tauri 2.12 ister). Yeni crate eklerken önce crates.io'da `tauri` gereksinimine bak, sonra sabit sürümle `cargo add`, ardından kilitli sürümlerin değişmediğini kontrol et.
+- **BOM yok:** `tauri.conf.json`'a BOM girerse okunamaz.
+- **YouTube Trusted Types:** YouTube sayfasında `innerHTML` atamak yasak; içerik betiklerinde DOM öğeleri oluştur.
+- **YouTube DOM (2026):** oynatma listesi başlığı `yt-page-header-view-model` + `yt-flexible-actions-view-model` (sınıflar `ytFlexibleActionsViewModelAction` gibi bitişik). Satırlar oturum açıkken `ytd-playlist-video-renderer`, açık değilken `yt-lockup-view-model`. Gizli ana sayfa `ytd-browse` da DOM'da kalır; her zaman görünür olanı seç. Oturum açmamış tarayıcıda gizli listeler görünmez.
+- **Steam DOM:** klasik fiyatlar `.discount_final_price`/`.discount_original_price`/`.game_purchase_price` (+ `data-price-final` kuruş); React bölümleri karışık sınıf adları kullanır → içinde yalnız fiyat yazan yaprak öğeler bulunur (`isStandalonePriceText`). Döngü koruması yalnızca fiyat öğesinin kendisine bakmalı (kapsayıcıya bakınca tüm bölümler kilitlenmişti).
+- **Native host:** `sendNativeMessage` her çağrıda yeni işlem başlatır; zamanlayıcıyla sık çağırma.
+- **Sayfa betiklerinde performans:** `getComputedStyle`/`elementsFromPoint`/tam sayfa `querySelectorAll` işlerini kare başına, fare hareketinde veya her MutationObserver kaydında yapma; rAF ile birleştir, kapalıyken dinleyicileri kaldır.
+- **Arka plan sunucuları `dist/` içinde çalışmasın:** `npm run build` `dist/`'i silerken EBUSY verir. Demo/test sunucularını kopya klasörden aç.
+- **Delegeler:** `cargo` çalıştıramaz; doğrulayıcı `~/.cargo/bin`'i PATH'e eklemeli; komutlarda `!` yerine bash betiği; Windows Python'u `/c/...` yollarını açamaz (`cygpath -w` kullan). Terra bazen işi yarım bırakır → bağlantı kontrolleri koy. Türkçe karakter bozulması taraması: `grep -E "[a-zA-Zçğışöü]\?[a-zA-Zçğışöü]"` (`\x3f` ile yazılmış `?` normaldir).
+- **Masaüstünde yazarken genişletme bilerek yok** (küresel klavye kancası riski).
 
 ## 5. Kısayollar (varsayılan)
 
@@ -67,7 +60,8 @@ Masaüstü yükleyicisi `npm run tauri build` ile `LifeTools_<sürüm>_x64-setup
 | Alt+Q | Görsel sekme değiştirici |
 | Alt+K | Komut Merkezi |
 | Alt+P | Resim içinde resim |
-| Ctrl+Alt+V (masaüstü, Ayarlar'dan değiştirilebilir) | Pano geçmişi seçici |
+| Shift+< / Shift+> (Instagram, fare videodayken) | Reels hızı |
+| Ctrl+Alt+V (masaüstü) | Pano geçmişi seçici |
 | Ctrl+Shift+Space (masaüstü) | Şablon seçici |
 | Ctrl+Alt+T (masaüstü) | Etkin pencereyi üstte tut |
 
@@ -76,14 +70,11 @@ Masaüstü yükleyicisi `npm run tauri build` ile `LifeTools_<sürüm>_x64-setup
 | Commit | İçerik |
 |---|---|
 | `1dc39f1` | v0.1 iskelet, X engelleyici, SlapMemo |
-| `ebcf0d5` … `24363a7` | Link Temizleyici, Smart Replies, Görevler, Süre Takibi, JSON yedek |
 | `09f64b6` … `fa9c666` | v0.2 sekme araçları, Command Center, Kısayollar, Araç Çubuğu |
 | `44e69d0`, `e72a163` | v0.3 İzleme Listesi, PiP, Pano Yuvaları, X Video |
 | `a101a27` … `2e02b4c` | v0.4 masaüstü + Native Messaging köprüsü |
-| `2f626fc`, `2b20287`, `91b7e7e` | Arayüz U1, U2a, U2b |
-| `4c4c300` | X video buton/menü düzeltmesi |
-| `380b70a` … `9ef2b8e` | "Sade" yeni tasarım (etiket `before-redesign`) |
-| `033535b` | Çalışma alanları kaldırıldı (göç: oturumlara) |
-| `fc6d69d` … `0528533` | Kısa link, baloncuk düğmeleri, not hatırlatma, X Hepsini indir + GIF, otomatik yedek, sayfa kopyası/ekran görüntüsü notu, masaüstü yedek |
-| `218fa98` … `7ea597a` | Yedek geri yükleme düzeltmesi, Google çeviri, baloncuk × düzeltmesi |
-| `da340d9` … `1e3578a` | Instagram indir + ilerleme çubuğu |
+| `380b70a` … `9ef2b8e` | "Sade" tasarım (etiket `before-redesign`) |
+| `da340d9` … `8f6b543` | Instagram indir + çubuk, video indirici, Ses Yükseltici, 0.5.0–0.5.2 |
+| `29a2a15` … `d237aa8` | Bakım, Instagram katman düzeltmeleri, karşılama sayfası, yeni arayüz |
+| `b4bd989` … `0f1d85e` | Oynatma listesi indirme, Döviz Çevirici, seçerek indirme, 0.5.3–0.5.4 |
+| `86feee6` … `48d3635` | Performans düzeltmeleri, otomatik güncelleme, yayım iş akışı, 0.5.5 |
