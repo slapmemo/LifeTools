@@ -1,27 +1,27 @@
 :root, :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f8f9fc; --surface: #ffffff; --sub: #f3f5f9; --border: #e4e8ef;
-  --text: #222a39; --muted: #626c7d; --accent: #6258da; --accent-soft: #eeedff; --on-accent: #ffffff;
+  --bg: #f6f7fb; --sidebar: #ffffff; --surface: #ffffff; --sub: #f1f3f8; --border: #e3e6ee; --border-input: #e3e6ee;
+  --text: #1d2230; --text-2: #3b4252; --muted: #5f6778; --accent: #5b50d6; --accent-soft: #eceaff; --on-accent: #ffffff;
   --danger: #b84650; --warning: #805b17; --success: #287a62;
   --shadow-pop: 0 12px 30px #2734481a;
   --font: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --font-size-12: 12px; --font-size-13: 13px; --font-size-15: 15px; --font-size-18: 20px; --font-size-22: 20px;
   --space-4: 4px; --space-8: 8px; --space-12: 12px; --space-16: 16px; --space-24: 24px;
-  --radius-6: 6px; --radius-7: 7px; --radius-8: 8px; --radius-10: 10px; --radius-pill: 999px;
+  --radius-6: 6px; --radius-7: 7px; --radius-8: 8px; --radius-10: 10px; --radius-12: 12px; --radius-pill: 999px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #181b24; --surface: #222632; --sub: #292e3b; --border: #353b49;
-    --text: #f0f2f8; --muted: #a0a9ba; --accent: #a69cff; --accent-soft: #383351; --on-accent: #181b24;
+    --bg: #12141b; --sidebar: #181b24; --surface: #1a1d27; --sub: #1f2330; --border: #262a38; --border-input: #2a2f3e;
+    --text: #eceef5; --text-2: #c9cdda; --muted: #9aa1b5; --accent: #a69cff; --accent-soft: #2a2645; --on-accent: #181b24;
     --danger: #f18d98; --warning: #e4bd72; --success: #7bcdb1;
     --shadow-pop: 0 12px 30px #00000040;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #181b24; --surface: #222632; --sub: #292e3b; --border: #353b49;
-  --text: #f0f2f8; --muted: #a0a9ba; --accent: #a69cff; --accent-soft: #383351; --on-accent: #181b24;
+  --bg: #12141b; --sidebar: #181b24; --surface: #1a1d27; --sub: #1f2330; --border: #262a38; --border-input: #2a2f3e;
+  --text: #eceef5; --text-2: #c9cdda; --muted: #9aa1b5; --accent: #a69cff; --accent-soft: #2a2645; --on-accent: #181b24;
   --danger: #f18d98; --warning: #e4bd72; --success: #7bcdb1;
   --shadow-pop: 0 12px 30px #00000040;
 }
