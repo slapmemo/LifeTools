@@ -72,7 +72,11 @@ export class NativeClient {
     this.pending.delete(res.id);
     clearTimeout(entry.timer);
     if (res.ok) entry.resolve(res);
-    else entry.reject(new Error(typeof res.error === 'string' ? res.error : 'Masaüstü uygulaması bilinmeyen bir hata verdi'));
+    else {
+      const error = new Error(typeof res.error === 'string' ? res.error : 'Masaüstü uygulaması bilinmeyen bir hata verdi');
+      if (typeof res.code === 'string') error.name = res.code;
+      entry.reject(error);
+    }
   }
 
   private handleDisconnect(port: PortLike): void {

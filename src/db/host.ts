@@ -30,6 +30,7 @@ export function ensureOffscreen(): Promise<void> {
 // ---------- Masaüstü (Native Messaging) arka ucu ----------
 
 let nativeExec: NativeExecutor | null = null;
+let nativeClient: NativeClient | null = null;
 let desktopReady: Promise<void> | null = null;
 
 function native(): NativeExecutor {
@@ -41,9 +42,16 @@ function native(): NativeExecutor {
         desktopReady = null; // yeniden bağlanınca migrasyonlar bir kez daha doğrulanır
       }
     });
+    nativeClient = client;
     nativeExec = createNativeExecutor(client);
   }
   return nativeExec;
+}
+
+/** DB arka ucundan bağımsız olarak aynı yerel bağlantıyı kullanır. */
+export function nativeRequest(msg: Record<string, unknown>) {
+  native();
+  return nativeClient!.request(msg);
 }
 
 /** Eklenti migrasyonları, aktif arka ucun (masaüstü) DB'sinde de çalışır. */

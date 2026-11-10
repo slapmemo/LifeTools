@@ -1,9 +1,15 @@
-import { NATIVE_HOST_NAME, type PingInfo } from '../db/native';
+import { DESKTOP_UNREACHABLE, NATIVE_HOST_NAME, type PingInfo } from '../db/native';
+import { nativeRequest } from '../db/host';
 import { desktopVersionWarning } from './version';
 
 export async function desktopVersion(): Promise<PingInfo | null> {
   try {
-    const response = await chrome.runtime.sendNativeMessage(NATIVE_HOST_NAME, { id: 1, op: 'ping' });
+    let response;
+    try { response = await nativeRequest({ op: 'ping' }); }
+    catch (err) {
+      if (!(err instanceof Error) || err.message !== DESKTOP_UNREACHABLE) return null;
+      response = await chrome.runtime.sendNativeMessage(NATIVE_HOST_NAME, { id: 1, op: 'ping' });
+    }
     return response?.ok && typeof response.version === 'string' ? response as PingInfo : null;
   } catch {
     return null;

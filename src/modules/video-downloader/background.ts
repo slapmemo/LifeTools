@@ -9,6 +9,26 @@ const ALARM = 'video-download-poll';
 const INSTALL = 'video-download-install';
 let trackingQueue: Promise<void> = Promise.resolve();
 const FAILURE_KEY = 'videoDownloadPollFailures';
+const SNAPSHOT_KEY = 'videoDownloadJobsSnapshot';
+let jobsInFlight: Promise<VideoJob[]> | null = null;
+export function isSnapshotFresh(at: number, now: number, maxAgeMs: number): boolean { return Number.isFinite(at) && at <= now && now - at < maxAgeMs; }
+function fetchJobs(): Promise<VideoJob[]> {
+  if (jobsInFlight) return jobsInFlight;
+  const request = (async () => {
+    const jobs = (await videoCall('video_jobs')).jobs as VideoJob[];
+    if (!Array.isArray(jobs)) throw new Error('Geçersiz iş listesi.');
+    await chrome.storage.session.set({ [SNAPSHOT_KEY]: { at: Date.now(), jobs } });
+    return jobs;
+  })();
+  jobsInFlight = request;
+  void request.finally(() => { if (jobsInFlight === request) jobsInFlight = null; }).catch(() => {});
+  return request;
+}
+async function cachedJobs(): Promise<VideoJob[]> {
+  const snapshot = (await chrome.storage.session.get(SNAPSHOT_KEY))[SNAPSHOT_KEY] as { at?: unknown; jobs?: unknown } | undefined;
+  if (snapshot && typeof snapshot.at === 'number' && isSnapshotFresh(snapshot.at, Date.now(), 2000) && Array.isArray(snapshot.jobs)) return snapshot.jobs as VideoJob[];
+  return fetchJobs();
+}
 export function nextBackoff(failures: number): number { return Math.min(60, 2 ** failures); }
 function belongsToPage(job: VideoJob, page: string | undefined): boolean { if (!page) return false; return jobMatchesPage(job, page) || (!!youtubePlaylistId(page) && (job.mode.startsWith('playlist:') || job.mode.startsWith('selected:')) && youtubePlaylistId(job.url) === youtubePlaylistId(page)); }
 function updateTracked(update: (ids: string[]) => string[]): Promise<void> {
@@ -39,8 +59,7 @@ async function poll(): Promise<void> {
   if (!ids.length) { await chrome.storage.session.set({ [FAILURE_KEY]: 0 }); return; }
   let jobs: VideoJob[];
   try {
-    jobs = (await videoCall('video_jobs')).jobs as VideoJob[];
-    if (!Array.isArray(jobs)) throw new Error('Geçersiz iş listesi.');
+    jobs = await fetchJobs();
   } catch {
     const data = await chrome.storage.session.get({ [FAILURE_KEY]: 0 });
     const failures = Number(data[FAILURE_KEY]) + 1;
@@ -74,7 +93,7 @@ export function initVideoBackground(): void {
     if (sender.tab && (msg?.type === 'video-downloader:jobs' || msg?.type === 'video-downloader:cancel')) {
       void (async () => {
         if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.');
-        const jobs = (await videoCall('video_jobs')).jobs as VideoJob[];
+        const jobs = await cachedJobs();
         if (msg.type === 'video-downloader:cancel') {
           if (!jobs.some(job => job.id === msg.jobId && belongsToPage(job, sender.tab?.url) && job.state === 'running')) throw new Error('Geçersiz iş.');
           await videoCall('video_cancel', { jobId: msg.jobId });
