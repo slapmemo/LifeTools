@@ -1,7 +1,7 @@
 import { modules } from '../modules';
 import { MODULE_FLAGS_KEY } from './module-state';
 
-export const RECOMMENDED_MODULES: readonly string[] = ['slapmemo', 'link-cleaner', 'quick-tasks', 'command-center', 'tab-switcher', 'tab-manager', 'life-browser', 'video-downloader', 'instagram', 'x-video', 'pip', 'volume-booster', 'shortcuts', 'tab-notes', 'watchlist'];
+export const RECOMMENDED_MODULES: readonly string[] = ['slapmemo', 'link-cleaner', 'quick-tasks', 'command-center', 'tab-manager', 'life-browser', 'video-downloader', 'instagram', 'x-video', 'pip', 'volume-booster', 'shortcuts', 'tab-notes', 'time-tracker'];
 export const ONBOARDING_DONE_KEY = 'onboardingDone';
 
 export function recommendedFlags(ids: readonly string[]): Record<string, boolean> {
