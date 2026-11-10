@@ -2141,7 +2141,7 @@ dependencies = [
 
 [[package]]
 name = "lifetools-desktop"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "arboard",
  "rusqlite",
