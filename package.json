@@ -1,6 +1,6 @@
 {
   "name": "lifetools",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "type": "module",
   "description": "LifeTools — Chrome eklentisi (Manifest V3, TypeScript, SQLite wasm)",
