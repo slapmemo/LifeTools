@@ -5,7 +5,19 @@ import { priceCandidate } from '../src/modules/currency/hover';
 describe('currency', () => {
   it('recognizes standalone Steam price text', () => {
     for (const text of ['$1.97 USD', '$6.59', '12,99€']) expect(isStandalonePriceText(text)).toBe(true);
-    for (const text of ['Ücretsiz', '$1.97 USD indirim', '₺50', '2026']) expect(isStandalonePriceText(text)).toBe(false);
+    for (const text of ['Ücretsiz', '$1.97 USD indirim', '₺50', '2026', '5 euro', '5 Mark']) expect(isStandalonePriceText(text)).toBe(false);
+  });
+  it('recognizes currency words and historical marks', () => {
+    for (const [text, currency, amount] of [
+      ['5 Mark', 'DEM', 5], ['5 euro', 'EUR', 5], ["10 dolar'a", 'USD', 10],
+      ['3,50 sterlin', 'GBP', 3.5], ['5Mark', 'DEM', 5], ['10 deutsche mark', 'DEM', 10],
+      ['20 alman markı', 'DEM', 20], ['20 frank', 'CHF', 20]
+    ] as const) expect(parsePrice(text)).toEqual({ currency, amount });
+    for (const text of ['Mark Twain', 'eurovision 2026', '5 markdown']) expect(parsePrice(text)).toBeNull();
+    expect(findPriceAt('Bende var 5 Mark', 11)).toMatchObject({ currency: 'DEM', amount: 5 });
+    expect(findPriceAt('toplam 5 euro oldu', 8)).toMatchObject({ currency: 'EUR', amount: 5 });
+    expect(findPriceAt('5 markdown', 0)).toBeNull();
+    expect(convert({ currency: 'DEM', amount: 5 }, { EUR: 56.12 })).toBeCloseTo(5 * 56.12 / 1.95583);
   });
   it('reads Steam final amounts', () => {
     expect(steamFinalAmount('647', '$6.47 USD')).toEqual({ currency: 'USD', amount: 6.47 });

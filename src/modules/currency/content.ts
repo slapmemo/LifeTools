@@ -61,7 +61,7 @@ export function initHover(): void {
       amount.textContent = `≈ ${formatTry(value)}`;
       const detail = document.createElement('div');
       detail.className = 'detail';
-      detail.textContent = `1 ${symbolFor(price.currency)} = ${formatTry(currentRates.perTry[price.currency])} · ECB ${dateFor(currentRates.date)}${currentRates.stale ? ' · eski kur' : ''}`;
+      detail.textContent = `1 ${price.currency === 'DEM' ? 'DM' : symbolFor(price.currency)} = ${formatTry(convert({ currency: price.currency, amount: 1 }, currentRates.perTry)!)}${price.currency === 'DEM' ? ' · 1 € = 1,95583 DM' : ''} · ECB ${dateFor(currentRates.date)}${currentRates.stale ? ' · eski kur' : ''}`;
       tip.append(amount, detail);
       shadow.append(style, tip);
       document.documentElement.append(host);
@@ -134,15 +134,14 @@ export function initHover(): void {
 }
 
 async function init(): Promise<void> {
+  void chrome.storage.local.remove('currency.steamShowOriginal');
   const settings = await loadCurrencySettings();
   initHover();
   document.querySelectorAll('.game_purchase_action > [data-lifetools-currency]').forEach(element => element.remove());
   if (!settings.steamInline || !steamStore || !await isModuleEnabled('currency')) return;
   const rates = await chrome.runtime.sendMessage({ channel: 'currency', type: 'rates' }) as Rates | null;
   if (!rates) return;
-  const storageKey = 'currency.steamShowOriginal';
-  const stored = await chrome.storage.local.get(storageKey);
-  let showOriginal = stored[storageKey] === true;
+  let showOriginal = false;
   const written = new WeakSet<Element>();
   const converted = new WeakMap<Element, string>();
   const controls = new WeakSet<Element>();
@@ -150,7 +149,6 @@ async function init(): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
     showOriginal = !showOriginal;
-    void chrome.storage.local.set({ [storageKey]: showOriginal });
     scan();
   }
   const blockSelector = '.game_area_purchase_game, .game_area_purchase_game_dropdown_selection';
@@ -232,12 +230,6 @@ async function init(): Promise<void> {
     if (pending.size && !scheduled) { scheduled = true; requestAnimationFrame(() => { scheduled = false; for (const root of pending) scan(root); pending.clear(); }); }
   });
   observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes[storageKey]) {
-      showOriginal = changes[storageKey].newValue === true;
-      scan();
-    }
-  });
   scan();
 }
 void init();

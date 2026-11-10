@@ -172,7 +172,7 @@ function show(): void {
     const symbol = ({ USD: '$', EUR: '€', GBP: '£', JPY: '¥', PLN: 'zł' } as Record<string, string>)[price.currency] ?? price.currency;
     const date = rates.date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1');
     const chip = document.createElement('span'); chip.className = 'fx'; chip.textContent = tl;
-    chip.title = `1 ${symbol} = ${formatTry(rates.perTry[price.currency])} · ECB ${date}${rates.stale ? ' · eski kur' : ''}`;
+    chip.title = `1 ${price.currency === 'DEM' ? 'DM' : symbol} = ${formatTry(convert({ currency: price.currency, amount: 1 }, rates.perTry)!)}${price.currency === 'DEM' ? ' · 1 € = 1,95583 DM' : ''} · ECB ${date}${rates.stale ? ' · eski kur' : ''}`;
     chip.setAttribute('role', 'button'); chip.tabIndex = 0; chip.setAttribute('aria-label', `${tl} kopyala`);
     const copy = () => { void navigator.clipboard.writeText(tl).then(() => {
       chip.textContent = 'Kopyalandı ✓';

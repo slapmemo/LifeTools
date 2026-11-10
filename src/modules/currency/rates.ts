@@ -1,5 +1,5 @@
 export const CURRENCIES = ['USD', 'EUR', 'GBP', 'CHF', 'JPY', 'CAD', 'AUD', 'PLN', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF', 'RUB'] as const;
-export type Currency = typeof CURRENCIES[number];
+export type Currency = typeof CURRENCIES[number] | 'DEM';
 export interface Price { currency: Currency; amount: number }
 export interface Rates { date: string; fetchedAt: number; perTry: Record<string, number>; stale?: boolean }
 export const RATES_KEY = 'currency.rates';
@@ -24,12 +24,20 @@ export async function getRates(): Promise<Rates | null> {
   catch { return cached ? { ...cached, stale: true } : null; }
 }
 const symbols: Record<string, Currency> = { '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', 'zł': 'PLN' };
+const words: Record<string, Currency> = { euro: 'EUR', euros: 'EUR', avro: 'EUR', eur: 'EUR', dolar: 'USD', dollar: 'USD', dollars: 'USD', usd: 'USD', sterlin: 'GBP', pound: 'GBP', pounds: 'GBP', gbp: 'GBP', frank: 'CHF', franc: 'CHF', chf: 'CHF', yen: 'JPY', jpy: 'JPY', ruble: 'RUB', rubles: 'RUB', rub: 'RUB', zloti: 'PLN', zloty: 'PLN', pln: 'PLN', mark: 'DEM', marks: 'DEM', dm: 'DEM', 'deutsche mark': 'DEM', 'alman markı': 'DEM' };
+const wordPattern = 'deutsche\\s+mark|alman\\s+markı|euros|euro|avro|eur|dollars|dollar|dolar|usd|sterlin|pounds|pound|gbp|frank|franc|chf|yen|jpy|rubles|ruble|rub|zloti|zloty|pln|marks|mark|dm';
 export function isStandalonePriceText(text: string): boolean {
   const trimmed = text.trim();
   return trimmed.length <= 16 && /^(?:\$\s?\d[\d.,]*(?:\s?USD)?|\d[\d.,]*\s?€|€\s?\d[\d.,]*|£\s?\d[\d.,]*)$/.test(trimmed);
 }
 export function parsePrice(text: string): Price | null {
   if (text.length > 40 || /₺|\bTL\b/i.test(text)) return null;
+  const word = text.trim().match(new RegExp(`^(\\d[\\d\\s.,]*?)\\s*(${wordPattern})(?:['’][\\p{L}]+)?$`, 'iu'));
+  if (word) {
+    const currency = words[word[2].toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ')];
+    const parsed = parsePrice(`${word[1]} €`);
+    return currency && parsed ? { currency, amount: parsed.amount } : null;
+  }
   const match = text.trim().match(/^(?:(USD|EUR|GBP|CHF|JPY|CAD|AUD|PLN|SEK|NOK|DKK|CZK|HUF|RUB|\$|€|£|¥|zł)\s*)?([\d][\d\s.,]*?)(?:\s*(USD|EUR|GBP|CHF|JPY|CAD|AUD|PLN|SEK|NOK|DKK|CZK|HUF|RUB|\$|€|£|¥|zł))?$/i);
   if (!match || (!match[1] && !match[3])) return null;
   const identify = (s: string): Currency | undefined => symbols[s.toLowerCase()] ?? symbols[s] ?? CURRENCIES.find(c => c === s.toUpperCase());
@@ -46,6 +54,16 @@ export function parsePrice(text: string): Price | null {
   return Number.isFinite(amount) ? { currency, amount } : null;
 }
 export function findPriceAt(text: string, index: number): (Price & { start: number; end: number }) | null {
+  const wordPrices = new RegExp(`\\d[\\d.,]*\\s*(?:${wordPattern})(?:['’][\\p{L}]+)?`, 'giu');
+  let wordBest: (Price & { start: number; end: number }) | null = null;
+  let wordDistance = 4;
+  for (const match of text.matchAll(wordPrices)) {
+    const start = match.index, end = start + match[0].length;
+    if ((start > 0 && /[\p{L}\p{N}₺]/u.test(text[start - 1])) || (end < text.length && /[\p{L}\p{N}]/u.test(text[end]))) continue;
+    const price = parsePrice(match[0]);
+    const distance = index < start ? start - index : index >= end ? index - end + 1 : 0;
+    if (price && distance < wordDistance) { wordBest = { ...price, start, end }; wordDistance = distance; }
+  }
   const token = /(?:USD|EUR|GBP|CHF|JPY|CAD|AUD|PLN|SEK|NOK|DKK|CZK|HUF|RUB|\$|€|£|¥|zł)/i;
   const pattern = new RegExp(`(?:${token.source}\\s*\\d[\\d.,]*(?:\\s+${token.source})?|\\d[\\d.,]*\\s*${token.source})`, 'gi');
   let best: (Price & { start: number; end: number }) | null = null;
@@ -59,7 +77,7 @@ export function findPriceAt(text: string, index: number): (Price & { start: numb
     const d = index < start ? start - index : index >= end ? index - end + 1 : 0;
     if (d < distance) { best = { ...price, start, end }; distance = d; }
   }
-  return best;
+  return wordBest && wordDistance <= distance ? wordBest : best;
 }
 export function steamFinalAmount(priceFinalAttr: string | null, text: string | null): Price | null {
   if (!text || /₺|\bTL\b/i.test(text)) return null;
@@ -75,6 +93,6 @@ export function steamFinalAmount(priceFinalAttr: string | null, text: string | n
 }
 export function formatTry(value: number): string { return `${value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺`; }
 export function convert(price: Price, perTry: Record<string, number>): number | null {
-  const rate = perTry[price.currency];
+  const rate = price.currency === 'DEM' ? perTry.EUR / 1.95583 : perTry[price.currency];
   return Number.isFinite(rate) && rate > 0 ? price.amount * rate : null;
 }
