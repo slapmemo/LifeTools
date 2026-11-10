@@ -33,20 +33,28 @@ const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame
 
 function render(): void {
   const kind = youtubePage(location.href);
-  const browse = kind === 'playlist' ? document.querySelector<HTMLElement>('ytd-browse[page-subtype="playlist"]:not([hidden])') : null;
+  const visible = (element: Element) => { const rect = element.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; };
+  const browse = kind === 'playlist' ? Array.from(document.querySelectorAll<HTMLElement>('ytd-browse:not([hidden])')).find(element => element.getAttribute('page-subtype') === 'playlist' && visible(element)) ?? Array.from(document.querySelectorAll<HTMLElement>('ytd-browse:not([hidden])')).find(visible) ?? document.body : null;
   const header = browse?.querySelector<HTMLElement>('yt-page-header-view-model, yt-page-header-renderer, ytd-playlist-header-renderer') ?? browse;
   const anchor = kind === 'watch' ? document.querySelector<HTMLElement>('ytd-watch-metadata #title h1, ytd-watch-metadata h1') : kind === 'playlist' ? header?.querySelector<HTMLElement>('h1, yt-dynamic-text-view-model') ?? null : null;
   const newActions = browse?.querySelector<HTMLElement>('.yt-page-header-view-model__page-header-flexible-actions, .page-header-view-model-wiz__page-header-flexible-actions, yt-page-header-view-model yt-flexible-actions-view-model');
   const legacyActions = browse?.querySelector<HTMLElement>('ytd-playlist-header-renderer #buttons, ytd-playlist-header-renderer #top-level-buttons-computed');
   const playLink = header?.querySelector<HTMLElement>('a[href*="/watch"][href*="list="]');
-  const actions = kind === 'shorts' ? document.querySelector<HTMLElement>('ytd-reel-video-renderer[is-active] #actions') : kind === 'playlist' ? newActions ?? legacyActions ?? playLink?.parentElement ?? null : null;
+  const playAll = kind === 'playlist' ? Array.from(browse!.querySelectorAll<HTMLElement>('a[aria-label*="Tümünü oynat" i], button[aria-label*="Tümünü oynat" i], a[aria-label*="Play all" i], button[aria-label*="Play all" i]')).find(visible) ?? Array.from(browse!.querySelectorAll<HTMLElement>('a[href*="/watch"][href*="list="]')).find(element => visible(element) && element.getBoundingClientRect().top < 700 && !element.closest('ytd-playlist-video-list-renderer, ytd-playlist-video-renderer')) : undefined;
+  let playActions: HTMLElement | null = null;
+  let ancestor = playAll?.parentElement ?? null;
+  for (let depth = 0; ancestor && depth < 6; depth++, ancestor = ancestor.parentElement) {
+    if (Array.from(ancestor.children).filter(child => child.matches('button, a') || child.querySelector('button, a')).length >= 3) { playActions = ancestor; break; }
+  }
+  const actions = kind === 'shorts' ? document.querySelector<HTMLElement>('ytd-reel-video-renderer[is-active] #actions') : kind === 'playlist' ? playActions ?? newActions ?? legacyActions ?? playLink?.parentElement ?? null : null;
   const watchlist = anchor?.parentElement?.querySelector<HTMLElement>('[data-lifetools-watchlist]');
   const target = watchlist ?? anchor;
-  if (kind === 'other' || (!target && !actions)) { host?.remove(); host = null; refreshChip = undefined; return; }
-  const correct = kind === 'playlist' && actions ? host?.previousElementSibling === actions : actions ? host?.parentElement === actions : host?.previousElementSibling === target;
+  if (kind === 'other' || (kind !== 'playlist' && !target && !actions)) { host?.remove(); host = null; refreshChip = undefined; return; }
+  const correct = kind === 'playlist' ? actions ? host?.previousElementSibling === actions : host?.parentElement === document.documentElement : actions ? host?.parentElement === actions : host?.previousElementSibling === target;
   if (host?.isConnected && route === location.href && correct) return;
   host?.remove(); route = location.href;
   const wrapper = document.createElement('span'); host = wrapper;
+  wrapper.setAttribute('data-lifetools-video', kind);
   wrapper.style.cssText = kind === 'shorts' ? 'display:flex;flex-direction:column;align-items:center;margin:8px 0' : 'display:inline-flex;vertical-align:middle;margin:4px 8px';
   const shadow = wrapper.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
@@ -87,7 +95,7 @@ function render(): void {
   row.append(button, chip);
   if (kind === 'playlist' && /\b(private|gizli)\b/i.test(header?.textContent ?? '')) { const hint = document.createElement('span'); hint.style.cssText = 'color:#aaa;font:12px Arial'; hint.textContent = 'Gizli liste: indirmek için «Liste dışı» yap'; row.append(hint); }
   shadow.append(style, row, menu);
-  if (kind === 'playlist' && actions) { wrapper.style.cssText = 'display:flex;margin:10px 0 0'; actions.insertAdjacentElement('afterend', wrapper); } else if (actions) actions.append(wrapper); else target!.insertAdjacentElement('afterend', wrapper);
+  if (kind === 'playlist') { if (actions) { wrapper.style.cssText = 'display:flex;margin:10px 0 0'; actions.insertAdjacentElement('afterend', wrapper); } else { wrapper.style.cssText = 'position:fixed;left:24px;bottom:24px;z-index:2147483000'; document.documentElement.append(wrapper); } } else if (actions) actions.append(wrapper); else target!.insertAdjacentElement('afterend', wrapper);
   refreshChip = () => {
     const page = route;
     void chrome.runtime.sendMessage({ type: 'video-downloader:jobs' }).then(response => {
