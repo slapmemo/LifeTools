@@ -1,4 +1,5 @@
 import { PAGE_THEME } from '../../core/page-theme';
+import { visibleVideoRect } from './visibility';
 
 export function formatTime(value: number): string {
   const seconds = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
@@ -80,8 +81,8 @@ function createBar(video: HTMLVideoElement): Bar {
   function play(): void { if (!frame) frame = requestAnimationFrame(tick); }
   function pause(): void { if (frame) cancelAnimationFrame(frame); frame = 0; update(); }
   function position(): void {
-    const rect = video.getBoundingClientRect();
-    const next = video.isConnected && rect.right > 0 && rect.left < innerWidth ? barRect(rect, innerHeight) : null;
+    const rect = visibleVideoRect(video);
+    const next = rect ? barRect(rect, innerHeight) : null;
     const display = next ? '' : 'none';
     if (host.style.display !== display) host.style.display = display;
     if (!next) return;
@@ -126,14 +127,14 @@ document.addEventListener('visibilitychange', () => {
 });
 document.addEventListener('pointermove', event => {
   hovered = undefined;
-  for (const video of videos) { const r = video.getBoundingClientRect(); if (event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom) hovered = video; }
+  for (const video of videos) { const r = visibleVideoRect(video); if (r && event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom) hovered = video; }
 }, true);
 document.addEventListener('keydown', event => {
   if (!active || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') || event.altKey || event.ctrlKey || event.metaKey) return;
   const target = event.target as HTMLElement | null;
   if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') || target?.isContentEditable) return;
   const playing = [...videos].filter(video => !video.paused && !video.ended);
-  const video = hovered ?? (playing.length === 1 ? playing[0] : undefined);
+  const video = (hovered && visibleVideoRect(hovered) ? hovered : undefined) ?? (playing.length === 1 ? playing[0] : undefined);
   if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return;
   video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + (event.key === 'ArrowLeft' ? -5 : 5)));
   event.preventDefault(); event.stopPropagation();

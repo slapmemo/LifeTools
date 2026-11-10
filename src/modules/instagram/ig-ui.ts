@@ -4,6 +4,7 @@ import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { PAGE_THEME } from '../../core/page-theme';
 import { setSeekBarsEnabled } from './seek-bar';
 import { SPEED_KEY, SPEEDS, applyPlaybackSpeed, nextSpeed, parseSpeed } from './speed';
+import { visibleVideoRect } from './visibility';
 const byCode = new Map<string, InstagramVideo[]>();
 const byFilename = new Map<string, InstagramVideo>();
 const hosts = new Map<HTMLVideoElement, HTMLElement>();
@@ -37,7 +38,7 @@ document.addEventListener('keydown', e => {
   if (!enabled || !settings.speedControl || !speedReady || !pointer || !e.shiftKey || (e.key !== '>' && e.key !== '<') || e.altKey || e.ctrlKey || e.metaKey) return;
   const target = e.target as HTMLElement | null;
   if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') || target?.isContentEditable) return;
-  const video = [...managed.keys()].find(v => { const r = v.getBoundingClientRect(); return r.width > 0 && r.height > 0 && pointer!.x >= r.left && pointer!.x <= r.right && pointer!.y >= r.top && pointer!.y <= r.bottom; });
+  const video = [...managed.keys()].find(v => { const r = visibleVideoRect(v); return r && pointer!.x >= r.left && pointer!.x <= r.right && pointer!.y >= r.top && pointer!.y <= r.bottom; });
   if (!video) return;
   e.preventDefault(); e.stopPropagation(); setSpeed(nextSpeed(speed, e.key === '>' ? 1 : -1));
 }, true);
@@ -74,8 +75,8 @@ function create(video: HTMLVideoElement): HTMLElement {
 function render(): void {
   manageVideos();
   for (const video of document.querySelectorAll('video')) {
-    const rect = video.getBoundingClientRect(); const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth;
-    if (!enabled || (!settings.downloadButton && !settings.speedControl) || !visible) { hosts.get(video)?.remove(); hosts.delete(video); continue; }
+    const rect = visibleVideoRect(video);
+    if (!enabled || (!settings.downloadButton && !settings.speedControl) || !rect) { hosts.get(video)?.remove(); hosts.delete(video); continue; }
     let host = hosts.get(video); if (!host) { host = create(video); hosts.set(video, host); }
     host.style.top = `${Math.max(0, rect.top + 8)}px`; host.style.left = `${Math.max(0, Math.min(innerWidth - 80, rect.right - (settings.downloadButton && settings.speedControl ? 86 : 46)))}px`;
   }
