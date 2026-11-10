@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { convert, findPriceAt, formatTry, parsePrice, ratesToPerTry, steamFinalAmount } from '../src/modules/currency/rates';
+import { convert, findPriceAt, formatTry, isStandalonePriceText, parsePrice, ratesToPerTry, steamFinalAmount } from '../src/modules/currency/rates';
 import { priceCandidate } from '../src/modules/currency/hover';
 
 describe('currency', () => {
+  it('recognizes standalone Steam price text', () => {
+    for (const text of ['$1.97 USD', '$6.59', '12,99€']) expect(isStandalonePriceText(text)).toBe(true);
+    for (const text of ['Ücretsiz', '$1.97 USD indirim', '₺50', '2026']) expect(isStandalonePriceText(text)).toBe(false);
+  });
   it('reads Steam final amounts', () => {
     expect(steamFinalAmount('647', '$6.47 USD')).toEqual({ currency: 'USD', amount: 6.47 });
     expect(steamFinalAmount(null, '$5.79 USD')).toEqual({ currency: 'USD', amount: 5.79 });

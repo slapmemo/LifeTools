@@ -1,4 +1,4 @@
-import { convert, findPriceAt, formatTry, parsePrice, steamFinalAmount, type Price, type Rates } from './rates';
+import { convert, findPriceAt, formatTry, isStandalonePriceText, parsePrice, steamFinalAmount, type Price, type Rates } from './rates';
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { PAGE_THEME } from '../../core/page-theme';
 import { CURRENCY_SETTINGS_KEY, loadCurrencySettings } from './settings';
@@ -150,9 +150,20 @@ async function init(): Promise<void> {
   function scan(root: Element | Document = document): void {
     const elements = [...root.querySelectorAll<HTMLElement>(priceSelector)];
     if (root instanceof HTMLElement && root.matches(priceSelector)) elements.unshift(root);
+    const handled = new Set<Element>(elements);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const parent = node.parentElement;
+      if (!(parent instanceof HTMLElement) || parent.children.length || handled.has(parent) || parent.closest(priceSelector) ||
+          parent.closest('input, textarea, [contenteditable], [data-lifetools-currency-tip], script, style, noscript, svg')) continue;
+      if (!isStandalonePriceText(node.textContent ?? '') && !converted.has(parent)) continue;
+      handled.add(parent);
+      elements.push(parent);
+    }
     for (const element of elements) {
         const block = element.closest(blockSelector);
-        if (block && !element.matches('.discount_final_price, .discount_original_price, .game_purchase_price')) continue;
+        if (block && element.matches(priceSelector) && !element.matches('.discount_final_price, .discount_original_price, .game_purchase_price')) continue;
         const current = element.textContent ?? '';
         let original = element.dataset.lifetoolsOriginal;
         if (original === undefined || (current !== original && current !== converted.get(element))) {
@@ -203,10 +214,12 @@ async function init(): Promise<void> {
     for (const record of records) {
       if (record.type === 'childList') for (const node of record.addedNodes) {
         if (node instanceof Element && !node.hasAttribute('data-lifetools-currency-tip')) pending.add(node);
+        else if (node.nodeType === Node.TEXT_NODE && node.parentElement) pending.add(node.parentElement);
       }
       const target = record.target instanceof Element ? record.target : record.target.parentElement;
       const price = target?.closest(priceSelector);
       if (price && !target?.closest('[data-lifetools-currency-tip]') && !(written.has(price) && price.textContent === (showOriginal ? (price as HTMLElement).dataset.lifetoolsOriginal : converted.get(price)))) pending.add(price);
+      else if (record.type === 'characterData' && target && !target.closest('[data-lifetools-currency-tip]')) pending.add(target);
     }
     if (pending.size && !scheduled) { scheduled = true; requestAnimationFrame(() => { scheduled = false; for (const root of pending) scan(root); pending.clear(); }); }
   });

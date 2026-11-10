@@ -24,6 +24,10 @@ export async function getRates(): Promise<Rates | null> {
   catch { return cached ? { ...cached, stale: true } : null; }
 }
 const symbols: Record<string, Currency> = { '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', 'zł': 'PLN' };
+export function isStandalonePriceText(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.length <= 16 && /^(?:\$\s?\d[\d.,]*(?:\s?USD)?|\d[\d.,]*\s?€|€\s?\d[\d.,]*|£\s?\d[\d.,]*)$/.test(trimmed);
+}
 export function parsePrice(text: string): Price | null {
   if (text.length > 40 || /₺|\bTL\b/i.test(text)) return null;
   const match = text.trim().match(/^(?:(USD|EUR|GBP|CHF|JPY|CAD|AUD|PLN|SEK|NOK|DKK|CZK|HUF|RUB|\$|€|£|¥|zł)\s*)?([\d][\d\s.,]*?)(?:\s*(USD|EUR|GBP|CHF|JPY|CAD|AUD|PLN|SEK|NOK|DKK|CZK|HUF|RUB|\$|€|£|¥|zł))?$/i);
