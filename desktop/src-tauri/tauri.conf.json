@@ -11,10 +11,58 @@
   },
   "app": {
     "windows": [
-      { "label": "main", "title": "LifeTools", "url": "index.html", "width": 980, "height": 700, "minWidth": 900, "minHeight": 600, "backgroundColor": "#171d19", "visible": false },
-      { "label": "picker", "title": "Pano geçmişi", "url": "index.html", "width": 420, "height": 360, "decorations": false, "alwaysOnTop": true, "skipTaskbar": true, "resizable": false, "backgroundColor": "#171d19", "visible": false },
-      { "label": "snippets", "title": "Şablonlar", "url": "index.html", "width": 440, "height": 320, "decorations": false, "alwaysOnTop": true, "skipTaskbar": true, "resizable": false, "backgroundColor": "#171d19", "visible": false },
-      { "label": "toast", "title": "LifeTools bildirimi", "url": "index.html", "width": 320, "height": 52, "decorations": false, "alwaysOnTop": true, "skipTaskbar": true, "resizable": false, "focus": false, "shadow": false, "backgroundColor": "#171d19", "visible": false }
+      {
+        "label": "main",
+        "title": "LifeTools",
+        "url": "index.html",
+        "width": 980,
+        "height": 700,
+        "minWidth": 900,
+        "minHeight": 600,
+        "backgroundColor": "#171d19",
+        "visible": false
+      },
+      {
+        "label": "picker",
+        "title": "Pano geçmişi",
+        "url": "index.html",
+        "width": 420,
+        "height": 360,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "backgroundColor": "#171d19",
+        "visible": false
+      },
+      {
+        "label": "snippets",
+        "title": "Şablonlar",
+        "url": "index.html",
+        "width": 440,
+        "height": 320,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "backgroundColor": "#171d19",
+        "visible": false
+      },
+      {
+        "label": "toast",
+        "title": "LifeTools bildirimi",
+        "url": "index.html",
+        "width": 320,
+        "height": 52,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "focus": false,
+        "shadow": false,
+        "backgroundColor": "#171d19",
+        "visible": false
+      }
     ],
     "security": {
       "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ipc: http://ipc.localhost"
@@ -22,8 +70,28 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
-    "icon": ["icons/icon.ico"],
-    "windows": { "nsis": { "installMode": "currentUser" } }
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg1NThDMTIyNkI5NTk5MzUKUldRMW1aVnJJc0ZZaFJ2TXJmOEpxRHg0b3haTitDWDhWbVNVZDJtN0YwNGJMdjFVNW1vN0ZhcWMK",
+      "endpoints": [
+        "https://github.com/slapmemo/LifeTools/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
