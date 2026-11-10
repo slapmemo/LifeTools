@@ -7,7 +7,7 @@ import { priceCandidate } from './hover';
 const symbolFor = (currency: string): string => ({ USD: '$', EUR: '€', GBP: '£', JPY: '¥', PLN: 'zł' } as Record<string, string>)[currency] ?? currency;
 const dateFor = (date: string): string => date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1');
 const ignored = 'input, textarea, [contenteditable]:not([contenteditable="false"]), [data-lifetools-currency], [data-lifetools-currency-tip]';
-const steamPage = location.hostname === 'store.steampowered.com' && location.pathname.startsWith('/app/');
+const steamStore = location.hostname === 'store.steampowered.com';
 
 export function initHover(): void {
   let enabled = false;
@@ -32,7 +32,7 @@ export function initHover(): void {
     const current = ++revision;
     const [settings, moduleEnabled] = await Promise.all([loadCurrencySettings(), isModuleEnabled('currency')]);
     if (current !== revision) return;
-    enabled = moduleEnabled && (settings.hoverAllSites || (steamPage && settings.steamInline));
+    enabled = moduleEnabled && (settings.hoverAllSites || (steamStore && settings.steamInline));
     if (!enabled) hide();
   }
   function getRates(): Promise<Rates | null> {
@@ -108,7 +108,7 @@ export function initHover(): void {
     if (!selection || selection.isCollapsed || !selection.rangeCount) return;
     const range = selection.getRangeAt(0);
     const parent = range.commonAncestorContainer instanceof Element ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement;
-    if (parent?.closest(ignored)) return;
+    if (parent?.closest(ignored) || (parent && [...parent.querySelectorAll('[data-lifetools-currency="try"]')].some(element => range.intersectsNode(element)))) return;
     const text = selection.toString().trim();
     if (!text || text.length > 40) return;
     const price = parsePrice(text) ?? findPriceAt(text, Math.floor(text.length / 2));
@@ -129,7 +129,7 @@ async function init(): Promise<void> {
   const settings = await loadCurrencySettings();
   initHover();
   document.querySelectorAll('.game_purchase_action > [data-lifetools-currency]').forEach(element => element.remove());
-  if (!settings.steamInline || !steamPage || !await isModuleEnabled('currency')) return;
+  if (!settings.steamInline || !steamStore || !await isModuleEnabled('currency')) return;
   const rates = await chrome.runtime.sendMessage({ channel: 'currency', type: 'rates' }) as Rates | null;
   if (!rates) return;
   const storageKey = 'currency.steamShowOriginal';
@@ -145,9 +145,14 @@ async function init(): Promise<void> {
     void chrome.storage.local.set({ [storageKey]: showOriginal });
     scan();
   }
-  function scan(): void {
-    for (const block of document.querySelectorAll('.game_area_purchase_game, .game_area_purchase_game_dropdown_selection')) {
-      for (const element of block.querySelectorAll<HTMLElement>('.discount_final_price, .discount_original_price, .game_purchase_price')) {
+  const blockSelector = '.game_area_purchase_game, .game_area_purchase_game_dropdown_selection';
+  const priceSelector = '.discount_final_price, .discount_original_price, .game_purchase_price, .search_price, .discount_block .discount_prices > div';
+  function scan(root: Element | Document = document): void {
+    const elements = [...root.querySelectorAll<HTMLElement>(priceSelector)];
+    if (root instanceof HTMLElement && root.matches(priceSelector)) elements.unshift(root);
+    for (const element of elements) {
+        const block = element.closest(blockSelector);
+        if (block && !element.matches('.discount_final_price, .discount_original_price, .game_purchase_price')) continue;
         const current = element.textContent ?? '';
         let original = element.dataset.lifetoolsOriginal;
         if (original === undefined || (current !== original && current !== converted.get(element))) {
@@ -155,21 +160,22 @@ async function init(): Promise<void> {
           element.dataset.lifetoolsOriginal = original;
         }
         const isOriginalPrice = element.matches('.discount_original_price');
-        const price = isOriginalPrice ? parsePrice(original.trim()) : steamFinalAmount(
-          element.closest('[data-price-final]')?.getAttribute('data-price-final') ?? block.querySelector('[data-price-final]')?.getAttribute('data-price-final') ?? null,
-          original
-        );
+        const finalAttr = element.closest('[data-price-final]')?.getAttribute('data-price-final') ?? block?.querySelector('[data-price-final]')?.getAttribute('data-price-final') ?? null;
+        const price = block && !isOriginalPrice ? steamFinalAmount(finalAttr, original)
+          : !isOriginalPrice && element.matches('.discount_final_price') && finalAttr !== null ? steamFinalAmount(finalAttr, original)
+          : parsePrice(original.trim());
         const value = price && convert(price, rates!.perTry);
         if (!price || value === null) continue;
         const tl = formatTry(value);
         converted.set(element, tl);
         element.dataset.lifetoolsCurrency = 'try';
-        element.title = `Orijinal: ${original.trim()} · 1 ${symbolFor(price.currency)} = ${formatTry(rates!.perTry[price.currency])} · ECB ${dateFor(rates!.date)} · tıkla: ${showOriginal ? 'TL' : symbolFor(price.currency)} göster`;
+        element.title = `Orijinal: ${original.trim()} · 1 ${symbolFor(price.currency)} = ${formatTry(rates!.perTry[price.currency])} · ECB ${dateFor(rates!.date)}${block ? ` · tıkla: ${showOriginal ? 'TL' : symbolFor(price.currency)} göster` : ''}`;
         const display = showOriginal ? original : tl;
         if (current !== display) {
           written.add(element);
           element.textContent = display;
         }
+        if (!block || element.closest('a')) continue;
         const control = element.closest<HTMLElement>('.discount_prices') ?? element;
         control.style.cursor = 'pointer';
         control.setAttribute('role', 'button');
@@ -182,10 +188,10 @@ async function init(): Promise<void> {
             if (event.key === 'Enter' || event.key === ' ') toggle(event);
           });
         }
-      }
     }
   }
   let scheduled = false;
+  const pending = new Set<Element>();
   const observer = new MutationObserver(records => {
     if (records.every(record => {
       const target = record.target instanceof Element ? record.target : record.target.parentElement;
@@ -194,7 +200,15 @@ async function init(): Promise<void> {
         (!!price && written.has(price) && price.textContent === (showOriginal ? (price as HTMLElement).dataset.lifetoolsOriginal : converted.get(price))) ||
         (record.type === 'childList' && [...record.addedNodes, ...record.removedNodes].length > 0 && [...record.addedNodes, ...record.removedNodes].every(node => node instanceof Element && node.hasAttribute('data-lifetools-currency-tip')));
     })) return;
-    if (!scheduled) { scheduled = true; requestAnimationFrame(() => { scheduled = false; scan(); }); }
+    for (const record of records) {
+      if (record.type === 'childList') for (const node of record.addedNodes) {
+        if (node instanceof Element && !node.hasAttribute('data-lifetools-currency-tip')) pending.add(node);
+      }
+      const target = record.target instanceof Element ? record.target : record.target.parentElement;
+      const price = target?.closest(priceSelector);
+      if (price && !target?.closest('[data-lifetools-currency-tip]') && !(written.has(price) && price.textContent === (showOriginal ? (price as HTMLElement).dataset.lifetoolsOriginal : converted.get(price)))) pending.add(price);
+    }
+    if (pending.size && !scheduled) { scheduled = true; requestAnimationFrame(() => { scheduled = false; for (const root of pending) scan(root); pending.clear(); }); }
   });
   observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
   chrome.storage.onChanged.addListener((changes, area) => {
