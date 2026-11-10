@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      CARGO_NET_RETRY: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Verify versions match tag
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+
+          const expected = process.env.GITHUB_REF_NAME.slice(1);
+          const files = [
+            'package.json',
+            'src/manifest.json',
+            'desktop/package.json',
+            'desktop/src-tauri/tauri.conf.json',
+          ];
+          const versions = files.map(file => [file, JSON.parse(readFileSync(file, 'utf8')).version]);
+          const cargoFile = 'desktop/src-tauri/Cargo.toml';
+          const cargo = readFileSync(cargoFile, 'utf8');
+          const packageSection = cargo.match(/^\[package\][ \t]*\r?\n([\s\S]*?)(?=^\[|(?![\s\S]))/m)?.[1];
+          const cargoVersion = packageSection?.match(/^version\s*=\s*["']([^"']+)["']/m)?.[1];
+          versions.push([cargoFile, cargoVersion]);
+          let failed = false;
+          for (const [file, version] of versions) {
+            if (version !== expected) {
+              console.error(`${file}: expected version ${expected}, found ${version ?? '(missing)'}`);
+              failed = true;
+            }
+          }
+          if (failed) process.exit(1);
+          NODE
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+
+      - name: Build and test extension
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Package extension
+        shell: bash
+        run: python scripts/zip_extension.py dist "release/LifeTools-extension-${GITHUB_REF_NAME#v}.zip"
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Test desktop
+        working-directory: desktop/src-tauri
+        run: cargo test --locked
+
+      - name: Build and publish desktop
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: desktop
+          tauriScript: npm run tauri
+          args: ""
+          tagName: ${{ github.ref_name }}
+          releaseName: LifeTools ${{ github.ref_name }}
+          releaseBody: Masaüstü uygulaması kendini otomatik günceller. Eklenti masaüstünün eklenti klasöründen yüklendiyse o da güncellenir.
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+
+      - name: Verify Cargo lockfile
+        run: git diff --exit-code -- desktop/src-tauri/Cargo.lock
+
+      - name: Upload extension
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: release/LifeTools-extension-*.zip

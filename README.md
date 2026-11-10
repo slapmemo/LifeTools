@@ -106,3 +106,15 @@ X ve Instagram için gerekli site erişimi eklentinin kurulum izinleri arasında
 npm run typecheck
 npm test
 ```
+
+## Sürüm yayınlama ve otomatik güncelleme
+
+Sürümü `package.json`, `src/manifest.json`, `desktop/package.json`, `desktop/src-tauri/tauri.conf.json` ve `desktop/src-tauri/Cargo.toml` dosyalarında güncelle; npm ve Cargo kilit dosyalarını da buna uygun güncelle. Değişiklikleri commit'ledikten sonra etiketi oluşturup gönder:
+
+```sh
+git tag vX.Y.Z && git push origin vX.Y.Z
+```
+
+GitHub deposunda `TAURI_SIGNING_PRIVATE_KEY` ve `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` secret'ları tanımlı olmalıdır. Özel anahtar yalnızca bakım sorumlusunun `%USERPROFILE%\.lifetools-keys\updater.key` dosyasında bulunur; hiçbir zaman commit'lenmemelidir.
+
+Arkadaşların uygulamayı Releases sayfasından bir kez kurar ve eklentiyi `chrome://extensions` üzerinden paketlenmemiş olarak `%LOCALAPPDATA%\LifeTools\extension` klasöründen yükler. Bundan sonra masaüstü uygulaması ve eklenti otomatik güncellenir.
