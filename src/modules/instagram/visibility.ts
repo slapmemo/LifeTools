@@ -74,7 +74,7 @@ function calculateVisibleVideoRect(video: HTMLVideoElement): Rect | null {
   for (let element: HTMLElement | null = video; element; element = element.parentElement) {
     const style = getComputedStyle(element);
     if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return null;
-    if (element !== video && [style.overflow, style.overflowX, style.overflowY].some(value => value !== 'visible')) clips.push(element.getBoundingClientRect());
+    if (element !== video && element !== document.documentElement && element !== document.body && [style.overflow, style.overflowX, style.overflowY].some(value => value !== 'visible')) clips.push(element.getBoundingClientRect());
     if (element === document.documentElement) break;
   }
   const clipped = clipRect(original, clips, { width: innerWidth, height: innerHeight });
