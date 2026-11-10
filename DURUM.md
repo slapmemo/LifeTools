@@ -1,6 +1,6 @@
 # LifeTools — Kaldığımız Yer
 
-> Son güncelleme: 10 Kasım 2026 (akşam) · sürüm 0.5.6 · dal master (`v0.5.6`: Fable incelemesindeki 17 düzeltme)
+> Son güncelleme: 10 Kasım 2026 (gece) · sürüm 0.5.6 · dal master (push edildi; `v0.5.5` ve `v0.5.6` Releases'te yayında)
 > Yeni bir sohbete/oturuma başlarken önce bu dosyayı oku. Eski planlar: `../LifeTools_Plan_v3_2026-11-06.md`, `../LifeTools_Arayuz_Plani_2026-11-06.md`, `../LifeTools_Ozellik_Rehberi_2026-11-08.md`.
 
 ## 1. Durum özeti
@@ -9,9 +9,9 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 
 | Alan | Durum |
 |---|---|
-| Sürüm | 0.5.5. `v0.5.5` etiketi GitHub Actions yayım iş akışını başlattı (ilk otomatik yayın; sonucu Releases'te kontrol et). |
-| Otomatik güncelleme | Yeni. Masaüstü imzalı güncellemeyi kendisi kurar; eklentiyi `%LOCALAPPDATA%\LifeTools\extension` klasöründe güncel tutar; eklenti oradan yüklendiyse kendini yeniden yükler. İlk gerçek deneme 0.5.6 yayınında olacak. |
-| Testler | Eklenti 256 test (vitest), masaüstü 77 test (`cargo test`). |
+| Sürüm | 0.5.6. `v0.5.5` ve `v0.5.6` GitHub Actions ile yayımlandı (yükleyici, `.sig`, `latest.json`, eklenti ZIP'i). `latest.json` 0.5.6'yı gösteriyor. |
+| Otomatik güncelleme | Yeni. Masaüstü imzalı güncellemeyi kendisi kurar; eklentiyi `%LOCALAPPDATA%\LifeTools\extension` klasöründe güncel tutar; eklenti oradan yüklendiyse kendini yeniden yükler. 0.5.5 → 0.5.6 otomatik güncellemesi henüz bir bilgisayarda doğrulanmadı (0.5.4 ve öncesinde güncelleyici yok, onlar elle kurmalı). |
+| Testler | Eklenti 269 test (vitest), masaüstü 83 test (`cargo test`). |
 | İlk kurulum | Yeni kurulumda karşılama sayfası (`welcome.html`) açılır; önerilen modüller açık gelir (`src/core/onboarding.ts` `RECOMMENDED_MODULES`). Panel › Ayarlar'dan yeniden açılır. Güncellemede açılmaz. |
 | Arayüz | Panel, sekme değiştirici ve popup «yeni» tasarımda (yazılı kenar menüsü, mor vurgu #A69CFF, gerçek LT logosu satır içi SVG). Tasarım tuvali: claude.ai artifact «LifeTools Yeni Arayüz». |
 
@@ -20,12 +20,13 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 - **Video İndirici (YouTube):** boyutlar sayfadaki oynatıcı verisinden anında (`yt-main.ts`, MAIN dünyası); oynatma listesi indirme (tümü veya «Videoları seç…» ile seçilenler, onay kutuları + alt çubuk, Shift ile aralık); düğme «Tümünü oynat» satırının altında, bulunamazsa sol altta yüzer; gizli liste uyarısı; MP3 en yüksek VBR (`--audio-quality 0`); durum etiketi yalnızca o sayfanın indirmesini gösterir; masaüstü yalnızca süren iş varken ve sekme görünürken sorgulanır.
 - **Döviz Çevirici (yeni modül `currency`):** ECB kuru (api.frankfurter.dev, 6 saat önbellek); Steam'in tüm mağaza sayfalarında fiyatlar Steam'in kendi kutusunda TL (tıklayınca o sayfada dolar); tüm sitelerde üstüne gelince/seçince TL ipucu (varsayılan kapalı, tüm site izni ister); «5 Mark», «5 euro», «10 dolar» gibi yazılar (DM sabit kur 1,95583); SlapMemo baloncuğunda seçili fiyatın TL'si.
 - **Performans:** iki bağımsız inceleme turu yapıldı, bulunan 20 sorunun hepsi düzeltildi (sonsuz rAF döngüleri, saniyelik native host çağrısı, kapalıyken dinleyiciler, Steam tam sayfa taramaları).
+- **0.5.6 (Fable incelemesi, 17 madde):** indirme işi işlem kimliği + başlama zamanı + günlük yaşıyla doğrulanıyor (PID yeniden kullanımı); video sorguları ve sürüm kontrolü kalıcı masaüstü bağlantısından (`src/db/host.ts` `nativeRequest`), yalnız arka plan sorguluyor (`videoDownloadJobsSnapshot`); yedek geri yükleme arka planda, kilit altında (`withExclusiveDb`), tek `BEGIN IMMEDIATE` işlemi, parçalı `batch` + `requireTransaction`; uyarlanır dışa aktarma ve otomatik yedek hata uyarısı; DB köprüsü yalnız eklenti sayfalarını kabul ediyor; kapalı Instagram/X kancaları yanıt okumuyor; ortak `downloads.subfolder`; `replaceSiteScript` yalnız değişince güncelliyor; release önce taslak, sonra yayımlanıyor.
 - **Diğer:** worker.ts bozuk yorum, `db.rs` → `db/` alt modülleri, `panel.ts` → `src/panel/sections/`, eski dallar silindi, eski notlar `../arsiv/`.
 
 ## 2. Sıradaki adımlar
 
-1. Actions'taki `v0.5.5` yayınının başarılı olduğunu, Releases'te yükleyici, `.sig`, `latest.json` ve eklenti ZIP'i olduğunu kontrol et.
-2. 0.5.5'i kur, eklentiyi `%LOCALAPPDATA%\LifeTools\extension` klasöründen yükle; sonra küçük bir 0.5.6 yayınlayıp masaüstü ve eklenti otomatik güncellemesini gerçekten dene.
+1. Otomatik güncellemeyi doğrula: 0.5.5 kurulu bilgisayarda masaüstü 0.5.6'ya kendiliğinden geçti mi (Ayarlar › Güncellemeler › Güncellemeleri denetle), eklenti `%LOCALAPPDATA%\LifeTools\extension`'dan yüklüyse 0.5.6 oldu mu? Olmadıysa güncelleyici günlüğüne/hata metnine bak. 0.5.5 kurulu değilse 0.5.6'yı elle kur, deneme 0.5.7'de.
+2. 0.5.6 değişikliklerini dene: Panel'den yedek al ve geri yükle (masaüstü arka ucu ile), YouTube'da indirme sırasında Görev Yöneticisi'nde `lifetools-desktop.exe` sayısı artmamalı.
 3. Kullanıcı testleri: YouTube liste seçerek indirme, Steam ana sayfa TL, Instagram ana sayfa/Keşfet, popup ses kartı.
 4. U4 (masaüstünde Notlar, Görevler, İzleme listesi) ve U5 (CC0 ortam sesleri; önce aday listesi, kullanıcı onayı) bekliyor.
 5. İsteğe bağlı: hafif takip engelleme modülü (önerildi, kullanıcı «her neyse» dedi), SmartScreen için kod imzalama.
@@ -46,7 +47,10 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 - **YouTube Trusted Types:** YouTube sayfasında `innerHTML` atamak yasak; içerik betiklerinde DOM öğeleri oluştur.
 - **YouTube DOM (2026):** oynatma listesi başlığı `yt-page-header-view-model` + `yt-flexible-actions-view-model` (sınıflar `ytFlexibleActionsViewModelAction` gibi bitişik). Satırlar oturum açıkken `ytd-playlist-video-renderer`, açık değilken `yt-lockup-view-model`. Gizli ana sayfa `ytd-browse` da DOM'da kalır; her zaman görünür olanı seç. Oturum açmamış tarayıcıda gizli listeler görünmez.
 - **Steam DOM:** klasik fiyatlar `.discount_final_price`/`.discount_original_price`/`.game_purchase_price` (+ `data-price-final` kuruş); React bölümleri karışık sınıf adları kullanır → içinde yalnız fiyat yazan yaprak öğeler bulunur (`isStandalonePriceText`). Döngü koruması yalnızca fiyat öğesinin kendisine bakmalı (kapsayıcıya bakınca tüm bölümler kilitlenmişti).
-- **Native host:** `sendNativeMessage` her çağrıda yeni işlem başlatır; zamanlayıcıyla sık çağırma.
+- **Native host:** `sendNativeMessage` her çağrıda yeni işlem başlatır; zamanlayıcıyla sık çağırma. Sık istekler `src/db/host.ts` `nativeRequest` ile kalıcı bağlantıdan gitmeli; `sendNativeMessage` yalnız klasör seçici ve büyük `video_formats` yanıtı için.
+- **Çok adımlı DB işlemleri:** sayfadan (Panel) mesaj mesaj `BEGIN … COMMIT` yürütme; bağlantı yeniden kurulursa veya başka istek araya girerse veri kaybolur. Arka planda `withExclusiveDb` içinde yap, parçalara `requireTransaction: true` ver (bkz. `restoreBackground`/`exportBackground`).
+- **Release akışı:** `tauri-action` taslak release oluşturur; eklenti ZIP'i `gh release upload` ile eklenir, en son `gh release edit --draft=false --latest`. `softprops/action-gh-release` taslakları etiketle bulamaz, kullanma.
+- **Model durumu (10 Kasım):** Codex Terra kotası sık doluyor (doluysa `--level 3 --model claude/sonnet`). Agent aracındaki «fable» modeli Fable 5.1'dir; kullanıcının genel kuralı Fable'ı yasaklar, yalnız kullanıcı açıkça isterse kullan.
 - **Sayfa betiklerinde performans:** `getComputedStyle`/`elementsFromPoint`/tam sayfa `querySelectorAll` işlerini kare başına, fare hareketinde veya her MutationObserver kaydında yapma; rAF ile birleştir, kapalıyken dinleyicileri kaldır.
 - **Arka plan sunucuları `dist/` içinde çalışmasın:** `npm run build` `dist/`'i silerken EBUSY verir. Demo/test sunucularını kopya klasörden aç.
 - **Delegeler:** `cargo` çalıştıramaz; doğrulayıcı `~/.cargo/bin`'i PATH'e eklemeli; komutlarda `!` yerine bash betiği; Windows Python'u `/c/...` yollarını açamaz (`cygpath -w` kullan). Terra bazen işi yarım bırakır → bağlantı kontrolleri koy. Türkçe karakter bozulması taraması: `grep -E "[a-zA-Zçğışöü]\?[a-zA-Zçğışöü]"` (`\x3f` ile yazılmış `?` normaldir).
@@ -78,3 +82,4 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 | `29a2a15` … `d237aa8` | Bakım, Instagram katman düzeltmeleri, karşılama sayfası, yeni arayüz |
 | `b4bd989` … `0f1d85e` | Oynatma listesi indirme, Döviz Çevirici, seçerek indirme, 0.5.3–0.5.4 |
 | `86feee6` … `48d3635` | Performans düzeltmeleri, otomatik güncelleme, yayım iş akışı, 0.5.5 |
+| `885947d` … `115216a` | Fable incelemesi (17 düzeltme), atomik geri yükleme, taslak release akışı, 0.5.6 |
