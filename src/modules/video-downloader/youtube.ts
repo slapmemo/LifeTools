@@ -43,7 +43,7 @@ function render(): void {
   const watchlist = anchor?.parentElement?.querySelector<HTMLElement>('[data-lifetools-watchlist]');
   const target = watchlist ?? anchor;
   if (kind === 'other' || (!target && !actions)) { host?.remove(); host = null; refreshChip = undefined; return; }
-  const correct = actions ? host?.parentElement === actions : host?.previousElementSibling === target;
+  const correct = kind === 'playlist' && actions ? host?.previousElementSibling === actions : actions ? host?.parentElement === actions : host?.previousElementSibling === target;
   if (host?.isConnected && route === location.href && correct) return;
   host?.remove(); route = location.href;
   const wrapper = document.createElement('span'); host = wrapper;
@@ -87,7 +87,7 @@ function render(): void {
   row.append(button, chip);
   if (kind === 'playlist' && /\b(private|gizli)\b/i.test(header?.textContent ?? '')) { const hint = document.createElement('span'); hint.style.cssText = 'color:#aaa;font:12px Arial'; hint.textContent = 'Gizli liste: indirmek için «Liste dışı» yap'; row.append(hint); }
   shadow.append(style, row, menu);
-  if (actions) actions.append(wrapper); else target!.insertAdjacentElement('afterend', wrapper);
+  if (kind === 'playlist' && actions) { wrapper.style.cssText = 'display:flex;margin:10px 0 0'; actions.insertAdjacentElement('afterend', wrapper); } else if (actions) actions.append(wrapper); else target!.insertAdjacentElement('afterend', wrapper);
   refreshChip = () => {
     const page = route;
     void chrome.runtime.sendMessage({ type: 'video-downloader:jobs' }).then(response => {
