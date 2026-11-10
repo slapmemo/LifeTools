@@ -33,3 +33,6 @@ h2 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
 .version-footer { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
 .version-footer > :first-child { flex: 1; }
 .version-footer > :first-child::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--muted); }
+
+.brand-mark { background: none; }
+.brand-mark .lt-logo { width: 30px; height: 30px; display: block; }

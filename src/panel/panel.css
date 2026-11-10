@@ -809,3 +809,6 @@ h2 { font-size: 24px; font-weight: 700; }
   .app { width: calc(100% - 52px); padding: 0 16px 16px; }
   .topbar { margin: 0 -16px 20px; padding: 0 16px; }
 }
+
+.brand h1 { background: none; padding: 0; }
+.brand h1 .lt-logo { width: 32px; height: 32px; display: block; }
