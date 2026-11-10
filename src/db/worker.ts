@@ -36,7 +36,7 @@ async function init(): Promise<Executor> {
         for (const { sql, params } of statements) db.exec({ sql, bind: params?.length ? params : undefined });
         db.exec({ sql: 'COMMIT' });
       } catch (err) {
-        try { db.exec({ sql: 'ROLLBACK' }); } catch { /* i?lem bitmi? olabilir */ }
+        try { db.exec({ sql: 'ROLLBACK' }); } catch { /* işlem bitmiş olabilir */ }
         throw err;
       }
     },
