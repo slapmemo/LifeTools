@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { clipRect, isExploreGridVideo, isMostlyVisible, type Rect } from '../src/modules/instagram/visibility';
+import { clipRect, isExploreGridVideo, isMostlyVisible, isUncovered, type Rect } from '../src/modules/instagram/visibility';
 
 const rect = (left: number, top: number, right: number, bottom: number): Rect => ({ left, top, right, bottom, width: right - left, height: bottom - top });
 const viewport = { width: 1000, height: 800 };
 
 describe('Instagram video visibility', () => {
+  it('accepts nearby controls but rejects substantially larger covering layers', () => {
+    expect(isUncovered(100, 100)).toBe(true);
+    expect(isUncovered(100, 200)).toBe(true);
+    expect(isUncovered(100, 300)).toBe(false);
+    expect(isUncovered(0, 0)).toBe(false);
+  });
   it('hides Explore grid videos but permits dialogs and other paths', () => {
     expect(isExploreGridVideo('/explore/', false)).toBe(true);
     expect(isExploreGridVideo('/explore/search/', false)).toBe(true);

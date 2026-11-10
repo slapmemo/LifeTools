@@ -20,6 +20,10 @@ export function isExploreGridVideo(pathname: string, insideDialog: boolean): boo
   return !insideDialog && (pathname === '/explore' || pathname.startsWith('/explore/'));
 }
 
+export function isUncovered(videoArea: number, commonAncestorArea: number, maxRatio = 2.5): boolean {
+  return videoArea > 0 && commonAncestorArea <= videoArea * maxRatio;
+}
+
 export function visibleVideoRect(video: HTMLVideoElement): Rect | null {
   if (isExploreGridVideo(location.pathname, video.closest('[role="dialog"]') !== null)) return null;
   if (!video.isConnected) return null;
@@ -40,5 +44,15 @@ export function visibleVideoRect(video: HTMLVideoElement): Rect | null {
     if (element === document.documentElement) break;
   }
   const clipped = clipRect(original, clips, { width: innerWidth, height: innerHeight });
-  return isMostlyVisible(original, clipped) ? clipped : null;
+  if (!clipped || !isMostlyVisible(original, clipped)) return null;
+  const top = document.elementsFromPoint(clipped.left + clipped.width / 2, clipped.top + clipped.height / 2)
+    .find(element => !element.closest('[data-lifetools-instagram]'));
+  if (!top) return null;
+  if (top === video || video.contains(top) || top.contains(video)) return clipped;
+  let ancestor: Element | null = video.parentElement;
+  while (ancestor && !ancestor.contains(top)) ancestor = ancestor.parentElement;
+  if (!ancestor) return null;
+  const ancestorRect = clipRect(ancestor.getBoundingClientRect(), [], { width: innerWidth, height: innerHeight });
+  const ancestorArea = ancestorRect ? ancestorRect.width * ancestorRect.height : 0;
+  return isUncovered(clipped.width * clipped.height, ancestorArea) ? clipped : null;
 }
