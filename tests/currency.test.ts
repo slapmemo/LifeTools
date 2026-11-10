@@ -1,8 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { convert, formatTry, parsePrice, ratesToPerTry } from '../src/modules/currency/rates';
+import { convert, findPriceAt, formatTry, parsePrice, ratesToPerTry, steamFinalAmount } from '../src/modules/currency/rates';
 import { priceCandidate } from '../src/modules/currency/hover';
 
 describe('currency', () => {
+  it('reads Steam final amounts', () => {
+    expect(steamFinalAmount('647', '$6.47 USD')).toEqual({ currency: 'USD', amount: 6.47 });
+    expect(steamFinalAmount(null, '$5.79 USD')).toEqual({ currency: 'USD', amount: 5.79 });
+    expect(steamFinalAmount('0', '$0.00 USD')).toBeNull();
+    expect(steamFinalAmount('5000', '₺50')).toBeNull();
+  });
+  it('finds prices within sentences', () => {
+    for (const [text, needle, currency, amount] of [
+      ['Sadece €5 bugün', '5', 'EUR', 5],
+      ['Fiyat 5€ oldu', '5', 'EUR', 5],
+      ['toplam $12.99 USD ödendi', '12', 'USD', 12.99]
+    ] as const) {
+      expect(findPriceAt(text, text.indexOf(needle))).toMatchObject({ currency, amount });
+    }
+    expect(findPriceAt('fiyat yok', 3)).toBeNull();
+    expect(findPriceAt('₺50', 1)).toBeNull();
+    for (const [text, currency, amount] of [
+      ['€ 5,99', 'EUR', 5.99], ['12.99 USD', 'USD', 12.99],
+      ['USD 12.99', 'USD', 12.99], ['£5', 'GBP', 5],
+      ['¥1,200', 'JPY', 1200], ['CHF 10', 'CHF', 10], ['10 zł', 'PLN', 10]
+    ] as const) {
+      expect(findPriceAt(text, text.indexOf(text.match(/\d/)![0]))).toMatchObject({ currency, amount });
+    }
+  });
   it('selects only small price candidates', () => {
     expect(priceCandidate('  € 12,50  ', 3)).toEqual({ currency: 'EUR', amount: 12.5 });
     expect(priceCandidate('€12', 4)).toBeNull();

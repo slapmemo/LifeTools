@@ -15,6 +15,10 @@ export function initCurrencyPanel(): { render(flags: unknown): Promise<void> } {
   const steam = root.querySelector<HTMLInputElement>('#currency-steam')!;
   const hover = root.querySelector<HTMLInputElement>('#currency-hover')!;
   const line = root.querySelector<HTMLElement>('#currency-rates')!;
+  const hint = document.createElement('div');
+  hint.textContent = 'Fiyatın üstüne gel ya da fiyatı seç; TL karşılığı küçük bir kutuda görünür.';
+  hint.style.cssText = 'color:var(--lt-muted, #888);font-size:12px;';
+  (hover.closest('label') ?? hover).insertAdjacentElement('afterend', hint);
 
   function bind(input: HTMLInputElement, origin: string, key: 'steamInline' | 'hoverAllSites'): void {
     input.addEventListener('change', () => {
