@@ -90,15 +90,17 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: LifeTools ${{ github.ref_name }}
           releaseBody: Masaüstü uygulaması kendini otomatik günceller. Eklenti masaüstünün eklenti klasöründen yüklendiyse o da güncellenir.
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
 
       - name: Verify Cargo lockfile
         run: git diff --exit-code -- desktop/src-tauri/Cargo.lock
 
-      - name: Upload extension
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: release/LifeTools-extension-*.zip
+      - name: Upload extension and publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" release/LifeTools-extension-*.zip --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest
