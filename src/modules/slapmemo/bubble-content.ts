@@ -12,6 +12,8 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let host: HTMLElement | undefined;
 let flags: unknown = {};
 let panelOpen = false;
+let listening = false;
+let settingsRevision = 0;
 
 function hide(): void { clearTimeout(timer); timer = undefined; host?.remove(); host = undefined; panelOpen = false; }
 function editable(node: Node | null): boolean {
@@ -19,15 +21,22 @@ function editable(node: Node | null): boolean {
   return !!element?.closest('input, textarea, [contenteditable]:not([contenteditable="false"])');
 }
 async function loadSettings(): Promise<void> {
+  const revision = ++settingsRevision;
   const data = await chrome.storage.local.get({ [BUBBLE_ENABLED_KEY]: true, [BUBBLE_HIDDEN_KEY]: [], [MODULE_FLAGS_KEY]: {} });
+  if (revision !== settingsRevision) return;
   enabled = data[BUBBLE_ENABLED_KEY] !== false && resolveEnabled(data[MODULE_FLAGS_KEY], 'slapmemo');
   flags = data[MODULE_FLAGS_KEY];
   hiddenSites = Array.isArray(data[BUBBLE_HIDDEN_KEY]) ? data[BUBBLE_HIDDEN_KEY].filter((site: unknown): site is string => typeof site === 'string') : [];
-  if (!enabled || hiddenSites.includes(location.hostname)) hide();
+  const active = enabled && !hiddenSites.includes(location.hostname);
+  setListeners(active);
+  if (!active) hide();
 }
 void loadSettings();
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && (changes[BUBBLE_ENABLED_KEY] || changes[BUBBLE_HIDDEN_KEY] || changes[MODULE_FLAGS_KEY])) void loadSettings();
+  if (area === 'local' && (changes[BUBBLE_ENABLED_KEY] || changes[BUBBLE_HIDDEN_KEY] || changes[MODULE_FLAGS_KEY])) {
+    if (changes[MODULE_FLAGS_KEY]) flags = changes[MODULE_FLAGS_KEY].newValue;
+    void loadSettings();
+  }
 });
 
 function show(): void {
@@ -163,9 +172,9 @@ function show(): void {
   const size = host.getBoundingClientRect();
   const position = bubblePosition(rect, { width: innerWidth, height: innerHeight }, size);
   host.style.left = `${position.left}px`; host.style.top = `${position.top}px`;
-  const price = text.length <= 40 ? parsePrice(text) ?? findPriceAt(text, Math.floor(text.length / 2)) : null;
+  const price = resolveEnabled(flags, 'currency') && text.length <= 40 ? parsePrice(text) ?? findPriceAt(text, Math.floor(text.length / 2)) : null;
   if (price) void (chrome.runtime.sendMessage({ channel: 'currency', type: 'rates' }) as Promise<Rates | null>).then(rates => {
-    if (!rates || host !== bubbleHost || !bubbleHost.isConnected || window.getSelection()?.toString().trim() !== text) return;
+    if (!rates || !resolveEnabled(flags, 'currency') || host !== bubbleHost || !bubbleHost.isConnected || window.getSelection()?.toString().trim() !== text) return;
     const value = convert(price, rates.perTry);
     if (value === null) return;
     const tl = `≈ ${formatTry(value)}`;
@@ -186,9 +195,28 @@ function show(): void {
   }).catch(() => {});
 }
 function schedule(): void { hide(); timer = setTimeout(show, 40); }
-document.addEventListener('mouseup', event => { if (!enabled || hiddenSites.includes(location.hostname)) return; if (!host || !event.composedPath().includes(host)) schedule(); });
-document.addEventListener('keyup', event => { if (!enabled || hiddenSites.includes(location.hostname)) return; if (!panelOpen && event.shiftKey && event.key.startsWith('Arrow')) schedule(); });
-document.addEventListener('pointerdown', event => { if (host && !event.composedPath().includes(host)) hide(); });
-document.addEventListener('keydown', event => { if (event.key === 'Escape') hide(); });
-document.addEventListener('selectionchange', () => { if ((!host && timer === undefined) || panelOpen) return; const selection = window.getSelection(); if (!selection || selection.isCollapsed || !selection.toString().trim()) hide(); });
-window.addEventListener('scroll', event => { if (!host) return; if (!event.composedPath().includes(host)) hide(); }, true);
+function onMouseUp(event: MouseEvent): void { if (!host || !event.composedPath().includes(host)) schedule(); }
+function onKeyUp(event: KeyboardEvent): void { if (!panelOpen && event.shiftKey && event.key.startsWith('Arrow')) schedule(); }
+function onPointerDown(event: PointerEvent): void { if (host && !event.composedPath().includes(host)) hide(); }
+function onKeyDown(event: KeyboardEvent): void { if (event.key === 'Escape') hide(); }
+function onSelectionChange(): void { if ((!host && timer === undefined) || panelOpen) return; const selection = window.getSelection(); if (!selection || selection.isCollapsed || !selection.toString().trim()) hide(); }
+function onScroll(event: Event): void { if (host && !event.composedPath().includes(host)) hide(); }
+function setListeners(active: boolean): void {
+  if (listening === active) return;
+  listening = active;
+  if (active) {
+    document.addEventListener('mouseup', onMouseUp);
+    document.addEventListener('keyup', onKeyUp);
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('selectionchange', onSelectionChange);
+    window.addEventListener('scroll', onScroll, true);
+  } else {
+    document.removeEventListener('mouseup', onMouseUp);
+    document.removeEventListener('keyup', onKeyUp);
+    document.removeEventListener('pointerdown', onPointerDown);
+    document.removeEventListener('keydown', onKeyDown);
+    document.removeEventListener('selectionchange', onSelectionChange);
+    window.removeEventListener('scroll', onScroll, true);
+  }
+}

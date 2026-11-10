@@ -21,6 +21,6 @@ export function initCurrencyBackground(): void {
   chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && (changes[MODULE_FLAGS_KEY] || changes[CURRENCY_SETTINGS_KEY])) refresh(); });
   chrome.permissions.onAdded.addListener(refresh);
   chrome.permissions.onRemoved.addListener(refresh);
-  chrome.runtime.onInstalled.addListener(refresh);
+  chrome.runtime.onInstalled.addListener(() => { void chrome.storage.local.remove('currency.steamShowOriginal'); refresh(); });
   chrome.runtime.onStartup.addListener(refresh);
 }

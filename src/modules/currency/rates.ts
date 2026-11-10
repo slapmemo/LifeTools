@@ -26,13 +26,17 @@ export async function getRates(): Promise<Rates | null> {
 const symbols: Record<string, Currency> = { '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', 'zł': 'PLN' };
 const words: Record<string, Currency> = { euro: 'EUR', euros: 'EUR', avro: 'EUR', eur: 'EUR', dolar: 'USD', dollar: 'USD', dollars: 'USD', usd: 'USD', sterlin: 'GBP', pound: 'GBP', pounds: 'GBP', gbp: 'GBP', frank: 'CHF', franc: 'CHF', chf: 'CHF', yen: 'JPY', jpy: 'JPY', ruble: 'RUB', rubles: 'RUB', rub: 'RUB', zloti: 'PLN', zloty: 'PLN', pln: 'PLN', mark: 'DEM', marks: 'DEM', dm: 'DEM', 'deutsche mark': 'DEM', 'alman markı': 'DEM' };
 const wordPattern = 'deutsche\\s+mark|alman\\s+markı|euros|euro|avro|eur|dollars|dollar|dolar|usd|sterlin|pounds|pound|gbp|frank|franc|chf|yen|jpy|rubles|ruble|rub|zloti|zloty|pln|marks|mark|dm';
+const wordPricePattern = new RegExp(`^(\\d[\\d\\s.,]*?)\\s*(${wordPattern})(?:['’][\\p{L}]+)?$`, 'iu');
+const wordPrices = new RegExp(`\\d[\\d.,]*\\s*(?:${wordPattern})(?:['’][\\p{L}]+)?`, 'giu');
+const priceToken = /(?:USD|EUR|GBP|CHF|JPY|CAD|AUD|PLN|SEK|NOK|DKK|CZK|HUF|RUB|\$|€|£|¥|zł)/i;
+const symbolPrices = new RegExp(`(?:${priceToken.source}\\s*\\d[\\d.,]*(?:\\s+${priceToken.source})?|\\d[\\d.,]*\\s*${priceToken.source})`, 'gi');
 export function isStandalonePriceText(text: string): boolean {
   const trimmed = text.trim();
   return trimmed.length <= 16 && /^(?:\$\s?\d[\d.,]*(?:\s?USD)?|\d[\d.,]*\s?€|€\s?\d[\d.,]*|£\s?\d[\d.,]*)$/.test(trimmed);
 }
 export function parsePrice(text: string): Price | null {
   if (text.length > 40 || /₺|\bTL\b/i.test(text)) return null;
-  const word = text.trim().match(new RegExp(`^(\\d[\\d\\s.,]*?)\\s*(${wordPattern})(?:['’][\\p{L}]+)?$`, 'iu'));
+  const word = text.trim().match(wordPricePattern);
   if (word) {
     const currency = words[word[2].toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ')];
     const parsed = parsePrice(`${word[1]} €`);
@@ -54,7 +58,6 @@ export function parsePrice(text: string): Price | null {
   return Number.isFinite(amount) ? { currency, amount } : null;
 }
 export function findPriceAt(text: string, index: number): (Price & { start: number; end: number }) | null {
-  const wordPrices = new RegExp(`\\d[\\d.,]*\\s*(?:${wordPattern})(?:['’][\\p{L}]+)?`, 'giu');
   let wordBest: (Price & { start: number; end: number }) | null = null;
   let wordDistance = 4;
   for (const match of text.matchAll(wordPrices)) {
@@ -64,11 +67,9 @@ export function findPriceAt(text: string, index: number): (Price & { start: numb
     const distance = index < start ? start - index : index >= end ? index - end + 1 : 0;
     if (price && distance < wordDistance) { wordBest = { ...price, start, end }; wordDistance = distance; }
   }
-  const token = /(?:USD|EUR|GBP|CHF|JPY|CAD|AUD|PLN|SEK|NOK|DKK|CZK|HUF|RUB|\$|€|£|¥|zł)/i;
-  const pattern = new RegExp(`(?:${token.source}\\s*\\d[\\d.,]*(?:\\s+${token.source})?|\\d[\\d.,]*\\s*${token.source})`, 'gi');
   let best: (Price & { start: number; end: number }) | null = null;
   let distance = 4;
-  for (const match of text.matchAll(pattern)) {
+  for (const match of text.matchAll(symbolPrices)) {
     const start = match.index;
     const end = start + match[0].length;
     if ((start > 0 && /[\p{L}\p{N}₺]/u.test(text[start - 1])) || (end < text.length && /[\p{L}\p{N}]/u.test(text[end]))) continue;

@@ -32,7 +32,8 @@ export function initHover(): void {
     const current = ++revision;
     const [settings, moduleEnabled] = await Promise.all([loadCurrencySettings(), isModuleEnabled('currency')]);
     if (current !== revision) return;
-    enabled = moduleEnabled && (settings.hoverAllSites || (steamStore && settings.steamInline));
+    enabled = moduleEnabled && settings.hoverAllSites;
+    setListeners(enabled);
     if (!enabled) hide();
   }
   function getRates(): Promise<Rates | null> {
@@ -71,7 +72,7 @@ export function initHover(): void {
       selectionShown = selection;
     });
   }
-  document.addEventListener('pointermove', event => {
+  function onPointerMove(event: PointerEvent): void {
     if (!enabled || selectionShown) return;
     const x = event.clientX, y = event.clientY;
     const target = event.target instanceof Element ? event.target : null;
@@ -100,7 +101,7 @@ export function initHover(): void {
       const price = target && priceCandidate(target.textContent ?? '', target.children.length);
       if (price && target) show(price, target.getBoundingClientRect(), false);
     }, 150);
-  }, { passive: true });
+  }
   function showSelection(): void {
     if (!enabled) return;
     hide();
@@ -122,22 +123,38 @@ export function initHover(): void {
       }, 50);
     }
   }
-  document.addEventListener('mousedown', hide);
-  document.addEventListener('mouseup', showSelection);
-  document.addEventListener('keyup', event => { if (event.shiftKey) showSelection(); });
-  document.addEventListener('scroll', hide, { passive: true, capture: true });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape') hide(); });
+  function onKeyUp(event: KeyboardEvent): void { if (event.shiftKey) showSelection(); }
+  function onKeyDown(event: KeyboardEvent): void { if (event.key === 'Escape') hide(); }
+  let listening = false;
+  function setListeners(active: boolean): void {
+    if (listening === active) return;
+    listening = active;
+    if (active) {
+      document.addEventListener('pointermove', onPointerMove, { passive: true });
+      document.addEventListener('mousedown', hide);
+      document.addEventListener('mouseup', showSelection);
+      document.addEventListener('keyup', onKeyUp);
+      document.addEventListener('scroll', hide, { passive: true, capture: true });
+      document.addEventListener('keydown', onKeyDown);
+    } else {
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('mousedown', hide);
+      document.removeEventListener('mouseup', showSelection);
+      document.removeEventListener('keyup', onKeyUp);
+      document.removeEventListener('scroll', hide, true);
+      document.removeEventListener('keydown', onKeyDown);
+    }
+  }
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && (changes[MODULE_FLAGS_KEY] || changes[CURRENCY_SETTINGS_KEY])) { enabled = false; hide(); void updateEnabled(); }
+    if (area === 'local' && (changes[MODULE_FLAGS_KEY] || changes[CURRENCY_SETTINGS_KEY])) { enabled = false; setListeners(false); hide(); void updateEnabled(); }
   });
   void updateEnabled();
 }
 
 async function init(): Promise<void> {
-  void chrome.storage.local.remove('currency.steamShowOriginal');
   const settings = await loadCurrencySettings();
   initHover();
-  document.querySelectorAll('.game_purchase_action > [data-lifetools-currency]').forEach(element => element.remove());
+  if (steamStore) document.querySelectorAll('.game_purchase_action > [data-lifetools-currency]').forEach(element => element.remove());
   if (!settings.steamInline || !steamStore || !await isModuleEnabled('currency')) return;
   const rates = await chrome.runtime.sendMessage({ channel: 'currency', type: 'rates' }) as Rates | null;
   if (!rates) return;
@@ -145,6 +162,7 @@ async function init(): Promise<void> {
   const written = new WeakSet<Element>();
   const converted = new WeakMap<Element, string>();
   const controls = new WeakSet<Element>();
+  const changes = new WeakMap<Element, { times: number[]; blocked: boolean }>();
   function toggle(event: Event): void {
     event.preventDefault();
     event.stopPropagation();
@@ -161,9 +179,10 @@ async function init(): Promise<void> {
     while (walker.nextNode()) {
       const node = walker.currentNode;
       const parent = node.parentElement;
-      if (!(parent instanceof HTMLElement) || parent.children.length || handled.has(parent) || parent.closest(priceSelector) ||
-          parent.closest('input, textarea, [contenteditable], [data-lifetools-currency-tip], script, style, noscript, svg')) continue;
+      if (!(parent instanceof HTMLElement) || parent.children.length || handled.has(parent)) continue;
       if (!isStandalonePriceText(node.textContent ?? '') && !converted.has(parent)) continue;
+      if (parent.closest(priceSelector) ||
+          parent.closest('input, textarea, [contenteditable], [data-lifetools-currency-tip], script, style, noscript, svg')) continue;
       handled.add(parent);
       elements.push(parent);
     }
@@ -174,7 +193,6 @@ async function init(): Promise<void> {
         let original = element.dataset.lifetoolsOriginal;
         if (original === undefined || (current !== original && current !== converted.get(element))) {
           original = current;
-          element.dataset.lifetoolsOriginal = original;
         }
         const isOriginalPrice = element.matches('.discount_original_price');
         const finalAttr = element.closest('[data-price-final]')?.getAttribute('data-price-final') ?? block?.querySelector('[data-price-final]')?.getAttribute('data-price-final') ?? null;
@@ -185,10 +203,18 @@ async function init(): Promise<void> {
         if (!price || value === null) continue;
         const tl = formatTry(value);
         converted.set(element, tl);
-        element.dataset.lifetoolsCurrency = 'try';
-        element.title = `Orijinal: ${original.trim()} · 1 ${symbolFor(price.currency)} = ${formatTry(rates!.perTry[price.currency])} · ECB ${dateFor(rates!.date)}${block ? ` · tıkla: ${showOriginal ? 'TL' : symbolFor(price.currency)} göster` : ''}`;
+        const title = `Orijinal: ${original.trim()} · 1 ${symbolFor(price.currency)} = ${formatTry(rates!.perTry[price.currency])} · ECB ${dateFor(rates!.date)}${block ? ` · tıkla: ${showOriginal ? 'TL' : symbolFor(price.currency)} göster` : ''}`;
         const display = showOriginal ? original : tl;
+        if (current === display && element.dataset.lifetoolsOriginal === original && element.dataset.lifetoolsCurrency === 'try' && element.title === title) continue;
+        element.dataset.lifetoolsOriginal = original;
+        element.dataset.lifetoolsCurrency = 'try';
+        element.title = title;
         if (current !== display) {
+          let blocked = false;
+          for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+            if (changes.get(ancestor)?.blocked) { blocked = true; break; }
+          }
+          if (blocked) continue;
           written.add(element);
           element.textContent = display;
         }
@@ -209,25 +235,46 @@ async function init(): Promise<void> {
   }
   let scheduled = false;
   const pending = new Set<Element>();
+  const changedThisFrame = new Set<Element>();
+  function alreadyWritten(target: Element | null): boolean {
+    const price = target?.closest('[data-lifetools-currency]');
+    return !!price && written.has(price) && price.textContent === (showOriginal ? (price as HTMLElement).dataset.lifetoolsOriginal : converted.get(price));
+  }
   const observer = new MutationObserver(records => {
     if (records.every(record => {
       const target = record.target instanceof Element ? record.target : record.target.parentElement;
-      const price = target?.closest('[data-lifetools-currency]');
       return !!target?.closest('[data-lifetools-currency-tip]') ||
-        (!!price && written.has(price) && price.textContent === (showOriginal ? (price as HTMLElement).dataset.lifetoolsOriginal : converted.get(price))) ||
+        alreadyWritten(target ?? null) ||
         (record.type === 'childList' && [...record.addedNodes, ...record.removedNodes].length > 0 && [...record.addedNodes, ...record.removedNodes].every(node => node instanceof Element && node.hasAttribute('data-lifetools-currency-tip')));
     })) return;
     for (const record of records) {
+      const changed = record.target instanceof Element ? record.target : record.target.parentElement;
+      if (alreadyWritten(changed) || changed?.closest('[data-lifetools-currency-tip]')) continue;
+      if (changed && !changedThisFrame.has(changed)) {
+        if (!changedThisFrame.size) requestAnimationFrame(() => changedThisFrame.clear());
+        changedThisFrame.add(changed);
+        const now = Date.now();
+        const state = changes.get(changed) ?? { times: [], blocked: false };
+        state.times = state.times.filter(time => now - time < 2000);
+        state.times.push(now);
+        if (state.times.length > 3) state.blocked = true;
+        changes.set(changed, state);
+      }
       if (record.type === 'childList') for (const node of record.addedNodes) {
-        if (node instanceof Element && !node.hasAttribute('data-lifetools-currency-tip')) pending.add(node);
-        else if (node.nodeType === Node.TEXT_NODE && node.parentElement) pending.add(node.parentElement);
+        if (node instanceof Element && !node.hasAttribute('data-lifetools-currency-tip') && !alreadyWritten(node)) pending.add(node);
+        else if (node.nodeType === Node.TEXT_NODE && node.parentElement && !alreadyWritten(node.parentElement)) pending.add(node.parentElement);
       }
       const target = record.target instanceof Element ? record.target : record.target.parentElement;
       const price = target?.closest(priceSelector);
       if (price && !target?.closest('[data-lifetools-currency-tip]') && !(written.has(price) && price.textContent === (showOriginal ? (price as HTMLElement).dataset.lifetoolsOriginal : converted.get(price)))) pending.add(price);
       else if (record.type === 'characterData' && target && !target.closest('[data-lifetools-currency-tip]')) pending.add(target);
     }
-    if (pending.size && !scheduled) { scheduled = true; requestAnimationFrame(() => { scheduled = false; for (const root of pending) scan(root); pending.clear(); }); }
+    if (pending.size && !scheduled) { scheduled = true; requestAnimationFrame(() => {
+      scheduled = false;
+      const roots = [...pending].filter(root => root.isConnected);
+      pending.clear();
+      for (const root of roots) if (!roots.some(other => other !== root && other.contains(root))) scan(root);
+    }); }
   });
   observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
   scan();
