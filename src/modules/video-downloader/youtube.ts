@@ -1,10 +1,32 @@
 import { PAGE_THEME } from '../../core/page-theme';
-import { cacheFresh, estimateFromPlayer, friendlyVideoError, formatChip, formatQualityLabel, menuPosition, MODE_LABELS, youtubePage, youtubePlaylistId, youtubeVideoId, type PlayerFormat, type VideoFormats, type VideoJob } from './logic';
+import { cacheFresh, estimateFromPlayer, friendlyVideoError, formatChip, formatQualityLabel, menuPosition, MODE_LABELS, playlistRowVideoId, selectionSummary, youtubePage, youtubePlaylistId, youtubeVideoId, type PlayerFormat, type VideoFormats, type VideoJob } from './logic';
 
 let host: HTMLElement | null = null;
 let route = '';
 let frame = 0;
 let refreshChip: (() => void) | undefined;
+let selection: { url: string; ids: Set<string>; bar: HTMLElement; update: () => void } | null = null;
+function endSelection(): void { selection?.bar.remove(); document.querySelectorAll('[data-lifetools-select]').forEach(el => el.remove()); selection = null; }
+function selectionRows(): void {
+  if (!selection) return;
+  for (const row of document.querySelectorAll<HTMLElement>('ytd-playlist-video-renderer')) {
+    if (row.querySelector('[data-lifetools-select]')) continue;
+    const link = row.querySelector<HTMLAnchorElement>('a#video-title[href], a#thumbnail[href]'); const id = link && playlistRowVideoId(link.href); if (!id) continue;
+    const box = document.createElement('input'); box.type = 'checkbox'; box.setAttribute('data-lifetools-select', ''); box.setAttribute('aria-label', 'Videoyu seç'); box.dataset.videoId = id; box.checked = selection.ids.has(id); box.style.cssText = 'width:20px;height:20px;flex:none;margin:0 12px;accent-color:#3ea6ff;cursor:pointer';
+    for (const event of ['click', 'pointerdown', 'mousedown']) box.addEventListener(event, e => e.stopPropagation());
+    box.addEventListener('change', () => { if (!selection) return; if (box.checked) selection.ids.add(id); else selection.ids.delete(id); selection.update(); });
+    const target = row.querySelector<HTMLElement>('#content') ?? row; target.prepend(box);
+  }
+}
+function beginSelection(url: string, title: string): void {
+  endSelection(); const bar = document.createElement('div'); bar.setAttribute('data-lifetools-select-bar', ''); bar.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:2147483647'; const shadow = bar.attachShadow({ mode: 'closed' });
+  const style = document.createElement('style'); style.textContent = ':host{font:14px Arial;color:white}.bar{background:#282828;box-shadow:0 4px 18px #0009;border-radius:12px;padding:12px;min-width:max-content}.actions{display:flex;align-items:center;gap:8px}button{border:0;border-radius:18px;padding:8px 12px;background:#444;color:white;cursor:pointer}button:hover{background:#555}.primary{background:#3ea6ff;color:#111}.hint{color:#aaa;font-size:12px;margin-top:8px}.menu[hidden]{display:none}.menu button{display:block;width:100%;text-align:left}';
+  const container = document.createElement('div'); container.className = 'bar'; const actions = document.createElement('div'); actions.className = 'actions'; const summary = document.createElement('span'); const all = document.createElement('button'); all.textContent = 'Görünenlerin tümünü seç'; const clear = document.createElement('button'); clear.textContent = 'Temizle'; const download = document.createElement('button'); download.className = 'primary'; download.textContent = 'İndir ▾'; const cancel = document.createElement('button'); cancel.textContent = 'Vazgeç'; const menu = document.createElement('div'); menu.className = 'menu'; menu.hidden = true; const hint = document.createElement('div'); hint.className = 'hint'; hint.textContent = 'Uzun listelerde önce aşağı kaydır: YouTube videoları kaydırdıkça yükler.';
+  const update = () => { if (!selection) return; summary.textContent = selectionSummary(selection.ids.size); download.disabled = selection.ids.size === 0; document.querySelectorAll<HTMLInputElement>('[data-lifetools-select]').forEach(box => { box.checked = selection!.ids.has(box.dataset.videoId!); }); };
+  selection = { url, ids: new Set(), bar, update }; all.onclick = () => { document.querySelectorAll<HTMLInputElement>('[data-lifetools-select]').forEach(box => { if (box.getBoundingClientRect().width && box.getBoundingClientRect().height) selection?.ids.add(box.dataset.videoId!); }); update(); }; clear.onclick = () => { selection?.ids.clear(); update(); }; cancel.onclick = endSelection; download.onclick = () => { menu.hidden = !menu.hidden; };
+  for (const mode of ['selected:video_best', 'selected:video_720', 'selected:audio_mp3'] as const) { const item = document.createElement('button'); item.textContent = MODE_LABELS[mode]; item.onclick = () => { if (!selection) return; const ids = [...new Set(Array.from(document.querySelectorAll<HTMLInputElement>('[data-lifetools-select]')).map(box => box.dataset.videoId!).filter(id => selection!.ids.has(id)))]; if (!ids.length || ids.length > 500) { summary.textContent = ids.length > 500 ? 'En fazla 500 video seçilebilir' : selectionSummary(0); return; } void chrome.runtime.sendMessage({ type: 'video-downloader:start', url, mode, items: ids, folderName: title || 'YouTube seçimi' }).then((response: { ok?: boolean; message?: string }) => { if (response?.ok && response.message !== 'İndirme iptal edildi.') { endSelection(); refreshChip?.(); } else summary.textContent = response?.message || 'İndirme başlatılamadı.'; }).catch(() => { summary.textContent = 'İndirme başlatılamadı.'; }); }; menu.append(item); }
+  actions.append(summary, all, clear, download, cancel); container.append(actions, menu, hint); shadow.append(style, container); document.documentElement.append(bar); selectionRows(); update();
+}
 const formatsCache = new Map<string, { timestamp: number; data: VideoFormats }>();
 const pending = new Map<string, Promise<VideoFormats>>();
 function loadFormats(url: string, id: string): Promise<VideoFormats> {
@@ -33,6 +55,8 @@ const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame
 
 function render(): void {
   const kind = youtubePage(location.href);
+  if (selection && (kind !== 'playlist' || selection.url !== location.href)) endSelection();
+  if (selection) selectionRows();
   const visible = (element: Element) => { const rect = element.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; };
   const browse = kind === 'playlist' ? Array.from(document.querySelectorAll<HTMLElement>('ytd-browse:not([hidden])')).find(element => element.getAttribute('page-subtype') === 'playlist' && visible(element)) ?? Array.from(document.querySelectorAll<HTMLElement>('ytd-browse:not([hidden])')).find(visible) ?? document.body : null;
   const header = browse?.querySelector<HTMLElement>('yt-page-header-view-model, yt-page-header-renderer, ytd-playlist-header-renderer') ?? browse;
@@ -76,7 +100,7 @@ function render(): void {
     if (menu.hidden) { request++; return; }
     const url = location.href; const id = youtubeVideoId(url); const current = ++request;
     const addPlaylist = (separator: boolean) => { const list = youtubePlaylistId(url); if (!list) return; if (separator) { const heading = document.createElement('div'); heading.style.cssText = 'color:#aaa;font:12px Arial;padding:9px 14px 4px;border-top:1px solid #555'; heading.textContent = 'Bu oynatma listesi'; menu.append(heading); } const listUrl = `https://www.youtube.com/playlist?list=${encodeURIComponent(list)}`; for (const mode of ['playlist:video_best', 'playlist:video_720', 'playlist:audio_mp3'] as const) addItem(mode, MODE_LABELS[mode], listUrl); };
-    if (kind === 'playlist') { menu.replaceChildren(); addPlaylist(false); position(); return; }
+    if (kind === 'playlist') { menu.replaceChildren(); const select = document.createElement('button'); select.type = 'button'; select.textContent = 'Videoları seç…'; select.addEventListener('click', () => { menu.hidden = true; beginSelection(url, anchor?.textContent?.trim() || 'YouTube seçimi'); }); menu.append(select); addPlaylist(false); position(); return; }
     const show = (data: VideoFormats) => { menu.replaceChildren(); for (const format of data.formats) addItem(`height:${format.height}`, formatQualityLabel(format.label, format), url); addItem('audio_mp3', formatQualityLabel(MODE_LABELS.audio_mp3, data.audio), url); if (kind === 'watch') addPlaylist(true); position(); };
     const cached = id ? formatsCache.get(id) : undefined;
     if (cached && cacheFresh(cached.timestamp)) { show(cached.data); return; }
@@ -88,7 +112,7 @@ function render(): void {
       if (current !== request || !wrapper.isConnected || location.href !== url || menu.hidden) return;
       menu.replaceChildren(); const message = document.createElement('div'); message.style.cssText = 'color:white;font:14px Arial;padding:9px 14px'; message.textContent = error.message || 'Kaliteler yüklenemedi.'; menu.append(message);
       if (error.code === 'TOOLS_MISSING') { const install = document.createElement('button'); install.type = 'button'; install.textContent = 'Araçları kur'; install.addEventListener('click', () => { install.disabled = true; void chrome.runtime.sendMessage({ type: 'video-downloader:install' }).then(result => { message.textContent = result?.ok ? 'Kurulum başladı. Bir dakika sonra tekrar deneyin.' : result?.message || 'Kurulum başlatılamadı.'; position(); }).catch(() => { message.textContent = 'Kurulum başlatılamadı.'; position(); }); }); menu.append(install); }
-      for (const [mode, label] of Object.entries(MODE_LABELS)) if (!mode.startsWith('playlist:')) addItem(mode, label, url); if (kind === 'watch') addPlaylist(true); position();
+      for (const [mode, label] of Object.entries(MODE_LABELS)) if (!mode.startsWith('playlist:') && !mode.startsWith('selected:')) addItem(mode, label, url); if (kind === 'watch') addPlaylist(true); position();
     });
   });
   for (const event of ['click', 'pointerdown', 'mousedown', 'keydown']) shadow.addEventListener(event, e => e.stopPropagation());

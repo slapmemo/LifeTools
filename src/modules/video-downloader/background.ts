@@ -15,12 +15,12 @@ function updateTracked(update: (ids: string[]) => string[]): Promise<void> {
 }
 async function notify(id: string, message: string, buttons?: chrome.notifications.ButtonOptions[]): Promise<void> { await chrome.notifications.create(id, { type: 'basic', iconUrl: 'icons/icon128.png', title: 'Video İndirici', message, ...(buttons ? { buttons } : {}) }); }
 async function tracked(): Promise<string[]> { const data = await chrome.storage.session.get({ [KEY]: [] }); return Array.isArray(data[KEY]) ? data[KEY] : []; }
-export async function startDownload(url: string, mode: VideoMode = 'video_best'): Promise<string> {
+export async function startDownload(url: string, mode: VideoMode = 'video_best', items?: string[], folderName?: string): Promise<string> {
   if (!acceptsUrl(url)) { const message = 'Yalnızca HTTP veya HTTPS bağlantıları indirilebilir.'; await notify('video-error', message); throw new Error(message); }
   try {
     const picked = await videoCall('video_pick_folder');
     if (!picked.path) return 'İndirme iptal edildi.';
-    const result = await videoCall('video_download', { url, mode, dir: picked.path });
+    const result = await videoCall('video_download', { url, mode, dir: picked.path, ...(items ? { items, folder_name: folderName } : {}) });
     await updateTracked(ids => [...ids, String(result.jobId)]);
     await chrome.alarms.create(ALARM, { delayInMinutes: 0.025 });
     return 'İndirme başlatıldı.';
@@ -70,7 +70,7 @@ export function initVideoBackground(): void {
       void (async () => { if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.'); if (msg.type === 'video-downloader:install') return videoCall('video_tools_install'); if (typeof msg.url !== 'string' || msg.url !== sender.tab?.url || !acceptsUrl(msg.url)) throw new Error('Geçersiz istek.'); return videoCall('video_formats', { url: msg.url }); })().then(data => respond({ ok: true, data })).catch(e => respond({ ok: false, message: e.message, code: e.name })); return true;
     }
     if (msg?.type !== 'video-downloader:start') return;
-    void (async () => { if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.'); const height = typeof msg.mode === 'string' && /^height:\d+$/.test(msg.mode) ? Number(msg.mode.slice(7)) : 0; const id = sender.tab?.url ? youtubePlaylistId(sender.tab.url) : null; const playlist = typeof msg.mode === 'string' && msg.mode.startsWith('playlist:'); const validUrl = playlist ? !!id && msg.url === `https://www.youtube.com/playlist?list=${encodeURIComponent(id)}` : msg.url === sender.tab?.url; if (!(typeof msg.mode === 'string' && (Object.hasOwn(MODE_LABELS, msg.mode) || (height >= 144 && height <= 4320))) || typeof msg.url !== 'string' || !validUrl) throw new Error('Geçersiz istek.'); return startDownload(msg.url, msg.mode as VideoMode); })().then(message => respond({ ok: true, message })).catch(e => respond({ ok: false, message: e.message })); return true;
+    void (async () => { if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.'); const height = typeof msg.mode === 'string' && /^height:\d+$/.test(msg.mode) ? Number(msg.mode.slice(7)) : 0; const id = sender.tab?.url ? youtubePlaylistId(sender.tab.url) : null; const playlist = typeof msg.mode === 'string' && msg.mode.startsWith('playlist:'); const selected = typeof msg.mode === 'string' && msg.mode.startsWith('selected:'); const validUrl = playlist ? !!id && msg.url === `https://www.youtube.com/playlist?list=${encodeURIComponent(id)}` : msg.url === sender.tab?.url; if (!(typeof msg.mode === 'string' && (Object.hasOwn(MODE_LABELS, msg.mode) || (height >= 144 && height <= 4320))) || typeof msg.url !== 'string' || !validUrl || (selected && (!id || !Array.isArray(msg.items) || msg.items.length < 1 || msg.items.length > 500 || !msg.items.every((x: unknown) => typeof x === 'string' && /^[A-Za-z0-9_-]{11}$/.test(x)) || typeof msg.folderName !== 'string'))) throw new Error('Geçersiz istek.'); return startDownload(msg.url, msg.mode as VideoMode, selected ? msg.items : undefined, selected ? msg.folderName : undefined); })().then(message => respond({ ok: true, message })).catch(e => respond({ ok: false, message: e.message })); return true;
   });
   void tracked().then(ids => { if (ids.length) return chrome.alarms.create(ALARM, { delayInMinutes: 0.025 }); });
 }

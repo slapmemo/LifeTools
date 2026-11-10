@@ -1,5 +1,5 @@
 import { showToast } from '../../panel/ui';
-import { formatJob, YOUTUBE_BUTTON_KEY, YOUTUBE_ORIGINS, type ToolStatus, type VideoJob } from './logic';
+import { formatJob, MODE_LABELS, YOUTUBE_BUTTON_KEY, YOUTUBE_ORIGINS, type ToolStatus, type VideoJob } from './logic';
 import { videoCall } from './native';
 export function initVideoPanel(): { render(): Promise<void> } {
   const root = document.querySelector<HTMLElement>('#video-downloader-panel')!;
@@ -15,7 +15,7 @@ export function initVideoPanel(): { render(): Promise<void> } {
       const [s, j] = await Promise.all([videoCall('video_tools_status'), videoCall('video_jobs')]);
       const tools = s.status as ToolStatus; status.textContent = tools.installing ? 'Araçlar kuruluyor…' : `yt-dlp: ${tools.ytdlp.installed ? tools.ytdlp.version || 'kurulu' : 'kurulu değil'} · ffmpeg: ${tools.ffmpeg ? 'kurulu' : 'kurulu değil'}${tools.error ? ` · ${tools.error}` : ''}`;
       const jobs = j.jobs as VideoJob[];
-      list.replaceChildren(...jobs.slice(0, 20).map(job => { const row = document.createElement('li'); const text = document.createElement('span'); text.textContent = `${job.url} — ${formatJob(job)}`; row.append(text); if (job.state === 'running') { const cancel = document.createElement('button'); cancel.textContent = 'İptal'; cancel.addEventListener('click', () => { void videoCall('video_cancel', { jobId: job.id }).then(render).catch(e => showToast(e.message, 'error')); }); row.append(cancel); } return row; }));
+      list.replaceChildren(...jobs.slice(0, 20).map(job => { const row = document.createElement('li'); const text = document.createElement('span'); const label = MODE_LABELS[job.mode as keyof typeof MODE_LABELS]; text.textContent = `${job.url}${label && job.mode.startsWith('selected:') ? ` — ${label}` : ''} — ${formatJob(job)}`; row.append(text); if (job.state === 'running') { const cancel = document.createElement('button'); cancel.textContent = 'İptal'; cancel.addEventListener('click', () => { void videoCall('video_cancel', { jobId: job.id }).then(render).catch(e => showToast(e.message, 'error')); }); row.append(cancel); } return row; }));
       if (!jobs.length) list.textContent = 'Henüz indirme yok.';
     } catch (e) { status.textContent = e instanceof Error ? e.message : 'Durum alınamadı.'; }
   }
