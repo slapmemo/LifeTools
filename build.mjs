@@ -49,6 +49,7 @@ await build({
     'pip-hover-button': 'src/modules/pip/hover-button.ts',
     'watchlist-page-button': 'src/modules/watchlist/page-button.ts',
     'video-downloader-youtube': 'src/modules/video-downloader/youtube.ts',
+    'video-downloader-yt-main': 'src/modules/video-downloader/yt-main.ts',
     'site-blocker-content': 'src/modules/site-blocker/content.ts'
   }
 });

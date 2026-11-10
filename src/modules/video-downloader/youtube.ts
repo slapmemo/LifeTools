@@ -1,17 +1,45 @@
 import { PAGE_THEME } from '../../core/page-theme';
-import { cacheFresh, formatChip, formatQualityLabel, menuPosition, MODE_LABELS, youtubePage, youtubePlaylistId, youtubeVideoId, type VideoFormats, type VideoJob } from './logic';
+import { cacheFresh, estimateFromPlayer, friendlyVideoError, formatChip, formatQualityLabel, menuPosition, MODE_LABELS, youtubePage, youtubePlaylistId, youtubeVideoId, type PlayerFormat, type VideoFormats, type VideoJob } from './logic';
 
 let host: HTMLElement | null = null;
 let route = '';
 let frame = 0;
 let refreshChip: (() => void) | undefined;
 const formatsCache = new Map<string, { timestamp: number; data: VideoFormats }>();
+const pending = new Map<string, Promise<VideoFormats>>();
+function loadFormats(url: string, id: string): Promise<VideoFormats> {
+  const cached = formatsCache.get(id);
+  if (cached && cacheFresh(cached.timestamp)) return Promise.resolve(cached.data);
+  const existing = pending.get(id); if (existing) return existing;
+  const task = new Promise<VideoFormats | null>(resolve => {
+    const requestId = crypto.randomUUID();
+    const finish = (value: VideoFormats | null) => { clearTimeout(timer); window.removeEventListener('message', receive); resolve(value); };
+    const receive = (event: MessageEvent) => {
+      if (event.source !== window || event.origin !== location.origin || event.data?.source !== 'lifetools-yt' || event.data?.type !== 'player-response' || event.data?.id !== requestId || event.data?.videoId !== id) return;
+      const data = event.data; const estimate = Array.isArray(data.formats) ? estimateFromPlayer(data.formats as PlayerFormat[], typeof data.duration === 'number' ? data.duration : null) : null;
+      if (estimate && typeof data.title === 'string') estimate.title = data.title;
+      finish(estimate);
+    };
+    const timer = setTimeout(() => finish(null), 500);
+    window.addEventListener('message', receive);
+    window.postMessage({ source: 'lifetools-yt', type: 'player-request', id: requestId, videoId: id }, location.origin);
+  }).then(async data => {
+    if (!data) { const response = await chrome.runtime.sendMessage({ type: 'video-downloader:formats', url }); if (!response?.ok) throw Object.assign(new Error(response?.message || 'Kaliteler yüklenemedi.'), { code: response?.code }); data = response.data as VideoFormats; }
+    formatsCache.set(id, { timestamp: Date.now(), data }); return data;
+  }).finally(() => { pending.delete(id); });
+  pending.set(id, task); return task;
+}
 const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); }); };
 
 function render(): void {
   const kind = youtubePage(location.href);
-  const anchor = kind === 'watch' ? document.querySelector<HTMLElement>('ytd-watch-metadata #title h1, ytd-watch-metadata h1') : kind === 'playlist' ? document.querySelector<HTMLElement>('ytd-playlist-header-renderer h1, yt-page-header-renderer h1, ytd-browse h1') : null;
-  const actions = kind === 'shorts' ? document.querySelector<HTMLElement>('ytd-reel-video-renderer[is-active] #actions') : kind === 'playlist' ? document.querySelector<HTMLElement>('ytd-playlist-header-renderer #buttons, ytd-playlist-header-renderer #actions, yt-page-header-renderer #actions, yt-page-header-renderer #buttons, ytd-playlist-header-renderer ytd-button-renderer:has(a[href*="watch"])') : null;
+  const browse = kind === 'playlist' ? document.querySelector<HTMLElement>('ytd-browse[page-subtype="playlist"]:not([hidden])') : null;
+  const header = browse?.querySelector<HTMLElement>('yt-page-header-view-model, yt-page-header-renderer, ytd-playlist-header-renderer') ?? browse;
+  const anchor = kind === 'watch' ? document.querySelector<HTMLElement>('ytd-watch-metadata #title h1, ytd-watch-metadata h1') : kind === 'playlist' ? header?.querySelector<HTMLElement>('h1, yt-dynamic-text-view-model') ?? null : null;
+  const newActions = browse?.querySelector<HTMLElement>('.yt-page-header-view-model__page-header-flexible-actions, .page-header-view-model-wiz__page-header-flexible-actions, yt-page-header-view-model yt-flexible-actions-view-model');
+  const legacyActions = browse?.querySelector<HTMLElement>('ytd-playlist-header-renderer #buttons, ytd-playlist-header-renderer #top-level-buttons-computed');
+  const playLink = header?.querySelector<HTMLElement>('a[href*="/watch"][href*="list="]');
+  const actions = kind === 'shorts' ? document.querySelector<HTMLElement>('ytd-reel-video-renderer[is-active] #actions') : kind === 'playlist' ? newActions ?? legacyActions ?? playLink?.parentElement ?? null : null;
   const watchlist = anchor?.parentElement?.querySelector<HTMLElement>('[data-lifetools-watchlist]');
   const target = watchlist ?? anchor;
   if (kind === 'other' || (!target && !actions)) { host?.remove(); host = null; refreshChip = undefined; return; }
@@ -26,6 +54,7 @@ function render(): void {
   const row = document.createElement('span'); row.className = 'row';
   const button = document.createElement('button'); button.type = 'button'; button.className = kind === 'shorts' ? 'shorts' : 'download';
   if (kind === 'shorts') { const icon = document.createElement('span'); icon.className = 'icon'; icon.textContent = '↓'; button.append(icon, 'İndir'); } else button.textContent = kind === 'playlist' ? '↓ Listeyi indir' : '↓ İndir';
+  if (kind !== 'playlist') button.addEventListener('pointerenter', () => { const url = location.href; const id = youtubeVideoId(url); if (id) void loadFormats(url, id).catch(() => {}); }, { once: true });
   const chip = document.createElement('span'); chip.className = 'chip'; chip.hidden = true;
   const menu = document.createElement('div'); menu.className = 'menu'; menu.hidden = true;
   const position = () => { const p = menuPosition(button.getBoundingClientRect(), menu.getBoundingClientRect(), { width: innerWidth, height: innerHeight }); menu.style.left = `${p.left}px`; menu.style.top = `${p.top}px`; };
@@ -44,10 +73,9 @@ function render(): void {
     const cached = id ? formatsCache.get(id) : undefined;
     if (cached && cacheFresh(cached.timestamp)) { show(cached.data); return; }
     const loading = document.createElement('div'); loading.style.cssText = 'color:white;font:14px Arial;padding:9px 14px'; loading.textContent = 'Kaliteler yükleniyor…'; menu.replaceChildren(loading); position();
-    void chrome.runtime.sendMessage({ type: 'video-downloader:formats', url }).then(response => {
+    void (id ? loadFormats(url, id) : Promise.reject(new Error('Kaliteler yüklenemedi.'))).then(data => {
       if (current !== request || !wrapper.isConnected || location.href !== url || menu.hidden) return;
-      if (!response?.ok) throw Object.assign(new Error(response?.message || 'Kaliteler yüklenemedi.'), { code: response?.code });
-      const data = response.data as VideoFormats; if (id) formatsCache.set(id, { timestamp: Date.now(), data }); show(data);
+      show(data);
     }).catch(error => {
       if (current !== request || !wrapper.isConnected || location.href !== url || menu.hidden) return;
       menu.replaceChildren(); const message = document.createElement('div'); message.style.cssText = 'color:white;font:14px Arial;padding:9px 14px'; message.textContent = error.message || 'Kaliteler yüklenemedi.'; menu.append(message);
@@ -56,7 +84,9 @@ function render(): void {
     });
   });
   for (const event of ['click', 'pointerdown', 'mousedown', 'keydown']) shadow.addEventListener(event, e => e.stopPropagation());
-  row.append(button, chip); shadow.append(style, row, menu);
+  row.append(button, chip);
+  if (kind === 'playlist' && /\b(private|gizli)\b/i.test(header?.textContent ?? '')) { const hint = document.createElement('span'); hint.style.cssText = 'color:#aaa;font:12px Arial'; hint.textContent = 'Gizli liste: indirmek için «Liste dışı» yap'; row.append(hint); }
+  shadow.append(style, row, menu);
   if (actions) actions.append(wrapper); else target!.insertAdjacentElement('afterend', wrapper);
   refreshChip = () => {
     const page = route;
@@ -66,7 +96,7 @@ function render(): void {
       const job = jobs.find(j => j.state === 'running') ?? jobs[0];
       chip.hidden = !job; chip.replaceChildren();
       if (!job) return;
-      chip.title = job.state === 'done' ? job.file ?? '' : job.state === 'error' ? job.error ?? '' : '';
+      chip.title = job.state === 'done' ? job.file ?? '' : job.state === 'error' ? friendlyVideoError(job.error ?? '') : '';
       chip.append(document.createTextNode(formatChip(job)));
       if (job.state === 'running') { const cancel = document.createElement('button'); cancel.className = 'cancel'; cancel.type = 'button'; cancel.textContent = '×'; cancel.title = 'İptal'; cancel.setAttribute('aria-label', 'İptal'); cancel.addEventListener('click', () => { void chrome.runtime.sendMessage({ type: 'video-downloader:cancel', jobId: job.id }).then(() => refreshChip?.()).catch(() => {}); }); chip.append(cancel); }
     }).catch(() => {});

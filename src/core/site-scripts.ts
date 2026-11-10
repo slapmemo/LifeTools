@@ -17,10 +17,10 @@ export function originOfUrl(raw: string | undefined): string | null {
 }
 
 /** Kayıtlı betiği sıfırlar; izni olan kalıplar varsa yeniden kaydeder. `origins` boşsa yalnızca kaldırır. */
-export async function replaceSiteScript(id: string, origins: readonly string[], file: string, allFrames: boolean): Promise<void> {
+export async function replaceSiteScript(id: string, origins: readonly string[], file: string, allFrames: boolean, world?: 'ISOLATED' | 'MAIN'): Promise<void> {
   const registered = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
   if (registered.length) await chrome.scripting.unregisterContentScripts({ ids: [id] });
   const matches: string[] = [];
   for (const origin of origins) if (await chrome.permissions.contains({ origins: [origin] })) matches.push(origin);
-  if (matches.length) await chrome.scripting.registerContentScripts([{ id, matches, js: [file], persistAcrossSessions: true, allFrames }]);
+  if (matches.length) await chrome.scripting.registerContentScripts([{ id, matches, js: [file], persistAcrossSessions: true, allFrames, ...(world ? { world } : {}) }]);
 }

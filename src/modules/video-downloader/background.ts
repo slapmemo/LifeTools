@@ -43,7 +43,7 @@ async function poll(): Promise<void> {
   if ((await tracked()).length) await chrome.alarms.create(ALARM, { delayInMinutes: 0.025 });
 }
 export function initVideoBackground(): void {
-  const refresh = () => { void (async () => { const data = await chrome.storage.local.get({ [YOUTUBE_BUTTON_KEY]: true }); const active = data[YOUTUBE_BUTTON_KEY] !== false && await isModuleEnabled(VIDEO_ID); await replaceSiteScript('video-downloader-youtube', active ? YOUTUBE_ORIGINS : [], 'video-downloader-youtube.js', false); })().catch(console.debug); };
+  const refresh = () => { void (async () => { const data = await chrome.storage.local.get({ [YOUTUBE_BUTTON_KEY]: true }); const active = data[YOUTUBE_BUTTON_KEY] !== false && await isModuleEnabled(VIDEO_ID); await replaceSiteScript('video-downloader-yt-main', active ? YOUTUBE_ORIGINS : [], 'video-downloader-yt-main.js', false, 'MAIN'); await replaceSiteScript('video-downloader-youtube', active ? YOUTUBE_ORIGINS : [], 'video-downloader-youtube.js', false); })().catch(console.debug); };
   chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && (changes[YOUTUBE_BUTTON_KEY] || changes[MODULE_FLAGS_KEY])) refresh(); });
   chrome.permissions.onAdded.addListener(refresh); chrome.permissions.onRemoved.addListener(refresh); chrome.runtime.onInstalled.addListener(refresh); chrome.runtime.onStartup.addListener(refresh); refresh();
   setContextMenuContributions(VIDEO_ID, [

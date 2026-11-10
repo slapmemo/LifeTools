@@ -1,6 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { acceptsUrl, cacheFresh, formatJob, formatChip, formatQualityLabel, formatSize, FORMATS_CACHE_TTL, menuPosition, MODE_LABELS, youtubePage, youtubePlaylistId, youtubeVideoId, type VideoJob } from '../src/modules/video-downloader/logic';
+import { acceptsUrl, cacheFresh, estimateFromPlayer, friendlyVideoError, formatJob, formatChip, formatQualityLabel, formatSize, FORMATS_CACHE_TTL, menuPosition, MODE_LABELS, youtubePage, youtubePlaylistId, youtubeVideoId, type VideoJob } from '../src/modules/video-downloader/logic';
 describe('video indirici', () => {
+  it('oynatıcı akışlarından kalite ve ses boyutlarını tahmin eder', () => {
+    const result = estimateFromPlayer([
+      { mimeType: 'video/webm; codecs="vp9"', height: 720, bitrate: 8000000 },
+      { mimeType: 'video/mp4; codecs="avc1"', height: 720, fps: 60, contentLength: '1000000' },
+      { mimeType: 'video/mp4; codecs="avc1"', height: 1080, bitrate: 800000 },
+      { mimeType: 'audio/mp4', bitrate: 128000, contentLength: '200000' },
+      { mimeType: 'audio/webm', bitrate: 160000, contentLength: '300000' }
+    ], 10);
+    expect(result?.formats).toEqual([{ height: 1080, fps: null, label: '1080p', sizeBytes: 1300000, approx: true }, { height: 720, fps: 60, label: '720p60', sizeBytes: 1300000, approx: true }]);
+    expect(result?.audio).toEqual({ sizeBytes: 240000, approx: true });
+    expect(estimateFromPlayer([{ mimeType: 'audio/mp4', bitrate: 128000 }], 10)).toBeNull();
+  });
+  it('gizli liste hatasını açıklar', () => {
+    const message = 'Gizli listeler indirilemez. Listeyi «Liste dışı» yapıp tekrar dene.';
+    expect(friendlyVideoError('This playlist is private')).toBe(message);
+    expect(friendlyVideoError('Playlist does not exist')).toBe(message);
+    expect(friendlyVideoError('başka hata')).toBe('başka hata');
+    expect(formatJob({ state: 'error', error: 'private' } as VideoJob)).toBe(`Hata — ${message}`);
+  });
   it('oynatma listelerini ve ilerlemeyi gösterir', () => {
     expect(youtubePage('https://www.youtube.com/playlist?list=abc')).toBe('playlist');
     expect(youtubePage('https://www.youtube.com/playlist')).toBe('other');
