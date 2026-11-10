@@ -128,53 +128,81 @@ export function initHover(): void {
 async function init(): Promise<void> {
   const settings = await loadCurrencySettings();
   initHover();
+  document.querySelectorAll('.game_purchase_action > [data-lifetools-currency]').forEach(element => element.remove());
   if (!settings.steamInline || !steamPage || !await isModuleEnabled('currency')) return;
   const rates = await chrome.runtime.sendMessage({ channel: 'currency', type: 'rates' }) as Rates | null;
   if (!rates) return;
+  const storageKey = 'currency.steamShowOriginal';
+  const stored = await chrome.storage.local.get(storageKey);
+  let showOriginal = stored[storageKey] === true;
+  const written = new WeakSet<Element>();
+  const converted = new WeakMap<Element, string>();
+  const controls = new WeakSet<Element>();
+  function toggle(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    showOriginal = !showOriginal;
+    void chrome.storage.local.set({ [storageKey]: showOriginal });
+    scan();
+  }
   function scan(): void {
     for (const block of document.querySelectorAll('.game_area_purchase_game, .game_area_purchase_game_dropdown_selection')) {
-      const action = block.querySelector<HTMLElement>('.game_purchase_action');
-      if (!action) continue;
-      const finalText = (block.querySelector('.discount_final_price') ?? block.querySelector('.game_purchase_price'))?.textContent ?? null;
-      const price = steamFinalAmount(block.querySelector('[data-price-final]')?.getAttribute('data-price-final') ?? null, finalText);
-      let output = action.querySelector<HTMLElement>(':scope > [data-lifetools-currency]');
-      const value = price && convert(price, rates!.perTry);
-      if (!price || value === null) { output?.remove(); continue; }
-      const original = block.querySelector('.discount_final_price') ? parsePrice(block.querySelector('.discount_original_price')?.textContent?.trim() ?? '') : null;
-      const originalValue = original && convert(original, rates!.perTry);
-      const originalText = originalValue !== null ? `≈ ${formatTry(originalValue)}` : '';
-      const finalValue = `≈ ${formatTry(value)}`;
-      const title = `1 ${symbolFor(price.currency)} = ${formatTry(rates!.perTry[price.currency])} · ECB ${dateFor(rates!.date)}`;
-      if (output?.dataset.final === finalValue && output.dataset.original === originalText && output.title === title) continue;
-      if (!output) {
-        output = document.createElement('div');
-        output.dataset.lifetoolsCurrency = '';
-        output.style.cssText = 'text-align:right;margin:0 0 4px;font-size:13px;color:#c6d4df;';
-        action.prepend(output);
+      for (const element of block.querySelectorAll<HTMLElement>('.discount_final_price, .discount_original_price, .game_purchase_price')) {
+        const current = element.textContent ?? '';
+        let original = element.dataset.lifetoolsOriginal;
+        if (original === undefined || (current !== original && current !== converted.get(element))) {
+          original = current;
+          element.dataset.lifetoolsOriginal = original;
+        }
+        const isOriginalPrice = element.matches('.discount_original_price');
+        const price = isOriginalPrice ? parsePrice(original.trim()) : steamFinalAmount(
+          element.closest('[data-price-final]')?.getAttribute('data-price-final') ?? block.querySelector('[data-price-final]')?.getAttribute('data-price-final') ?? null,
+          original
+        );
+        const value = price && convert(price, rates!.perTry);
+        if (!price || value === null) continue;
+        const tl = formatTry(value);
+        converted.set(element, tl);
+        element.dataset.lifetoolsCurrency = 'try';
+        element.title = `Orijinal: ${original.trim()} · 1 ${symbolFor(price.currency)} = ${formatTry(rates!.perTry[price.currency])} · ECB ${dateFor(rates!.date)} · tıkla: ${showOriginal ? 'TL' : symbolFor(price.currency)} göster`;
+        const display = showOriginal ? original : tl;
+        if (current !== display) {
+          written.add(element);
+          element.textContent = display;
+        }
+        const control = element.closest<HTMLElement>('.discount_prices') ?? element;
+        control.style.cursor = 'pointer';
+        control.setAttribute('role', 'button');
+        control.setAttribute('tabindex', '0');
+        control.setAttribute('aria-label', showOriginal ? 'Fiyatı TL olarak göster' : 'Fiyatı dolar olarak göster');
+        if (!controls.has(control)) {
+          controls.add(control);
+          control.addEventListener('click', toggle);
+          control.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') toggle(event);
+          });
+        }
       }
-      output.dataset.final = finalValue;
-      output.dataset.original = originalText;
-      output.title = title;
-      output.replaceChildren();
-      if (originalText) {
-        const previous = document.createElement('span');
-        previous.style.cssText = 'color:#8f98a0;text-decoration:line-through;margin-right:6px;';
-        previous.textContent = originalText;
-        output.append(previous);
-      }
-      output.append(document.createTextNode(finalValue));
     }
   }
   let scheduled = false;
   const observer = new MutationObserver(records => {
     if (records.every(record => {
       const target = record.target instanceof Element ? record.target : record.target.parentElement;
-      return !!target?.closest('[data-lifetools-currency], [data-lifetools-currency-tip]') ||
-        (record.type === 'childList' && [...record.addedNodes, ...record.removedNodes].every(node => node instanceof Element && (node.hasAttribute('data-lifetools-currency') || node.hasAttribute('data-lifetools-currency-tip'))));
+      const price = target?.closest('[data-lifetools-currency]');
+      return !!target?.closest('[data-lifetools-currency-tip]') ||
+        (!!price && written.has(price) && price.textContent === (showOriginal ? (price as HTMLElement).dataset.lifetoolsOriginal : converted.get(price))) ||
+        (record.type === 'childList' && [...record.addedNodes, ...record.removedNodes].length > 0 && [...record.addedNodes, ...record.removedNodes].every(node => node instanceof Element && node.hasAttribute('data-lifetools-currency-tip')));
     })) return;
     if (!scheduled) { scheduled = true; requestAnimationFrame(() => { scheduled = false; scan(); }); }
   });
   observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes[storageKey]) {
+      showOriginal = changes[storageKey].newValue === true;
+      scan();
+    }
+  });
   scan();
 }
 void init();
