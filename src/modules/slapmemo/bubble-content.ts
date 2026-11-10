@@ -12,7 +12,7 @@ let host: HTMLElement | undefined;
 let flags: unknown = {};
 let panelOpen = false;
 
-function hide(): void { clearTimeout(timer); host?.remove(); host = undefined; panelOpen = false; }
+function hide(): void { clearTimeout(timer); timer = undefined; host?.remove(); host = undefined; panelOpen = false; }
 function editable(node: Node | null): boolean {
   const element = node instanceof Element ? node : node?.parentElement;
   return !!element?.closest('input, textarea, [contenteditable]:not([contenteditable="false"])');
@@ -161,9 +161,9 @@ function show(): void {
   host.style.left = `${position.left}px`; host.style.top = `${position.top}px`;
 }
 function schedule(): void { hide(); timer = setTimeout(show, 150); }
-document.addEventListener('mouseup', event => { if (!host || !event.composedPath().includes(host)) schedule(); });
-document.addEventListener('keyup', event => { if (!panelOpen && event.shiftKey && event.key.startsWith('Arrow')) schedule(); });
+document.addEventListener('mouseup', event => { if (!enabled || hiddenSites.includes(location.hostname)) return; if (!host || !event.composedPath().includes(host)) schedule(); });
+document.addEventListener('keyup', event => { if (!enabled || hiddenSites.includes(location.hostname)) return; if (!panelOpen && event.shiftKey && event.key.startsWith('Arrow')) schedule(); });
 document.addEventListener('pointerdown', event => { if (host && !event.composedPath().includes(host)) hide(); });
 document.addEventListener('keydown', event => { if (event.key === 'Escape') hide(); });
-document.addEventListener('selectionchange', () => { if (!panelOpen && !window.getSelection()?.toString().trim()) hide(); });
-window.addEventListener('scroll', event => { if (!host || !event.composedPath().includes(host)) hide(); }, true);
+document.addEventListener('selectionchange', () => { if ((!host && timer === undefined) || panelOpen) return; const selection = window.getSelection(); if (!selection || selection.isCollapsed || !selection.toString().trim()) hide(); });
+window.addEventListener('scroll', event => { if (!host) return; if (!event.composedPath().includes(host)) hide(); }, true);
