@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { clipRect, isExploreGridVideo, isMostlyVisible, isUncovered, type Rect } from '../src/modules/instagram/visibility';
+import { clipRect, isExploreGridVideo, isModalDialogRect, isMostlyVisible, isUncovered, type Rect } from '../src/modules/instagram/visibility';
 
 const rect = (left: number, top: number, right: number, bottom: number): Rect => ({ left, top, right, bottom, width: right - left, height: bottom - top });
 const viewport = { width: 1000, height: 800 };
 
 describe('Instagram video visibility', () => {
+  it('distinguishes modal dialogs from small feed widgets', () => {
+    const screen = { width: 1920, height: 911 };
+    expect(isModalDialogRect(rect(1580, 851, 1920, 911), screen, false)).toBe(false);
+    expect(isModalDialogRect(rect(0, 0, 1000, 800), screen, false)).toBe(true);
+    expect(isModalDialogRect(rect(1580, 851, 1920, 911), screen, true)).toBe(true);
+    expect(isModalDialogRect(rect(-900, 0, 100, 800), screen, false)).toBe(false);
+  });
   it('accepts nearby controls but rejects substantially larger covering layers', () => {
     expect(isUncovered(100, 100)).toBe(true);
     expect(isUncovered(100, 200)).toBe(true);

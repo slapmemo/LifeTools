@@ -27,8 +27,9 @@ type Bar = { destroy(): void; position(): void };
 const bars = new WeakMap<HTMLVideoElement, Bar>();
 const videos = new Set<HTMLVideoElement>();
 let active = false;
-let hovered: HTMLVideoElement | undefined;
+let pointer: { x: number; y: number } | undefined;
 let positionFrame = 0;
+let scanFrame = 0;
 let lastPathname = typeof location === 'undefined' ? '' : location.pathname;
 
 function positionAll(): void { for (const video of videos) bars.get(video)?.position(); }
@@ -36,7 +37,6 @@ function schedulePositions(): void {
   if (!positionFrame && videos.size && !document.hidden) positionFrame = requestAnimationFrame(() => {
     positionFrame = 0;
     positionAll();
-    schedulePositions();
   });
 }
 
@@ -78,9 +78,9 @@ function createBar(video: HTMLVideoElement): Bar {
     buffer.style.width = `${bufferedPercent(end, duration)}%`;
     track.setAttribute('aria-valuemin', '0'); track.setAttribute('aria-valuemax', String(valid ? duration : 0)); track.setAttribute('aria-valuenow', String(video.currentTime || 0));
   }
-  function tick(): void { frame = 0; if (!visible) return; update(); if (!video.paused && !video.ended) frame = requestAnimationFrame(tick); }
-  function play(): void { if (visible && !frame) frame = requestAnimationFrame(tick); }
-  function pause(): void { if (frame) cancelAnimationFrame(frame); frame = 0; update(); }
+  function tick(): void { frame = 0; if (!visible) return; position(); if (!visible) return; update(); if (!video.paused && !video.ended && !frame) frame = requestAnimationFrame(tick); }
+  function play(): void { schedulePositions(); if (visible && !frame) frame = requestAnimationFrame(tick); }
+  function pause(): void { if (frame) cancelAnimationFrame(frame); frame = 0; update(); schedulePositions(); }
   function position(): void {
     const rect = visibleVideoRect(video);
     const next = rect ? barRect(rect, innerHeight) : null;
@@ -116,32 +116,37 @@ function createBar(video: HTMLVideoElement): Bar {
 }
 
 function scan(): void {
-  if (location.pathname !== lastPathname) { lastPathname = location.pathname; positionAll(); }
-  for (const video of videos) if (!active || !video.isConnected) { bars.get(video)?.destroy(); bars.delete(video); videos.delete(video); if (hovered === video) hovered = undefined; }
+  if (location.pathname !== lastPathname) { lastPathname = location.pathname; if (active) positionAll(); }
+  for (const video of videos) if (!active || !video.isConnected) { bars.get(video)?.destroy(); bars.delete(video); videos.delete(video); }
   if (!active) { if (positionFrame) cancelAnimationFrame(positionFrame); positionFrame = 0; return; }
   for (const video of document.querySelectorAll('video')) if (!bars.has(video)) { bars.set(video, createBar(video)); videos.add(video); }
   if (!videos.size && positionFrame) { cancelAnimationFrame(positionFrame); positionFrame = 0; }
   schedulePositions();
 }
 if (typeof document !== 'undefined') {
-const observer = new MutationObserver(scan);
+const observer = new MutationObserver(records => {
+  if (!records.some(record => [...record.addedNodes, ...record.removedNodes].some(node => !(node instanceof Element) || !node.hasAttribute('data-lifetools-instagram')))) return;
+  if (!scanFrame) scanFrame = requestAnimationFrame(() => { scanFrame = 0; scan(); });
+});
 observer.observe(document, { childList: true, subtree: true });
 window.addEventListener('scroll', schedulePositions, true);
 window.addEventListener('resize', schedulePositions);
+window.addEventListener('popstate', scan);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && positionFrame) { cancelAnimationFrame(positionFrame); positionFrame = 0; }
-  else if (!document.hidden) { positionAll(); schedulePositions(); }
+  else if (!document.hidden) schedulePositions();
 });
-document.addEventListener('pointermove', event => {
-  hovered = undefined;
-  for (const video of videos) { const raw = video.getBoundingClientRect(); if (event.clientX < raw.left || event.clientX > raw.right || event.clientY < raw.top || event.clientY > raw.bottom) continue; const r = visibleVideoRect(video); if (r && event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom) hovered = video; }
-}, true);
+document.addEventListener('pointermove', event => { pointer = { x: event.clientX, y: event.clientY }; }, true);
 document.addEventListener('keydown', event => {
-  if (!active || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (!active || !pointer || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
   const target = event.target as HTMLElement | null;
   if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') || target?.isContentEditable) return;
-  const playing = [...videos].filter(video => !video.paused && !video.ended);
-  const video = (hovered && visibleVideoRect(hovered) ? hovered : undefined) ?? (playing.length === 1 ? playing[0] : undefined);
+  const video = [...videos].find(candidate => {
+    const raw = candidate.getBoundingClientRect();
+    if (pointer!.x < raw.left || pointer!.x > raw.right || pointer!.y < raw.top || pointer!.y > raw.bottom) return false;
+    const rect = visibleVideoRect(candidate);
+    return rect && pointer!.x >= rect.left && pointer!.x <= rect.right && pointer!.y >= rect.top && pointer!.y <= rect.bottom;
+  });
   if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return;
   video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + (event.key === 'ArrowLeft' ? -5 : 5)));
   event.preventDefault(); event.stopPropagation();

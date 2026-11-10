@@ -76,9 +76,14 @@ function create(video: HTMLVideoElement): HTMLElement {
 function render(): void {
   if (location.pathname !== lastPathname) { lastPathname = location.pathname; schedule(); }
   manageVideos();
+  if (!enabled || (!settings.downloadButton && !settings.speedControl)) {
+    for (const host of hosts.values()) host.remove();
+    hosts.clear();
+    return;
+  }
   for (const video of document.querySelectorAll('video')) {
     const rect = visibleVideoRect(video);
-    if (!enabled || (!settings.downloadButton && !settings.speedControl) || !rect) { hosts.get(video)?.remove(); hosts.delete(video); continue; }
+    if (!rect) { hosts.get(video)?.remove(); hosts.delete(video); continue; }
     let host = hosts.get(video); if (!host) { host = create(video); hosts.set(video, host); }
     host.style.top = `${Math.max(0, rect.top + 8)}px`; host.style.left = `${Math.max(0, Math.min(innerWidth - 80, rect.right - (settings.downloadButton && settings.speedControl ? 86 : 46)))}px`;
   }

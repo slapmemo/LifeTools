@@ -24,6 +24,13 @@ export function isUncovered(videoArea: number, commonAncestorArea: number, maxRa
   return videoArea > 0 && commonAncestorArea <= videoArea * maxRatio;
 }
 
+export function isModalDialogRect(rect: Rect, viewport: { width: number; height: number }, ariaModal: boolean): boolean {
+  if (ariaModal) return true;
+  const clipped = clipRect(rect, [], viewport);
+  return !!clipped && viewport.width > 0 && viewport.height > 0
+    && clipped.width * clipped.height >= viewport.width * viewport.height * 0.4;
+}
+
 const visibilityCache = new Map<HTMLVideoElement, Rect | null>();
 let cachedTopDialog: Element | null | undefined;
 let cacheClearFrame = 0;
@@ -59,7 +66,7 @@ function calculateVisibleVideoRect(video: HTMLVideoElement): Rect | null {
     for (const dialog of document.querySelectorAll('[role="dialog"]')) {
       if (!dialog.isConnected) continue;
       const rect = dialog.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) cachedTopDialog = dialog;
+      if (isModalDialogRect(rect, viewport, dialog.getAttribute('aria-modal') === 'true')) cachedTopDialog = dialog;
     }
   }
   if (cachedTopDialog && !cachedTopDialog.contains(video)) return null;
@@ -72,14 +79,17 @@ function calculateVisibleVideoRect(video: HTMLVideoElement): Rect | null {
   }
   const clipped = clipRect(original, clips, { width: innerWidth, height: innerHeight });
   if (!clipped || !isMostlyVisible(original, clipped)) return null;
-  const top = document.elementsFromPoint(clipped.left + clipped.width / 2, clipped.top + clipped.height / 2)
-    .find(element => !element.closest('[data-lifetools-instagram]'));
-  if (!top) return null;
-  if (top === video || video.contains(top) || top.contains(video)) return clipped;
-  let ancestor: Element | null = video.parentElement;
-  while (ancestor && !ancestor.contains(top)) ancestor = ancestor.parentElement;
-  if (!ancestor) return null;
-  const ancestorRect = clipRect(ancestor.getBoundingClientRect(), [], { width: innerWidth, height: innerHeight });
-  const ancestorArea = ancestorRect ? ancestorRect.width * ancestorRect.height : 0;
-  return isUncovered(clipped.width * clipped.height, ancestorArea) ? clipped : null;
+  for (const [x, y] of [[0.5, 0.5], [0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) {
+    const top = document.elementsFromPoint(clipped.left + clipped.width * x, clipped.top + clipped.height * y)
+      .find(element => !element.closest('[data-lifetools-instagram]'));
+    if (!top) continue;
+    if (top === document.documentElement || top === document.body || top === video || video.contains(top) || top.contains(video)) return clipped;
+    let ancestor: Element | null = video.parentElement;
+    while (ancestor && !ancestor.contains(top)) ancestor = ancestor.parentElement;
+    if (!ancestor) continue;
+    const ancestorRect = clipRect(ancestor.getBoundingClientRect(), [], viewport);
+    const ancestorArea = ancestorRect ? ancestorRect.width * ancestorRect.height : 0;
+    if (isUncovered(clipped.width * clipped.height, ancestorArea)) return clipped;
+  }
+  return null;
 }
