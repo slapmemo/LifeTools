@@ -2,6 +2,7 @@ import type { Variant } from './extract';
 export const X_VIDEO_ID = 'x-video';
 export const SETTINGS_KEY = 'xVideoSettings';
 export const CHANNEL = 'lifetools:x-video:7d926d';
+export function mayContainXVideo(text: string): boolean { return text.includes('video_info') || text.includes('"variants"'); }
 export type Quality = 'highest' | '720' | 'lowest';
 export interface Settings { askQuality: boolean; downloadFolder: string }
 export const defaults: Settings = { askQuality: false, downloadFolder: '' };
