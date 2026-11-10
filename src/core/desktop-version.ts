@@ -16,5 +16,13 @@ export async function showVersions(status: HTMLElement, warning: HTMLElement): P
   const desktop = await desktopVersion();
   status.textContent = `Sürüm ${extension} · Masaüstü: ${desktop ? `v${desktop.version}` : 'bağlı değil'}`;
   warning.textContent = desktop ? desktopVersionWarning(desktop.version, extension) : '';
+  if (!warning.textContent) {
+    try {
+      const hint = (await chrome.storage.local.get('selfUpdate.unmanagedDir'))['selfUpdate.unmanagedDir'];
+      if (typeof hint === 'string' && hint) warning.textContent = `Otomatik güncelleme için eklentiyi masaüstünün eklenti klasöründen yükle: ${hint}`;
+    } catch {
+      /* depolama kullanılamıyor */
+    }
+  }
   warning.hidden = !warning.textContent;
 }

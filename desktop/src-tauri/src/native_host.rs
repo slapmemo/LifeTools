@@ -179,6 +179,10 @@ fn dispatch(conn: &Connection, req: &Json) -> Result<Map<String, Json>, String> 
             out.insert("app".into(), json!("LifeTools"));
             out.insert("version".into(), json!(env!("CARGO_PKG_VERSION")));
             out.insert("desktopSchema".into(), json!(db::read_version(conn).map_err(|e| e.to_string())?));
+            let ext_dir = crate::extension_dir::target_dir();
+            let ext_version = ext_dir.as_deref().and_then(crate::extension_dir::read_version);
+            out.insert("extensionDir".into(), json!(ext_dir.map(|d| d.to_string_lossy().into_owned())));
+            out.insert("extensionVersion".into(), json!(ext_version));
         }
         "exec" => {
             let params = parse_params(req.get("params"))?;

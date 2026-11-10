@@ -44,11 +44,13 @@ pub struct Prefs {
     pub picker_shortcut: String,
     pub snippets_shortcut: String,
     pub topmost_shortcut: String,
+    /// Yeni sürümleri otomatik indirip kur.
+    pub auto_update: bool,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { battery_notify: true, copy_only: false, picker_shortcut: "Ctrl+Alt+V".into(), snippets_shortcut: "Ctrl+Shift+Space".into(), topmost_shortcut: "Ctrl+Alt+T".into() }
+        Prefs { battery_notify: true, copy_only: false, picker_shortcut: "Ctrl+Alt+V".into(), snippets_shortcut: "Ctrl+Shift+Space".into(), topmost_shortcut: "Ctrl+Alt+T".into(), auto_update: true }
     }
 }
 

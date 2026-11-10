@@ -7,11 +7,13 @@ mod clipboard;
 mod commands;
 mod db;
 mod electricity;
+mod extension_dir;
 mod native_host;
 mod native_reg;
 mod paste;
 mod privacy;
 mod state;
+mod updater;
 mod win;
 mod video_dl;
 
@@ -308,6 +310,7 @@ fn main() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             show_main(app, None);
         }))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--autostart"])))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -383,6 +386,12 @@ fn main() {
             commands::native_status,
             commands::native_register,
             commands::native_unregister,
+            commands::update_check,
+            commands::update_install,
+            commands::get_auto_update,
+            commands::set_auto_update,
+            commands::extension_info,
+            commands::extension_open_folder,
         ])
         .setup(|app| {
             let path = db::default_path()?;
@@ -412,6 +421,8 @@ fn main() {
             app.manage(ActiveShortcuts(Mutex::new(registered)));
 
             clipboard::spawn_listener(app.handle().clone(), state.clone());
+            extension_dir::spawn_sync(app.handle().clone());
+            updater::spawn_auto(app.handle().clone());
 
             let handle = app.handle().clone();
             std::thread::spawn(move || loop {

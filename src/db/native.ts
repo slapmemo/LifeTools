@@ -32,7 +32,7 @@ export interface NativeResponse {
   [key: string]: unknown;
 }
 
-export interface PingInfo { app: string; version: string; desktopSchema: number }
+export interface PingInfo { app: string; version: string; desktopSchema: number; extensionDir?: string; extensionVersion?: string | null }
 
 interface Pending {
   resolve: (res: NativeResponse) => void;

@@ -235,6 +235,60 @@ pub fn native_unregister() -> Result<crate::native_reg::Status, String> {
 }
 
 #[tauri::command]
+pub async fn update_check(app: AppHandle) -> Result<crate::updater::CheckResult, String> {
+    crate::updater::check_info(&app).await
+}
+
+#[tauri::command]
+pub async fn update_install(app: AppHandle) -> Result<(), String> {
+    crate::updater::check_and_install(&app, true).await.map(|_| ())
+}
+
+#[tauri::command]
+pub fn get_auto_update(state: St) -> Result<bool, String> {
+    db::load_prefs(&state.db()).map(|p| p.auto_update).map_err(err)
+}
+
+#[tauri::command]
+pub fn set_auto_update(state: St, enabled: bool) -> Result<bool, String> {
+    let db = state.db();
+    let mut prefs = db::load_prefs(&db).map_err(err)?;
+    prefs.auto_update = enabled;
+    db::save_prefs(&db, &prefs).map_err(err)?;
+    Ok(enabled)
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtensionInfo {
+    dir: Option<String>,
+    version: Option<String>,
+}
+
+#[tauri::command]
+pub fn extension_info() -> ExtensionInfo {
+    let dir = crate::extension_dir::target_dir();
+    let version = dir.as_deref().and_then(crate::extension_dir::read_version);
+    ExtensionInfo { dir: dir.map(|d| d.to_string_lossy().into_owned()), version }
+}
+
+#[tauri::command]
+pub fn extension_open_folder() -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    let dir = crate::extension_dir::target_dir().ok_or("LOCALAPPDATA bulunamadı")?;
+    if !dir.is_dir() {
+        return Err("Eklenti klasörü henüz oluşturulmadı".into());
+    }
+    let root = std::env::var_os("SystemRoot").ok_or("SystemRoot bulunamadı")?;
+    std::process::Command::new(std::path::PathBuf::from(root).join("explorer.exe"))
+        .arg(dir)
+        .creation_flags(0x0800_0000)
+        .spawn()
+        .map_err(err)?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn electricity_get(state: St) -> Result<Electricity, String> {
     let raw = db::get_setting(&state.db(), "electricity").map_err(err)?;
     Ok(raw.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default())

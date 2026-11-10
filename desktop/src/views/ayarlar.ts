@@ -143,6 +143,56 @@ export function settingsView(): View {
   const msg = h('div', { class: 'muted' });
   const version = h('p', { class: 'muted' });
   void getVersion().then(value => { version.textContent = `LifeTools masaüstü · Sürüm ${value}`; }).catch(() => undefined);
+  const autoUpdate = h('input', { type: 'checkbox' });
+  const updateCheckBtn = h('button', { type: 'button' }, 'Güncellemeleri denetle');
+  const updateInstallBtn = h('button', { type: 'button', class: 'primary' }, 'Şimdi güncelle');
+  updateInstallBtn.hidden = true;
+  const updateStatus = h('p', { class: 'muted', role: 'status' });
+  const updateVersion = h('p', { class: 'muted' }, 'Sürüm …');
+  void getVersion().then(value => { updateVersion.textContent = `Güncel sürüm: ${value}`; }).catch(() => undefined);
+  updateCheckBtn.addEventListener('click', async () => {
+    updateCheckBtn.disabled = true;
+    updateInstallBtn.hidden = true;
+    updateStatus.textContent = 'Denetleniyor…';
+    try {
+      const r = await api.updateCheck();
+      if (r.available) {
+        updateStatus.textContent = `Yeni sürüm var: ${r.version ?? ''}${r.notes ? ` — ${r.notes}` : ''}`;
+        updateInstallBtn.hidden = false;
+      } else {
+        updateStatus.textContent = 'LifeTools güncel.';
+      }
+    } catch (e) {
+      updateStatus.textContent = `Güncelleme denetlenemedi: ${errText(e)}`;
+    } finally {
+      updateCheckBtn.disabled = false;
+    }
+  });
+  updateInstallBtn.addEventListener('click', async () => {
+    updateInstallBtn.disabled = true;
+    updateCheckBtn.disabled = true;
+    updateStatus.textContent = 'İndiriliyor… Uygulama yeniden başlayacak.';
+    try {
+      await api.updateInstall();
+    } catch (e) {
+      updateStatus.textContent = `Güncelleme başarısız: ${errText(e)}`;
+    } finally {
+      updateInstallBtn.disabled = false;
+      updateCheckBtn.disabled = false;
+    }
+  });
+  autoUpdate.addEventListener('change', async () => {
+    try {
+      autoUpdate.checked = await api.autoUpdateSet(autoUpdate.checked);
+    } catch (e) {
+      msg.textContent = errText(e);
+    }
+  });
+  const extPath = h('p', { class: 'muted', style: 'user-select: text; overflow-wrap: anywhere' }, 'Eklenti klasörü: …');
+  const extOpen = h('button', { type: 'button' }, 'Klasörü aç');
+  extOpen.addEventListener('click', async () => {
+    try { await api.extensionOpenFolder(); } catch (e) { nativeStatus.textContent = `Hata: ${errText(e)}`; }
+  });
   const saveBtn = h('button', {}, 'Kaydet');
   const nativeStatus = h('div', { class: 'muted' });
   const nativeConnect = h('button', {}, 'Bağla');
@@ -209,7 +259,13 @@ export function settingsView(): View {
       h('label', { class: 'settings-row' }, 'Şablonu yalnızca panoya kopyala (otomatik yapıştırma yok)', copyOnly)),
     h('div', { class: 'card settings-card' }, h('h3', {}, 'Chrome bağlantısı'),
       h('p', { class: 'muted' }, 'Eklentinin verileri bu uygulamanın veritabanında (%APPDATA%\\LifeTools\\lifetools.db) saklanabilir. Önce burada bağla, sonra eklentide "Verileri masaüstüne taşı" düğmesine bas. Bağlantıdan sonra Chrome\'u yeniden başlatmak gerekmez.'),
-      h('div', { class: 'toolbar' }, nativeConnect, nativeRemove), nativeStatus),
+      h('div', { class: 'toolbar' }, nativeConnect, nativeRemove), nativeStatus,
+      extPath, h('div', { class: 'toolbar' }, extOpen),
+      h('p', { class: 'muted' }, 'Chrome\'da chrome://extensions → Geliştirici modu → Paketlenmemiş öğe yükle → bu klasörü seç. Sonraki sürümler otomatik gelir.')),
+    h('div', { class: 'card settings-card' }, h('h3', {}, 'Güncellemeler'),
+      updateVersion,
+      h('label', { class: 'settings-row' }, 'Otomatik güncelle', autoUpdate),
+      h('div', { class: 'toolbar' }, updateCheckBtn, updateInstallBtn), updateStatus),
     h('div', { class: 'card settings-card' }, h('h3', {}, 'Görünüm'),
       h('div', { class: 'settings-row' }, 'Tema', themeGroup)),
     h('div', { class: 'card settings-card' }, h('h3', {}, 'Yedek'), backupBtn, backupStatus),
@@ -313,6 +369,18 @@ export function settingsView(): View {
         autostart.checked = await api.autostartGet();
       } catch {
         autostart.checked = false;
+      }
+      try {
+        autoUpdate.checked = await api.autoUpdateGet();
+      } catch {
+        autoUpdate.checked = true;
+      }
+      try {
+        const ext = await api.extensionInfo();
+        extPath.textContent = `Eklenti klasörü: ${ext.dir ?? 'bulunamadı'}${ext.version ? ` (v${ext.version})` : ''}`;
+        extOpen.disabled = !ext.dir;
+      } catch {
+        extPath.textContent = 'Eklenti klasörü: bulunamadı';
       }
       try {
         showNative(await api.nativeStatus());

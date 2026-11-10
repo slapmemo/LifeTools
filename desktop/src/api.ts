@@ -57,6 +57,18 @@ export interface Prefs {
   picker_shortcut: string;
   snippets_shortcut: string;
   topmost_shortcut: string;
+  auto_update?: boolean;
+}
+
+export interface UpdateCheck {
+  available: boolean;
+  version?: string | null;
+  notes?: string | null;
+}
+
+export interface ExtensionInfo {
+  dir: string | null;
+  version: string | null;
 }
 
 export interface DeviceBattery {
@@ -124,6 +136,12 @@ export const api = {
   nativeStatus: () => invoke<NativeStatus>('native_status'),
   nativeRegister: () => invoke<NativeStatus>('native_register'),
   nativeUnregister: () => invoke<NativeStatus>('native_unregister'),
+  updateCheck: () => invoke<UpdateCheck>('update_check'),
+  updateInstall: () => invoke<void>('update_install'),
+  autoUpdateGet: () => invoke<boolean>('get_auto_update'),
+  autoUpdateSet: (enabled: boolean) => invoke<boolean>('set_auto_update', { enabled }),
+  extensionInfo: () => invoke<ExtensionInfo>('extension_info'),
+  extensionOpenFolder: () => invoke<void>('extension_open_folder'),
   toast: (message: string) => invoke<void>('toast_show', { message }),
   clipList: (query: string) => invoke<ClipItem[]>('clipboard_list', { query }),
   clipCopy: (id: number) => invoke<void>('clipboard_copy', { id }),
