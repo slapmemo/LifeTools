@@ -94,6 +94,7 @@ async function summary(): Promise<void> {
   el('today-sites').hidden = !visible.sites;
   el('search-area').hidden = !visible.search;
   const hasQuickInput = visible.notes || visible.tasks;
+  el('quick-card').hidden = !hasQuickInput;
   text.hidden = !hasQuickInput;
   if (el('attach').parentElement) el('attach').parentElement!.hidden = !hasQuickInput;
   const actionsWrap = el('note').parentElement;
