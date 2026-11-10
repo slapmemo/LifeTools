@@ -3,6 +3,9 @@ export type Currency = typeof CURRENCIES[number] | 'DEM';
 export interface Price { currency: Currency; amount: number }
 export interface Rates { date: string; fetchedAt: number; perTry: Record<string, number>; stale?: boolean }
 export const RATES_KEY = 'currency.rates';
+export function shouldBlockRewrite(times: number[], now: number, limit = 5, windowMs = 3000): boolean {
+  return times.filter(time => time <= now && now - time < windowMs).length > limit;
+}
 
 export function ratesToPerTry(rates: Record<string, number>): Record<string, number> {
   const result: Record<string, number> = {};

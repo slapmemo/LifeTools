@@ -69,3 +69,11 @@ describe('currency', () => {
     expect(ratesToPerTry({ USD: 0.025, EUR: 0.02, RUB: 0, XYZ: 1 })).toEqual({ USD: 40, EUR: 50 });
   });
 });
+import { shouldBlockRewrite as rewriteGuard } from '../src/modules/currency/rates';
+import { it as rewriteTest, expect as rewriteExpect } from 'vitest';
+
+rewriteTest('blocks only after more than five reverts within three seconds', () => {
+  rewriteExpect(rewriteGuard([1000, 1100, 1200, 1300, 1400], 1500)).toBe(false);
+  rewriteExpect(rewriteGuard([1000, 1100, 1200, 1300, 1400, 1500], 1500)).toBe(true);
+  rewriteExpect(rewriteGuard([0, 1000, 1100, 1200, 1300, 1400], 3000)).toBe(false);
+});

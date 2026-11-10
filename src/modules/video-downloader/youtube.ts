@@ -1,5 +1,5 @@
 import { PAGE_THEME } from '../../core/page-theme';
-import { cacheFresh, estimateFromPlayer, friendlyVideoError, formatChip, formatQualityLabel, jobMatchesPage, menuPosition, MODE_LABELS, playlistRowVideoId, rangeBetween, selectionSummary, youtubePage, youtubePlaylistId, youtubeVideoId, type PlayerFormat, type VideoFormats, type VideoJob } from './logic';
+import { cacheFresh, estimateFromPlayer, friendlyVideoError, formatChip, formatQualityLabel, isPrivatePlaylistHeader, jobMatchesPage, menuPosition, MODE_LABELS, playlistRowVideoId, rangeBetween, selectionSummary, youtubePage, youtubePlaylistId, youtubeVideoId, type PlayerFormat, type VideoFormats, type VideoJob } from './logic';
 
 let host: HTMLElement | null = null;
 let hostAnchor: HTMLElement | null = null;
@@ -82,7 +82,9 @@ function render(): void {
   const kind = youtubePage(location.href);
   if (selection && (kind !== 'playlist' || selection.url !== location.href)) endSelection();
   if (selection) selectionRows();
-  if (host?.isConnected && route === location.href && hostAnchor?.isConnected && (hostPlacement === 'inside' ? host.parentElement === hostAnchor : host.previousElementSibling === hostAnchor)) return;
+  const floating = kind === 'playlist' && hostAnchor === document.documentElement && hostPlacement === 'inside';
+  if (!floating && host?.isConnected && route === location.href && hostAnchor?.isConnected && (hostPlacement === 'inside' ? host.parentElement === hostAnchor : host.previousElementSibling === hostAnchor)) return;
+  if (floating && host?.isConnected && route === location.href && !document.querySelector('a[aria-label*="Tümünü oynat" i], button[aria-label*="Tümünü oynat" i], a[aria-label*="Play all" i], button[aria-label*="Play all" i], a[href*="/watch"][href*="list="]')) return;
   const visible = (element: Element) => { const rect = element.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; };
   const browse = kind === 'playlist' ? Array.from(document.querySelectorAll<HTMLElement>('ytd-browse:not([hidden])')).find(element => element.getAttribute('page-subtype') === 'playlist' && visible(element)) ?? Array.from(document.querySelectorAll<HTMLElement>('ytd-browse:not([hidden])')).find(visible) ?? document.body : null;
   const header = browse?.querySelector<HTMLElement>('yt-page-header-view-model, yt-page-header-renderer, ytd-playlist-header-renderer') ?? browse;
@@ -144,7 +146,7 @@ function render(): void {
   });
   for (const event of ['click', 'pointerdown', 'mousedown', 'keydown']) shadow.addEventListener(event, e => e.stopPropagation());
   row.append(button, chip);
-  if (kind === 'playlist' && /\b(private|gizli)\b/i.test(header?.textContent ?? '')) { const hint = document.createElement('span'); hint.style.cssText = 'color:#aaa;font:12px Arial'; hint.textContent = 'Gizli liste: indirmek için «Liste dışı» yap'; row.append(hint); }
+  if (kind === 'playlist' && isPrivatePlaylistHeader(header?.innerText ?? '')) { const hint = document.createElement('span'); hint.style.cssText = 'color:#aaa;font:12px Arial'; hint.textContent = 'Gizli liste: indirmek için «Liste dışı» yap'; row.append(hint); }
   shadow.append(style, row, menu);
   if (kind === 'playlist') { if (actions) { wrapper.style.cssText = 'display:flex;margin:10px 0 0'; actions.insertAdjacentElement('afterend', wrapper); } else { wrapper.style.cssText = 'position:fixed;left:24px;bottom:24px;z-index:2147483000'; document.documentElement.append(wrapper); } } else if (actions) actions.append(wrapper); else target!.insertAdjacentElement('afterend', wrapper);
   hostAnchor = kind === 'playlist' ? actions ?? document.documentElement : actions ?? target;

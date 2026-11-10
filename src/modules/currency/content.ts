@@ -1,4 +1,4 @@
-import { convert, findPriceAt, formatTry, isStandalonePriceText, parsePrice, steamFinalAmount, type Price, type Rates } from './rates';
+import { convert, findPriceAt, formatTry, isStandalonePriceText, parsePrice, shouldBlockRewrite, steamFinalAmount, type Price, type Rates } from './rates';
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { PAGE_THEME } from '../../core/page-theme';
 import { CURRENCY_SETTINGS_KEY, loadCurrencySettings } from './settings';
@@ -210,11 +210,7 @@ async function init(): Promise<void> {
         element.dataset.lifetoolsCurrency = 'try';
         element.title = title;
         if (current !== display) {
-          let blocked = false;
-          for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
-            if (changes.get(ancestor)?.blocked) { blocked = true; break; }
-          }
-          if (blocked) continue;
+          if (changes.get(element)?.blocked) continue;
           written.add(element);
           element.textContent = display;
         }
@@ -235,7 +231,6 @@ async function init(): Promise<void> {
   }
   let scheduled = false;
   const pending = new Set<Element>();
-  const changedThisFrame = new Set<Element>();
   function alreadyWritten(target: Element | null): boolean {
     const price = target?.closest('[data-lifetools-currency]');
     return !!price && written.has(price) && price.textContent === (showOriginal ? (price as HTMLElement).dataset.lifetoolsOriginal : converted.get(price));
@@ -247,18 +242,20 @@ async function init(): Promise<void> {
         alreadyWritten(target ?? null) ||
         (record.type === 'childList' && [...record.addedNodes, ...record.removedNodes].length > 0 && [...record.addedNodes, ...record.removedNodes].every(node => node instanceof Element && node.hasAttribute('data-lifetools-currency-tip')));
     })) return;
+    const reverted = new Set<Element>();
     for (const record of records) {
       const changed = record.target instanceof Element ? record.target : record.target.parentElement;
       if (alreadyWritten(changed) || changed?.closest('[data-lifetools-currency-tip]')) continue;
-      if (changed && !changedThisFrame.has(changed)) {
-        if (!changedThisFrame.size) requestAnimationFrame(() => changedThisFrame.clear());
-        changedThisFrame.add(changed);
+      const priceElement = changed?.closest('[data-lifetools-currency]');
+      const text = priceElement?.textContent ?? '';
+      if (priceElement && written.has(priceElement) && !showOriginal && text.trim() && text !== converted.get(priceElement) && !reverted.has(priceElement)) {
+        reverted.add(priceElement);
         const now = Date.now();
-        const state = changes.get(changed) ?? { times: [], blocked: false };
-        state.times = state.times.filter(time => now - time < 2000);
+        const state = changes.get(priceElement) ?? { times: [], blocked: false };
+        state.times = state.times.filter(time => now - time < 3000);
         state.times.push(now);
-        if (state.times.length > 3) state.blocked = true;
-        changes.set(changed, state);
+        if (shouldBlockRewrite(state.times, now)) state.blocked = true;
+        changes.set(priceElement, state);
       }
       if (record.type === 'childList') for (const node of record.addedNodes) {
         if (node instanceof Element && !node.hasAttribute('data-lifetools-currency-tip') && !alreadyWritten(node)) pending.add(node);
