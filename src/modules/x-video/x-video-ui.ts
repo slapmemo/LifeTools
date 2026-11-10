@@ -31,13 +31,17 @@ shadow.append(style);
 document.documentElement.append(host);
 
 async function refreshSettings(): Promise<void> {
+  const wasEnabled = enabled;
   enabled = await isModuleEnabled(X_VIDEO_ID);
   const data = await chrome.storage.local.get({ [SETTINGS_KEY]: defaults });
   settings = { ...defaults, ...data[SETTINGS_KEY] };
-  if (!enabled) closeMenu();
-  schedule();
+  if (!enabled) {
+    closeMenu();
+    if (frame) { cancelAnimationFrame(frame); frame = 0; }
+    if (wasEnabled) document.querySelectorAll('[data-lifetools-x-video]:not([data-lifetools-x-video="menu"])').forEach(node => node.remove());
+  } else schedule();
 }
-function schedule(): void { if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); }); }
+function schedule(): void { if (enabled && media.size && !frame) frame = requestAnimationFrame(() => { frame = 0; render(); }); }
 async function download(m: VideoMedia, v: Variant): Promise<boolean> {
   try {
     const response = await chrome.runtime.sendMessage({ channel: CHANNEL, action: 'download', url: v.url, screenName: m.screenName, tweetId: m.tweetId, res: label(v), mediaIndex: (m.mediaCount ?? 0) > 1 ? m.mediaIndex : undefined });
@@ -123,10 +127,9 @@ function openMenu(button: HTMLButtonElement, items: VideoMedia[]): void {
   host.style.top = `${pos.top}px`; host.style.left = `${pos.left}px`;
   menu.querySelector<HTMLButtonElement>('.row')?.focus();
 }
-function makeButton(bar: HTMLElement, id: string): void {
+function makeButton(bar: HTMLElement, id: string, color: string): void {
   const wrap = document.createElement('div'); wrap.dataset.lifetoolsXVideo = id; wrap.style.cssText = 'display:flex;align-items:center';
   const button = document.createElement('button'); button.type = 'button'; button.setAttribute('aria-label', 'Videoyu indir'); button.title = 'İndir';
-  const sibling = bar.querySelector('svg'); const color = sibling ? getComputedStyle(sibling).color : 'rgb(113, 118, 123)';
   button.style.cssText = `display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:0;border-radius:50%;background:transparent;color:${color || 'rgb(113, 118, 123)'};cursor:pointer`;
   button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18.75" height="18.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>';
   button.addEventListener('mouseenter', () => { button.style.background = 'rgba(143,207,168,0.15)'; button.style.color = '#8FCFA8'; });
@@ -151,13 +154,16 @@ function makeButton(bar: HTMLElement, id: string): void {
 }
 function render(): void {
   if (route !== location.href) { route = location.href; closeMenu(); }
+  if (!enabled || !media.size) return;
+  const sibling = document.querySelector('article[data-testid="tweet"] [role="group"] svg');
+  const color = (sibling ? getComputedStyle(sibling).color : '') || 'rgb(113, 118, 123)';
   for (const article of document.querySelectorAll<HTMLElement>('article[data-testid="tweet"]')) {
     const link = article.querySelector<HTMLAnchorElement>('a[href*="/status/"]:has(time)');
     const id = link?.getAttribute('href')?.match(/\/status\/(\d+)/)?.[1];
     const bar = article.querySelector<HTMLElement>('[role="group"]'); if (!bar) continue;
     const existing = bar.querySelector<HTMLElement>(':scope > [data-lifetools-x-video]');
     if (existing && (!enabled || !id || existing.dataset.lifetoolsXVideo !== id || !media.get(id)?.length)) { if (existing.contains(openButton ?? null)) closeMenu(); existing.remove(); }
-    if (enabled && id && media.get(id)?.length && !bar.querySelector(':scope > [data-lifetools-x-video]')) makeButton(bar, id);
+    if (enabled && id && media.get(id)?.length && !bar.querySelector(':scope > [data-lifetools-x-video]')) makeButton(bar, id, color);
   }
   if (openButton && !openButton.isConnected) closeMenu();
 }
@@ -169,14 +175,14 @@ window.addEventListener('message', e => {
   if (index < 0) list.push(m); else list[index] = m; list.sort((a, b) => (a.mediaIndex ?? 0) - (b.mediaIndex ?? 0)); media.set(m.tweetId, list); schedule();
 });
 new MutationObserver(records => {
-  if (records.some(r => [...r.addedNodes, ...r.removedNodes].some(n => !(n instanceof Element) || !n.closest('[data-lifetools-x-video]') && !n.hasAttribute('data-lifetools-x-video')))) schedule();
+  if (records.some(r => !(r.target instanceof Element && r.target.closest('[data-lifetools-x-video]')) && [...r.addedNodes, ...r.removedNodes].some(n => !(n instanceof Element) || !n.closest('[data-lifetools-x-video]') && !n.hasAttribute('data-lifetools-x-video')))) schedule();
 }).observe(document, { childList: true, subtree: true });
 document.addEventListener('click', e => { if (openButton && !e.composedPath().includes(host) && !e.composedPath().includes(openButton)) closeMenu(); }, true);
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && openButton) { e.preventDefault(); closeMenu(true); } }, true);
 window.addEventListener('scroll', () => { if (openButton) { const rect = openButton.getBoundingClientRect(); if (Math.abs(window.scrollX - scrollX) > 40 || Math.abs(window.scrollY - scrollY) > 40 || Math.abs(rect.top - buttonTop) > 40 || Math.abs(rect.left - buttonLeft) > 40) closeMenu(); } }, true);
 window.addEventListener('resize', () => closeMenu());
-window.addEventListener('popstate', () => { closeMenu(); schedule(); });
-setInterval(() => { if (location.href !== route) { closeMenu(); schedule(); } }, 500);
+window.addEventListener('popstate', () => { route = location.href; closeMenu(); schedule(); });
+setInterval(() => { if (location.href !== route) { route = location.href; closeMenu(); schedule(); } }, 500);
 chrome.storage.onChanged.addListener((c, area) => { if (area === 'local' && (c[MODULE_FLAGS_KEY] || c[SETTINGS_KEY])) void refreshSettings(); });
 void refreshSettings();
 
