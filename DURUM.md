@@ -1,6 +1,6 @@
 # LifeTools — Kaldığımız Yer
 
-> Son güncelleme: 10 Kasım 2026 (akşam) · sürüm 0.5.5 · dal master (push edildi, `v0.5.5` etiketi gönderildi)
+> Son güncelleme: 10 Kasım 2026 (akşam) · sürüm 0.5.6 · dal master (`v0.5.6`: Fable incelemesindeki 17 düzeltme)
 > Yeni bir sohbete/oturuma başlarken önce bu dosyayı oku. Eski planlar: `../LifeTools_Plan_v3_2026-11-06.md`, `../LifeTools_Arayuz_Plani_2026-11-06.md`, `../LifeTools_Ozellik_Rehberi_2026-11-08.md`.
 
 ## 1. Durum özeti
