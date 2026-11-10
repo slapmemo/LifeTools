@@ -1,5 +1,9 @@
-﻿export const SPEED_KEY = 'instagram.speed';
-export const SPEEDS = [0.5, 1, 1.25, 1.5, 2, 3] as const;
+export const SPEED_KEY = 'instagram.speed';
+export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3] as const;
+
+export function formatSpeed(value: number): string {
+  return `${String(value).replace('.', ',')}×`;
+}
 
 export function applyPlaybackSpeed(video: { playbackRate: number }, speed: number): void {
   if (video.playbackRate !== speed) video.playbackRate = speed;
