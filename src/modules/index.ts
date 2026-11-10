@@ -23,6 +23,7 @@ import { shortcutsModule } from './shortcuts';
 import { siteToolbarModule } from './site-toolbar';
 import { tabManagerModule } from './tab-manager';
 import { videoDownloaderModule } from './video-downloader';
+import { currencyModule } from './currency';
 
 /** Tüm araçların kaydı. Yeni araç buraya eklenir. */
-export const modules: readonly LifeModule[] = [videoDownloaderModule, volumeBoosterModule, xVideoModule, instagramModule, watchlistModule, pipModule, clipSlotsModule, timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule, tabLabelsModule, tabNotesModule, tabSwitcherModule, tabManagerModule, titleCleanerModule, commandCenterModule, shortcutsModule, siteToolbarModule];
+export const modules: readonly LifeModule[] = [currencyModule, videoDownloaderModule, volumeBoosterModule, xVideoModule, instagramModule, watchlistModule, pipModule, clipSlotsModule, timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule, tabLabelsModule, tabNotesModule, tabSwitcherModule, tabManagerModule, titleCleanerModule, commandCenterModule, shortcutsModule, siteToolbarModule];

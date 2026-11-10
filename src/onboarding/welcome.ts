@@ -4,6 +4,7 @@ import { ONBOARDING_DONE_KEY, recommendedFlags } from '../core/onboarding';
 import { applyTheme } from '../core/theme';
 
 const groups: readonly [string, readonly string[]][] = [
+  ['Alışveriş', ['currency']],
   ['Video ve medya', ['video-downloader', 'instagram', 'x-video', 'pip', 'volume-booster', 'watchlist']],
   ['Sekmeler', ['tab-switcher', 'tab-manager', 'life-browser', 'tab-notes', 'tab-labels', 'zombie-tabs', 'pinned-guard', 'title-cleaner']],
   ['Notlar ve verimlilik', ['slapmemo', 'quick-tasks', 'command-center', 'clip-slots', 'smart-replies', 'link-cleaner', 'shortcuts']],

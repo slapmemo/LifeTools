@@ -25,6 +25,7 @@ import { initTimeTrackerPanel } from '../modules/time-tracker/panel';
 import { WATCHLIST_ID } from '../modules/watchlist/background';
 import { initWatchlistPanel } from '../modules/watchlist/panel';
 import { initVideoPanel } from '../modules/video-downloader/panel';
+import { initCurrencyPanel } from '../modules/currency/panel';
 import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
 import { initZombieTabsPanel } from '../modules/zombie-tabs/panel';
 import { initStoragePanel } from '../popup/storage-panel';
@@ -42,6 +43,7 @@ void showVersions(document.querySelector<HTMLElement>('#panel-version')!, docume
 
 const watch = initWatchlistPanel();
 const videoPanel = initVideoPanel();
+const currencyPanel = initCurrencyPanel();
 const clip = initClipSlotsPanel();
 const refreshPip = initPipSettings();
 
@@ -71,6 +73,7 @@ const refreshMedia = initMediaSettings(videoPanel);
 async function refresh(): Promise<void> {
   const flags = (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
   await refreshMedia(flags);
+  await currencyPanel.render(flags);
 
   await renderModules(flags);
   await updateSubTabs(flags);

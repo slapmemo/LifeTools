@@ -44,6 +44,7 @@ await build({
     'ig-ui': 'src/modules/instagram/ig-ui.ts',
     'smart-replies-content': 'src/modules/smart-replies/content.ts',
     'site-toolbar-content': 'src/modules/site-toolbar/content.ts',
+    'currency-content': 'src/modules/currency/content.ts',
     'slapmemo-bubble': 'src/modules/slapmemo/bubble-content.ts',
     'pip-hover-button': 'src/modules/pip/hover-button.ts',
     'watchlist-page-button': 'src/modules/watchlist/page-button.ts',

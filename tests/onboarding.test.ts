@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RECOMMENDED_MODULES, recommendedFlags } from '../src/core/onboarding';
 
-const ids = ['clip-slots', 'command-center', 'instagram', 'life-browser', 'link-cleaner', 'pinned-guard', 'pip', 'quick-tasks', 'shortcuts', 'site-blocker', 'site-toolbar', 'slapmemo', 'smart-replies', 'tab-labels', 'tab-manager', 'tab-notes', 'tab-switcher', 'time-tracker', 'title-cleaner', 'video-downloader', 'volume-booster', 'watchlist', 'x-video', 'zombie-tabs'];
+const ids = ['clip-slots', 'command-center', 'currency', 'instagram', 'life-browser', 'link-cleaner', 'pinned-guard', 'pip', 'quick-tasks', 'shortcuts', 'site-blocker', 'site-toolbar', 'slapmemo', 'smart-replies', 'tab-labels', 'tab-manager', 'tab-notes', 'tab-switcher', 'time-tracker', 'title-cleaner', 'video-downloader', 'volume-booster', 'watchlist', 'x-video', 'zombie-tabs'];
 
 describe('onboarding recommendations', () => {
   it('enables recommended modules and disables other and unknown ids', () => {
