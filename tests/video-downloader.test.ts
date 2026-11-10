@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { acceptsUrl, cacheFresh, formatJob, formatChip, formatQualityLabel, formatSize, FORMATS_CACHE_TTL, menuPosition, MODE_LABELS, youtubePage, youtubeVideoId, type VideoJob } from '../src/modules/video-downloader/logic';
+import { acceptsUrl, cacheFresh, formatJob, formatChip, formatQualityLabel, formatSize, FORMATS_CACHE_TTL, menuPosition, MODE_LABELS, youtubePage, youtubePlaylistId, youtubeVideoId, type VideoJob } from '../src/modules/video-downloader/logic';
 describe('video indirici', () => {
+  it('oynatma listelerini ve ilerlemeyi gösterir', () => {
+    expect(youtubePage('https://www.youtube.com/playlist?list=abc')).toBe('playlist');
+    expect(youtubePage('https://www.youtube.com/playlist')).toBe('other');
+    expect(youtubePlaylistId('https://www.youtube.com/watch?v=xyz&list=abc')).toBe('abc');
+    expect(youtubePlaylistId('https://example.com/playlist?list=abc')).toBeNull();
+    expect(youtubeVideoId('https://www.youtube.com/playlist?list=abc')).toBeNull();
+    expect(MODE_LABELS['playlist:video_best']).toBe('Tüm liste · en iyi kalite');
+    expect(MODE_LABELS['playlist:video_720']).toBe('Tüm liste · 720p');
+    expect(MODE_LABELS['playlist:audio_mp3']).toBe('Tüm liste · MP3');
+    expect(formatChip({ state: 'running', item: '3/24', percent: '45%' } as VideoJob)).toBe('3/24 · %45');
+    expect(formatJob({ state: 'running', item: '3/24', percent: '45%' } as VideoJob)).toBe('İndiriliyor — 3/24 — 45%');
+  });
   it('yalnızca web adreslerini kabul eder', () => { expect(acceptsUrl('https://example.com/a')).toBe(true); expect(acceptsUrl('http://example.com')).toBe(true); expect(acceptsUrl('file:///a')).toBe(false); expect(acceptsUrl('invalid')).toBe(false); });
   it('YouTube sayfalarını ayırır', () => { expect(youtubePage('https://www.youtube.com/watch?v=abc')).toBe('watch'); expect(youtubePage('https://www.youtube.com/shorts/abc')).toBe('shorts'); expect(youtubePage('https://www.youtube.com/')).toBe('other'); expect(youtubePage('https://example.com/watch?v=abc')).toBe('other'); });
   it('mod ve iş durumlarını gösterir', () => { expect(MODE_LABELS.audio_mp3).toBe('Sadece ses (MP3)'); expect(formatJob({ state: 'running', percent: '12%' } as VideoJob)).toBe('İndiriliyor — 12%'); expect(formatJob({ state: 'error', error: 'başarısız' } as VideoJob)).toBe('Hata — başarısız'); });

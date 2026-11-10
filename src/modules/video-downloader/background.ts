@@ -1,13 +1,14 @@
 import { setContextMenuContributions } from '../../core/context-menu';
 import { isModuleEnabled, MODULE_FLAGS_KEY, resolveEnabled } from '../../core/module-state';
 import { replaceSiteScript } from '../../core/site-scripts';
-import { acceptsUrl, MODE_LABELS, VIDEO_ID, YOUTUBE_BUTTON_KEY, YOUTUBE_ORIGINS, type VideoJob, type VideoMode } from './logic';
+import { acceptsUrl, MODE_LABELS, VIDEO_ID, YOUTUBE_BUTTON_KEY, YOUTUBE_ORIGINS, youtubePlaylistId, type VideoJob, type VideoMode } from './logic';
 import { videoCall, UNREACHABLE } from './native';
 
 const KEY = 'videoDownloadJobs';
 const ALARM = 'video-download-poll';
 const INSTALL = 'video-download-install';
 let trackingQueue: Promise<void> = Promise.resolve();
+function belongsToPage(job: VideoJob, page: string | undefined): boolean { if (!page) return false; if (job.url === page) return true; const id = youtubePlaylistId(page); return !!id && job.mode.startsWith('playlist:') && job.url === `https://www.youtube.com/playlist?list=${encodeURIComponent(id)}`; }
 function updateTracked(update: (ids: string[]) => string[]): Promise<void> {
   const next = trackingQueue.then(async () => { await chrome.storage.session.set({ [KEY]: update(await tracked()) }); });
   trackingQueue = next.catch(() => {}); return next;
@@ -57,10 +58,10 @@ export function initVideoBackground(): void {
         if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.');
         const jobs = (await videoCall('video_jobs')).jobs as VideoJob[];
         if (msg.type === 'video-downloader:cancel') {
-          if (!jobs.some(job => job.id === msg.jobId && job.url === sender.tab?.url && job.state === 'running')) throw new Error('Geçersiz iş.');
+          if (!jobs.some(job => job.id === msg.jobId && belongsToPage(job, sender.tab?.url) && job.state === 'running')) throw new Error('Geçersiz iş.');
           await videoCall('video_cancel', { jobId: msg.jobId });
         }
-        return jobs.filter(job => job.url === sender.tab?.url);
+        return jobs.filter(job => belongsToPage(job, sender.tab?.url));
       })().then(jobs => respond({ ok: true, jobs })).catch(e => respond({ ok: false, message: e.message }));
       return true;
     }
@@ -69,7 +70,7 @@ export function initVideoBackground(): void {
       void (async () => { if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.'); if (msg.type === 'video-downloader:install') return videoCall('video_tools_install'); if (typeof msg.url !== 'string' || msg.url !== sender.tab?.url || !acceptsUrl(msg.url)) throw new Error('Geçersiz istek.'); return videoCall('video_formats', { url: msg.url }); })().then(data => respond({ ok: true, data })).catch(e => respond({ ok: false, message: e.message, code: e.name })); return true;
     }
     if (msg?.type !== 'video-downloader:start') return;
-    void (async () => { if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.'); const height = typeof msg.mode === 'string' && /^height:\d+$/.test(msg.mode) ? Number(msg.mode.slice(7)) : 0; if (!(typeof msg.mode === 'string' && (Object.hasOwn(MODE_LABELS, msg.mode) || (height >= 144 && height <= 4320))) || typeof msg.url !== 'string' || msg.url !== sender.tab?.url) throw new Error('Geçersiz istek.'); return startDownload(msg.url, msg.mode as VideoMode); })().then(message => respond({ ok: true, message })).catch(e => respond({ ok: false, message: e.message })); return true;
+    void (async () => { if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.'); const height = typeof msg.mode === 'string' && /^height:\d+$/.test(msg.mode) ? Number(msg.mode.slice(7)) : 0; const id = sender.tab?.url ? youtubePlaylistId(sender.tab.url) : null; const playlist = typeof msg.mode === 'string' && msg.mode.startsWith('playlist:'); const validUrl = playlist ? !!id && msg.url === `https://www.youtube.com/playlist?list=${encodeURIComponent(id)}` : msg.url === sender.tab?.url; if (!(typeof msg.mode === 'string' && (Object.hasOwn(MODE_LABELS, msg.mode) || (height >= 144 && height <= 4320))) || typeof msg.url !== 'string' || !validUrl) throw new Error('Geçersiz istek.'); return startDownload(msg.url, msg.mode as VideoMode); })().then(message => respond({ ok: true, message })).catch(e => respond({ ok: false, message: e.message })); return true;
   });
   void tracked().then(ids => { if (ids.length) return chrome.alarms.create(ALARM, { delayInMinutes: 0.025 }); });
 }

@@ -20,7 +20,7 @@ export function desktopVersionWarning(desktop: string, extension: string): strin
 }
 
 export function videoNativeError(message: string): string {
-  return message.includes('Bilinmeyen işlem')
+  return message.includes('Bilinmeyen işlem') || message.includes('Geçersiz indirme modu')
     ? 'Masaüstü uygulaması bu özelliği desteklemiyor, lütfen güncelle.'
     : message;
 }
