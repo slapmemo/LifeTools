@@ -24,7 +24,12 @@ function send<T>(message: Record<string, unknown>): Promise<T | null> {
   return (chrome.runtime.sendMessage({ channel: 'site-toolbar', ...message }) as Promise<T | null>).catch(() => null);
 }
 
-function destroy(): void { host?.remove(); host = null; shownIds = ''; }
+let resizeHandler: (() => void) | null = null;
+
+function destroy(): void {
+  if (resizeHandler) { window.removeEventListener('resize', resizeHandler); resizeHandler = null; }
+  host?.remove(); host = null; shownIds = '';
+}
 
 function build(config: Config): void {
   destroy();
@@ -63,6 +68,7 @@ function build(config: Config): void {
     wrap.classList.toggle('top', y < 0.5); wrap.classList.toggle('left', x < 0.5);
   };
   place();
+  resizeHandler = place;
   window.addEventListener('resize', place);
 
   const setOpen = (open: boolean): void => { panel.hidden = !open; fab.setAttribute('aria-expanded', String(open)); if (!open) status.textContent = ''; };
