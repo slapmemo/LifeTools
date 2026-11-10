@@ -1,0 +1,15 @@
+body { margin: 0; background: var(--bg); color: var(--text); font: var(--font-size-13) var(--font); }
+main { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
+header h1 { margin: 0 0 8px; }
+header p, footer { color: var(--muted); line-height: 1.5; }
+.actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+#groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.group { padding: 16px; }
+.group h2 { margin: 0 0 12px; font-size: var(--font-size-15); }
+.feature { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); cursor: pointer; }
+.feature input { flex: none; margin-top: 3px; accent-color: var(--accent); }
+.feature span { display: flex; flex-direction: column; gap: 3px; }
+.feature small { color: var(--muted); line-height: 1.4; }
+footer { margin-top: 24px; }
+[hidden] { display: none !important; }
+@media (max-width: 639px) { #groups { grid-template-columns: 1fr; } main { padding: 24px 16px; } }

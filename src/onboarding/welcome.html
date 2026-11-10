@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LifeTools'a hoş geldin</title>
+  <link rel="stylesheet" href="tokens.css" /><link rel="stylesheet" href="components.css" /><link rel="stylesheet" href="welcome.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <h1>LifeTools'a hoş geldin</h1>
+      <p>Hangi özellikleri kullanmak istiyorsun? Bunları sonra Panel › Ayarlar'dan değiştirebilirsin.</p>
+    </header>
+    <div class="actions" aria-label="Toplu seçim">
+      <button id="recommended" type="button">Önerilenleri seç</button>
+      <button id="select-all" type="button">Hepsini seç</button>
+      <button id="select-none" type="button">Hiçbirini seçme</button>
+    </div>
+    <form id="welcome-form">
+      <div id="groups"></div>
+      <div class="actions save-actions">
+        <button class="primary" type="submit">Kaydet ve başla</button>
+        <span id="feedback" role="status" aria-live="polite"></span>
+        <a id="panel-link" href="panel.html" hidden>Panel'i aç</a>
+      </div>
+    </form>
+    <footer>Video İndirici, masaüstü uygulamasını gerektirir.</footer>
+  </main>
+  <script src="welcome.js" type="module"></script>
+</body>
+</html>

@@ -24,6 +24,7 @@ await build({
     background: 'src/background.ts',
     popup: 'src/popup/popup.ts',
     panel: 'src/panel/panel.ts',
+    welcome: 'src/onboarding/welcome.ts',
     blocked: 'src/modules/site-blocker/blocked.ts',
     switcher: 'src/modules/tab-switcher/switcher.ts',
     tabs: 'src/modules/tab-manager/tabs.ts',
@@ -65,6 +66,8 @@ copyFileSync('design/tokens.css', join(dist, 'tokens.css'));
 copyFileSync('design/components.css', join(dist, 'components.css'));
 copyFileSync('src/panel/panel.html', join(dist, 'panel.html'));
 copyFileSync('src/panel/panel.css', join(dist, 'panel.css'));
+copyFileSync('src/onboarding/welcome.html', join(dist, 'welcome.html'));
+copyFileSync('src/onboarding/welcome.css', join(dist, 'welcome.css'));
 copyFileSync('src/popup/popup.html', join(dist, 'popup.html'));
 copyFileSync('src/popup/popup.css', join(dist, 'popup.css'));
 copyFileSync('src/db/offscreen.html', join(dist, 'offscreen.html'));
