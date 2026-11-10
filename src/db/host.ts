@@ -1,11 +1,12 @@
 import { getBackend, type DbBackend } from './backend';
 import { createDbClient } from './client';
-import { runMigrations } from './migrations';
+import { exportData, restoreData, validateBackup, type Backup } from '../core/backup';
+import { runMigrations, type Executor } from './migrations';
 import {
   NATIVE_HOST_NAME, NativeClient, createNativeExecutor, executorTransport,
   type NativeExecutor, type PortLike
 } from './native';
-import type { DbRequest, DbResponse } from './protocol';
+import type { DbRequest, DbResponse, SqlParam } from './protocol';
 import { BG_CHANNEL, OFFSCREEN_CHANNEL } from './protocol';
 
 let inflight: Promise<void> | null = null;
@@ -78,7 +79,84 @@ async function desktopRequest(req: DbRequest): Promise<DbResponse> {
  * Service worker içinden: isteği ayardaki (veya `forced`) arka uca iletir.
  * Masaüstü seçiliyken ulaşılamazsa tarayıcı DB'sine SESSİZCE düşülmez; hata döner.
  */
-export async function dbRequest(req: DbRequest, forced?: DbBackend): Promise<DbResponse> {
+export function dbRequest(req: DbRequest, forced?: DbBackend): Promise<DbResponse> {
+  return withLock(() => dbRequestUnlocked(req, forced));
+}
+
+// ---------- DB geneli muteks ----------
+
+let lockTail: Promise<void> = Promise.resolve();
+
+async function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  const prev = lockTail;
+  let release!: () => void;
+  lockTail = new Promise<void>(resolve => { release = resolve; });
+  await prev;
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
+export const EXCLUSIVE_TIMEOUT_MS = 120_000;
+
+/**
+ * Çok adımlı işlemi DB kilidini tutarak çalıştırır; arka ucu bir kez sabitler.
+ * Süre dolarsa açık işlem geri alınır, kilit bırakılır ve hata fırlatılır.
+ */
+export function withExclusiveDb<T>(
+  fn: (ex: Executor) => Promise<T>,
+  opts: { backend?: DbBackend; timeoutMs?: number } = {}
+): Promise<T> {
+  return withLock(async () => {
+    const backend = opts.backend ?? await getBackend();
+    const raw = createDbClient(req => dbRequestUnlocked(req, backend));
+    let expired = false;
+    const guard = <R>(run: () => Promise<R>): Promise<R> =>
+      expired ? Promise.reject(new Error(EXCLUSIVE_TIMEOUT_MESSAGE)) : run();
+    const ex: Executor = {
+      exec: (sql, params) => guard(() => raw.exec(sql, params)),
+      query: <R>(sql: string, params?: SqlParam[]) => guard(() => raw.query<R>(sql, params)),
+      batch: (statements, batchOpts) => guard(() => raw.batch(statements, batchOpts))
+    };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        expired = true;
+        raw.exec('ROLLBACK').catch(() => undefined).then(() => reject(new Error(EXCLUSIVE_TIMEOUT_MESSAGE)));
+      }, opts.timeoutMs ?? EXCLUSIVE_TIMEOUT_MS);
+    });
+    const work = fn(ex);
+    work.catch(() => undefined);
+    try {
+      return await Promise.race([work, timeout]);
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+}
+
+const EXCLUSIVE_TIMEOUT_MESSAGE = 'İşlem 120 saniyeyi aştı; geri alındı ve veritabanı kilidi bırakıldı';
+
+/** Tek tutarlı okuma işleminde (BEGIN/COMMIT) dışa aktarır. */
+export function exportBackground(settings: Record<string, unknown>, pageSize: number, backend?: DbBackend): Promise<Backup> {
+  return withExclusiveDb(async ex => {
+    await ex.exec('BEGIN');
+    try {
+      return await exportData(ex, settings, pageSize);
+    } finally {
+      try { await ex.exec('COMMIT'); } catch { /* işlem zaten bitmiş olabilir */ }
+    }
+  }, { backend });
+}
+
+/** Yedeği tek atomik işlemde, kilit altında geri yükler. */
+export function restoreBackground(backup: Backup, backend?: DbBackend): Promise<Record<string, number>> {
+  return withExclusiveDb(ex => restoreData(ex, backup), { backend });
+}
+
+async function dbRequestUnlocked(req: DbRequest, forced?: DbBackend): Promise<DbResponse> {
   try {
     if (req.op === 'ping') return { ok: true, data: await native().ping() };
     if ((forced ?? await getBackend()) === 'desktop') return await desktopRequest(req);
@@ -95,11 +173,39 @@ export const backgroundDb = createDbClient(dbRequest);
 
 /** Popup vb. sayfalardan gelen DB isteklerini karşılar. */
 export function registerDbBridge(): void {
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (!msg || msg.channel !== BG_CHANNEL) return false;
-    const forced: DbBackend | undefined = msg.backend === 'browser' || msg.backend === 'desktop' ? msg.backend : undefined;
-    void dbRequest(msg.req as DbRequest, forced).then(sendResponse);
-    return true;
+  // Yalnızca eklenti sayfaları (sender.tab.url chrome://extensions olabilir; içerik betikleri reddedilir).
+  const fromExtensionPage = (sender: chrome.runtime.MessageSender): boolean =>
+    sender.id === chrome.runtime.id && !!sender.url?.startsWith(chrome.runtime.getURL(''));
+  const backendOf = (value: unknown): DbBackend | undefined => value === 'browser' || value === 'desktop' ? value : undefined;
+  const fail = (err: unknown): DbResponse => ({ ok: false, error: err instanceof Error ? err.message : String(err) });
+
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (!msg) return false;
+    if (msg.channel === BG_CHANNEL) {
+      if (!fromExtensionPage(sender)) {
+        sendResponse({ ok: false, error: 'Veritabanı köprüsüne erişim reddedildi' });
+        return false;
+      }
+      void dbRequest(msg.req as DbRequest, backendOf(msg.backend)).then(sendResponse);
+      return true;
+    }
+    if (msg.type === 'backup:restore' || msg.type === 'backup:export') {
+      if (!fromExtensionPage(sender)) {
+        sendResponse({ ok: false, error: 'Veritabanı köprüsüne erişim reddedildi' });
+        return false;
+      }
+      const backend = backendOf(msg.backend);
+      const task: Promise<unknown> = msg.type === 'backup:restore'
+        ? Promise.resolve().then(() => restoreBackground(validateBackup(msg.backup), backend))
+        : exportBackground(
+          typeof msg.settings === 'object' && msg.settings !== null ? msg.settings as Record<string, unknown> : {},
+          Number.isInteger(msg.pageSize) && msg.pageSize > 0 ? msg.pageSize : 100,
+          backend
+        );
+      void task.then(data => sendResponse({ ok: true, data }), err => sendResponse(fail(err)));
+      return true;
+    }
+    return false;
   });
 }
 

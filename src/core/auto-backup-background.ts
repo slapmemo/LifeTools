@@ -1,14 +1,14 @@
-import { backgroundDb } from '../db/host';
-import { exportData } from './backup';
+import { exportBackground } from '../db/host';
 import { backupSettingKeys } from './backup-settings';
 import { AUTO_BACKUP_ALARM, AUTO_BACKUP_ENABLED_KEY, BACKUP_WEEK_MS, LAST_AUTO_BACKUP_KEY, backupFilename, isBackupDue } from './auto-backup';
 
 let pending: Promise<void> | undefined;
+const LAST_ERROR_KEY = 'autoBackup.lastError';
 
 /** Uses the active backend and pages reads for the desktop bridge. */
 export async function buildBackupJson(): Promise<string> {
   const settings = await chrome.storage.local.get(backupSettingKeys());
-  return JSON.stringify(await exportData(backgroundDb, settings, 100), null, 2);
+  return JSON.stringify(await exportBackground(settings, 100), null, 2);
 }
 
 export function downloadBackup(): Promise<void> {
@@ -20,8 +20,11 @@ export function downloadBackup(): Promise<void> {
     for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
     const now = new Date();
     await chrome.downloads.download({ url: `data:application/json;base64,${btoa(binary)}`, filename: backupFilename(now), conflictAction: 'overwrite', saveAs: false });
-    await chrome.storage.local.set({ [LAST_AUTO_BACKUP_KEY]: now.toISOString() });
-  })().finally(() => { pending = undefined; });
+    await chrome.storage.local.set({ [LAST_AUTO_BACKUP_KEY]: now.toISOString(), [LAST_ERROR_KEY]: null });
+  })().catch(async err => {
+    await chrome.storage.local.set({ [LAST_ERROR_KEY]: { at: new Date().toISOString(), error: err instanceof Error ? err.message : String(err) } });
+    throw err;
+  }).finally(() => { pending = undefined; });
   return pending;
 }
 

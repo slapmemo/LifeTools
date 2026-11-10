@@ -11,7 +11,15 @@ export const BACKUP_TABLES: readonly string[] = names;
 async function readPaged(ex: Executor, name: Table, size: number): Promise<Row[]> {
   const out: Row[] = [];
   for (;;) {
-    const page = await ex.query<Row>(`SELECT * FROM ${name} ORDER BY rowid LIMIT ${size} OFFSET ${out.length}`);
+    let page: Row[];
+    try {
+      page = await ex.query<Row>(`SELECT * FROM ${name} ORDER BY rowid LIMIT ${size} OFFSET ${out.length}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (size <= 1 || !/(1\s*MB|too large|çok büyük|boyut.*sınır)/i.test(message)) throw err;
+      size = Math.max(1, Math.floor(size / 2));
+      continue;
+    }
     out.push(...page);
     if (page.length < size) return out;
   }
@@ -19,7 +27,10 @@ async function readPaged(ex: Executor, name: Table, size: number): Promise<Row[]
 /** `pageSize > 0`: tabloları sayfa sayfa okur (masaüstü köprüsünün 1 MB yanıt sınırı için). */
 export async function exportData(ex: Executor, settings: Record<string, unknown>, pageSize = 0): Promise<Backup> {
   const tables = {} as Backup['tables'];
-  for (const name of names) tables[name] = name === 'note_images' ? await readPaged(ex, name, 1) : name === 'note_pages' ? await readPaged(ex, name, 1) : pageSize > 0 ? await readPaged(ex, name, pageSize) : await ex.query<Row>(`SELECT * FROM ${name}`);
+  for (const name of names) {
+    const limit = name === 'note_images' ? 1 : name === 'note_pages' ? 5 : name === 'notes' || name === 'snippets' ? 20 : pageSize;
+    tables[name] = limit > 0 ? await readPaged(ex, name, pageSize > 0 ? Math.min(limit, pageSize) : limit) : await ex.query<Row>(`SELECT * FROM ${name}`);
+  }
   return { app: 'LifeTools', format: 1, schema_version: await readVersion(ex), exported_at: new Date().toISOString(), tables, settings };
 }
 export function validateBackup(json: unknown): Backup {
@@ -37,6 +48,29 @@ export function validateBackup(json: unknown): Backup {
   }
   return { app: 'LifeTools', format: 1, schema_version: version, exported_at: json.exported_at, tables, settings: json.settings };
 }
+/** JSON UTF-8 boyutuna göre sıralamayı koruyarak boş olmayan gruplar oluşturur. */
+export function chunkStatements(statements: SqlStatement[], maxBytes: number): SqlStatement[][] {
+  const chunks: SqlStatement[][] = [];
+  let chunk: SqlStatement[] = [];
+  let bytes = 2;
+  const encoder = new TextEncoder();
+  for (const statement of statements) {
+    const size = encoder.encode(JSON.stringify(statement)).length;
+    if (size + 2 > maxBytes) {
+      const table = /(?:INTO|FROM)\s+["`\[]?([\w]+)/i.exec(statement.sql)?.[1] ?? 'bilinmeyen';
+      throw new Error(`Tablo için tek bir kayıt çok büyük: ${table}`);
+    }
+    if (bytes + size + (chunk.length ? 1 : 0) > maxBytes) {
+      chunks.push(chunk);
+      chunk = [];
+      bytes = 2;
+    }
+    bytes += size + (chunk.length ? 1 : 0);
+    chunk.push(statement);
+  }
+  if (chunk.length) chunks.push(chunk);
+  return chunks;
+}
 export async function restoreData(ex: Executor, backup: Backup): Promise<Record<Table, number>> {
   // Silme ters sırada (alt tablolar önce), ekleme sırayla (sessions, session_tabs'tan önce) yapılır.
   const statements: SqlStatement[] = [...names].reverse().map(name => ({ sql: `DELETE FROM ${name}` }));
@@ -45,6 +79,23 @@ export async function restoreData(ex: Executor, backup: Backup): Promise<Record<
     if (!keys.length) throw new Error(`Geçersiz satır: ${name}`);
     statements.push({ sql: `INSERT INTO ${name} (${keys.map(key => `"${key}"`).join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`, params: keys.map(key => row[key]) });
   }
-  await ex.batch(statements);
+  const chunks = chunkStatements(statements, 2_500_000);
+  // BEGIN başarısız olursa (başka bir işlem açık) başkasının işlemini geri almamak için try dışında.
+  try {
+    await ex.exec('BEGIN IMMEDIATE');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Geri yükleme başlatılamadı, mevcut verilere dokunulmadı: ${message}`);
+  }
+  try {
+    for (const chunk of chunks) await ex.batch(chunk, { requireTransaction: true });
+    await ex.exec('COMMIT');
+  } catch (err) {
+    try { await ex.exec('ROLLBACK'); } catch { /* İşlem başlamamış veya bitmiş olabilir. */ }
+    const message = err instanceof Error ? err.message : String(err);
+    const update = /within a transaction|cannot start a transaction/i.test(message)
+      ? ' Masaüstü uygulamasını güncellemeniz gerekebilir.' : '';
+    throw new Error(`Geri yükleme yapılamadı, mevcut verilere dokunulmadı: ${message}${update}`);
+  }
   return Object.fromEntries(names.map(name => [name, backup.tables[name].length])) as Record<Table, number>;
 }

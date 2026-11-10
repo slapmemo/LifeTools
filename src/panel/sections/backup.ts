@@ -1,6 +1,6 @@
 import { requestRunAction } from '../../core/actions';
 import { AUTO_BACKUP_ENABLED_KEY, LAST_AUTO_BACKUP_KEY } from '../../core/auto-backup';
-import { restoreData, validateBackup, type Backup } from '../../core/backup';
+import { validateBackup, type Backup } from '../../core/backup';
 import { backupSettingKeys, settingsRestorePlan } from '../../core/backup-settings';
 import { popupDb } from '../../db/client';
 import { confirmSecondClick, showToast } from '../ui';
@@ -23,17 +23,23 @@ export function initBackup(): void {
 
   const autoBackupEnabled = document.querySelector<HTMLInputElement>('#auto-backup-enabled')!;
   const autoBackupLast = document.querySelector<HTMLElement>('#auto-backup-last')!;
+  const autoBackupError = document.createElement('div');
+  autoBackupError.className = 'muted';
+  autoBackupLast.insertAdjacentElement('afterend', autoBackupError);
   async function refreshAutoBackup(): Promise<void> {
-    const data = await chrome.storage.local.get([AUTO_BACKUP_ENABLED_KEY, LAST_AUTO_BACKUP_KEY]);
+    const data = await chrome.storage.local.get([AUTO_BACKUP_ENABLED_KEY, LAST_AUTO_BACKUP_KEY, 'autoBackup.lastError']);
     autoBackupEnabled.checked = data[AUTO_BACKUP_ENABLED_KEY] !== false;
     const date = new Date(data[LAST_AUTO_BACKUP_KEY] as string);
     autoBackupLast.textContent = `Son otomatik yedek: ${Number.isNaN(date.getTime()) ? 'henüz yok' : new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date)}`;
+    const failure = data['autoBackup.lastError'] as { error?: unknown } | undefined;
+    autoBackupError.textContent = typeof failure?.error === 'string' ? `Son otomatik yedek başarısız: ${failure.error}` : '';
+    autoBackupError.hidden = !autoBackupError.textContent;
   }
   autoBackupEnabled.addEventListener('change', () => {
     void chrome.storage.local.set({ [AUTO_BACKUP_ENABLED_KEY]: autoBackupEnabled.checked }).catch(backupError);
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && (changes[AUTO_BACKUP_ENABLED_KEY] || changes[LAST_AUTO_BACKUP_KEY])) void refreshAutoBackup();
+    if (area === 'local' && (changes[AUTO_BACKUP_ENABLED_KEY] || changes[LAST_AUTO_BACKUP_KEY] || changes['autoBackup.lastError'])) void refreshAutoBackup();
   });
   void refreshAutoBackup();
 
@@ -83,7 +89,7 @@ export function initBackup(): void {
       backupFile.disabled = true;
       try {
         const settings = selectedBackup.settings;
-        await restoreData(popupDb, selectedBackup);
+        await popupDb.restoreBackup(selectedBackup);
         const plan = settingsRestorePlan(settings, backupSettingKeys());
         if (plan.remove.length) {
           await chrome.storage.local.remove(plan.remove);

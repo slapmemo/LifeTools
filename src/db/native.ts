@@ -173,10 +173,11 @@ export function createNativeExecutor(client: NativeClient): NativeExecutor {
       const res = await client.request({ op: 'query', sql, params: params?.map(encodeParam) });
       return (res.rows ?? []).map(row => decodeRow(row as Record<string, unknown>)) as T[];
     },
-    async batch(statements) {
+    async batch(statements, opts) {
       await client.request({
         op: 'batch',
-        statements: statements.map(s => ({ sql: s.sql, params: s.params?.map(encodeParam) }))
+        statements: statements.map(s => ({ sql: s.sql, params: s.params?.map(encodeParam) })),
+        ...(opts?.requireTransaction ? { requireTransaction: true } : {})
       });
     },
     async ping() {
@@ -198,7 +199,7 @@ export function executorTransport(ex: Executor): (req: DbRequest) => Promise<DbR
         case 'query':
           return { ok: true, data: await ex.query(req.sql, req.params) };
         case 'batch':
-          await ex.batch(req.statements);
+          await ex.batch(req.statements, { requireTransaction: req.requireTransaction === true });
           return { ok: true, data: null };
         case 'version':
           return { ok: true, data: await readVersion(ex) };

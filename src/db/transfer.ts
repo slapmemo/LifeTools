@@ -1,4 +1,5 @@
 import { BACKUP_TABLES, exportData, restoreData } from '../core/backup';
+import { asRemoteBackup } from './client';
 import { runMigrations, type Executor } from './migrations';
 
 /** Kaynak, köprünün 1 MB yanıt sınırına takılmasın diye küçük sayfalarla okunur. */
@@ -32,10 +33,14 @@ export async function countRows(ex: Executor): Promise<Record<string, number>> {
  */
 export async function transferData(source: Executor, target: Executor, overwrite = false): Promise<Record<string, number>> {
   await runMigrations(target);
-  const backup = await exportData(source, {}, PAGE_SIZE);
+  // Sayfadan gelen istemciler için dışa/içe aktarma arka planda, DB kilidi altında yapılır.
+  const sourceOps = asRemoteBackup(source);
+  const targetOps = asRemoteBackup(target);
+  const backup = sourceOps ? await sourceOps.exportBackup({}, PAGE_SIZE) : await exportData(source, {}, PAGE_SIZE);
   const existing = await countRows(target);
   if (!overwrite && Object.values(existing).some(n => n > 0)) throw new TargetNotEmptyError(existing);
-  await restoreData(target, backup);
+  if (targetOps) await targetOps.restoreBackup(backup);
+  else await restoreData(target, backup);
   const after = await countRows(target);
   for (const table of BACKUP_TABLES) {
     const expected = backup.tables[table as keyof typeof backup.tables].length;

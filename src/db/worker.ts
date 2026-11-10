@@ -2,6 +2,7 @@ import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import type { Executor } from './migrations';
 import { readVersion, runMigrations } from './migrations';
 import type { DbRequest, DbResponse, SqlParam } from './protocol';
+import { TRANSACTION_LOST } from './protocol';
 
 // Bu dosya dedicated Worker olarak çalışır (offscreen belge tarafından başlatılır).
 const ctx = self as unknown as {
@@ -11,6 +12,7 @@ const ctx = self as unknown as {
 
 interface WasmDb {
   exec(opts: Record<string, unknown>): unknown;
+  pointer: number;
 }
 
 const DB_PATH = '/lifetools.db';
@@ -30,13 +32,15 @@ async function init(): Promise<Executor> {
     async exec(sql: string, params?: SqlParam[]) {
       db.exec({ sql, bind: params && params.length > 0 ? params : undefined });
     },
-    async batch(statements) {
-      db.exec({ sql: 'BEGIN IMMEDIATE' });
+    async batch(statements, opts) {
+      const nested = (sqlite3 as any).capi.sqlite3_get_autocommit(db.pointer) === 0;
+      if (opts?.requireTransaction && !nested) throw new Error(TRANSACTION_LOST);
+      db.exec({ sql: nested ? 'SAVEPOINT lt_batch' : 'BEGIN IMMEDIATE' });
       try {
         for (const { sql, params } of statements) db.exec({ sql, bind: params?.length ? params : undefined });
-        db.exec({ sql: 'COMMIT' });
+        db.exec({ sql: nested ? 'RELEASE lt_batch' : 'COMMIT' });
       } catch (err) {
-        try { db.exec({ sql: 'ROLLBACK' }); } catch { /* işlem bitmiş olabilir */ }
+        try { db.exec({ sql: nested ? 'ROLLBACK TO lt_batch; RELEASE lt_batch' : 'ROLLBACK' }); } catch { /* işlem bitmiş olabilir */ }
         throw err;
       }
     },
@@ -66,7 +70,7 @@ async function handle(req: DbRequest): Promise<DbResponse> {
       case 'query':
         return { ok: true, data: await ex.query(req.sql, req.params) };
       case 'batch':
-        await ex.batch(req.statements);
+        await ex.batch(req.statements, { requireTransaction: req.requireTransaction === true });
         return { ok: true, data: null };
       case 'version':
         return { ok: true, data: await readVersion(ex) };

@@ -18,13 +18,15 @@ export async function createMemoryExecutor(): Promise<Executor> {
     async exec(sql, params) {
       db.exec({ sql, bind: params && params.length > 0 ? params : undefined });
     },
-    async batch(statements) {
-      db.exec({ sql: 'BEGIN IMMEDIATE' });
+    async batch(statements, opts) {
+      const nested = sqlite3.capi.sqlite3_get_autocommit(db.pointer) === 0;
+      if (opts?.requireTransaction && !nested) throw new Error('İşlem bağlamı kayboldu');
+      db.exec({ sql: nested ? 'SAVEPOINT lt_batch' : 'BEGIN IMMEDIATE' });
       try {
         for (const { sql, params } of statements) db.exec({ sql, bind: params?.length ? params : undefined });
-        db.exec({ sql: 'COMMIT' });
+        db.exec({ sql: nested ? 'RELEASE lt_batch' : 'COMMIT' });
       } catch (err) {
-        try { db.exec({ sql: 'ROLLBACK' }); } catch { /* i?lem bitmi? olabilir */ }
+        try { db.exec({ sql: nested ? 'ROLLBACK TO lt_batch; RELEASE lt_batch' : 'ROLLBACK' }); } catch { /* İşlem bitmiş olabilir. */ }
         throw err;
       }
     },

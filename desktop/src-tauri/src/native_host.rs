@@ -199,13 +199,17 @@ fn dispatch(conn: &Connection, req: &Json) -> Result<Map<String, Json>, String> 
             for s in list {
                 parsed.push((sql_of(s)?, parse_params(s.get("params"))?));
             }
-            conn.execute_batch("BEGIN IMMEDIATE").map_err(|e| e.to_string())?;
+            let nested = !conn.is_autocommit();
+            if req.get("requireTransaction").and_then(Json::as_bool) == Some(true) && !nested {
+                return Err("İşlem bağlamı kayboldu".into());
+            }
+            conn.execute_batch(if nested { "SAVEPOINT lt_batch" } else { "BEGIN IMMEDIATE" }).map_err(|e| e.to_string())?;
             let result = parsed
                 .iter()
                 .try_for_each(|(sql, params)| run_exec(conn, sql, params))
-                .and_then(|_| conn.execute_batch("COMMIT"));
+                .and_then(|_| conn.execute_batch(if nested { "RELEASE lt_batch" } else { "COMMIT" }));
             if let Err(e) = result {
-                let _ = conn.execute_batch("ROLLBACK");
+                let _ = conn.execute_batch(if nested { "ROLLBACK TO lt_batch; RELEASE lt_batch" } else { "ROLLBACK" });
                 return Err(e.to_string());
             }
         }
@@ -396,6 +400,41 @@ mod tests {
         let q = call(&c, json!({"id": 3, "op": "query", "sql": "SELECT a FROM t ORDER BY id"}));
         assert_eq!(q["rows"], json!([{"a": "a"}, {"a": "b"}]));
         assert!(c.is_autocommit());
+    }
+
+    #[test]
+    fn batches_inside_manual_transaction() {
+        let c = mem();
+        c.execute_batch("INSERT INTO t(a) VALUES ('original'); BEGIN IMMEDIATE").unwrap();
+        let ok = call(&c, json!({"op": "batch", "statements": [
+            {"sql": "DELETE FROM t"}, {"sql": "INSERT INTO t(a) VALUES ('new')"}
+        ]}));
+        assert_eq!(ok["ok"], json!(true));
+        let fail = call(&c, json!({"op": "batch", "statements": [
+            {"sql": "DELETE FROM t"}, {"sql": "INSERT INTO missing_table VALUES (1)"}
+        ]}));
+        assert_eq!(fail["ok"], json!(false));
+        assert_eq!(call(&c, json!({"op": "query", "sql": "SELECT a FROM t"}))["rows"], json!([{"a": "new"}]));
+        c.execute_batch("ROLLBACK").unwrap();
+        assert_eq!(call(&c, json!({"op": "query", "sql": "SELECT a FROM t"}))["rows"], json!([{"a": "original"}]));
+        c.execute_batch("BEGIN IMMEDIATE").unwrap();
+        assert_eq!(call(&c, json!({"op": "batch", "statements": [
+            {"sql": "INSERT INTO t(a) VALUES ('committed')"}
+        ]}))["ok"], json!(true));
+        c.execute_batch("COMMIT").unwrap();
+        assert_eq!(call(&c, json!({"op": "query", "sql": "SELECT a FROM t ORDER BY id"}))["rows"], json!([{"a": "original"}, {"a": "committed"}]));
+    }
+
+    #[test]
+    fn required_transaction_rejects_autocommit_batch() {
+        let c = mem();
+        c.execute_batch("INSERT INTO t(a) VALUES ('original')").unwrap();
+        let result = call(&c, json!({"op": "batch", "requireTransaction": true, "statements": [
+            {"sql": "DELETE FROM t"}
+        ]}));
+        assert_eq!(result["ok"], json!(false));
+        assert_eq!(result["error"], json!("İşlem bağlamı kayboldu"));
+        assert_eq!(call(&c, json!({"op": "query", "sql": "SELECT a FROM t"}))["rows"], json!([{"a": "original"}]));
     }
 
     #[test]

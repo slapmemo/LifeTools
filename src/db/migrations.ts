@@ -1,9 +1,9 @@
-import type { SqlParam, SqlStatement } from './protocol';
+import type { BatchOptions, SqlParam, SqlStatement } from './protocol';
 
 /** Migrasyon çalıştırıcısına enjekte edilen yürütücü (tarayıcıdan bağımsız). */
 export interface Executor {
   exec(sql: string, params?: SqlParam[]): Promise<void>;
-  batch(statements: SqlStatement[]): Promise<void>;
+  batch(statements: SqlStatement[], opts?: BatchOptions): Promise<void>;
   query<T = Record<string, unknown>>(sql: string, params?: SqlParam[]): Promise<T[]>;
 }
 
