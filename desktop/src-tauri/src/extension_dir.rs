@@ -2,7 +2,7 @@
 
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 /// Kopyalanacak toplam boyut üst sınırı.
@@ -11,10 +11,14 @@ pub const MAX_COPY_BYTES: u64 = 100 * 1024 * 1024;
 /// `%LOCALAPPDATA%\LifeTools\extension`
 pub fn target_dir() -> Option<PathBuf> {
     let base = std::env::var_os("LOCALAPPDATA")?;
-    if base.is_empty() {
+    if !valid_base(Path::new(&base)) {
         return None;
     }
     Some(PathBuf::from(base).join("LifeTools").join("extension"))
+}
+
+fn valid_base(base: &Path) -> bool {
+    base.is_absolute() && !base.components().any(|c| c == Component::ParentDir)
 }
 
 /// Klasördeki manifest.json içindeki `version` değeri.
@@ -36,7 +40,7 @@ pub fn is_copyable(file_type: &fs::FileType) -> bool {
 }
 
 pub fn copy_tree(src: &Path, dst: &Path, remaining: &mut u64) -> io::Result<()> {
-    fs::create_dir_all(dst)?;
+    fs::create_dir(dst)?;
     for entry in fs::read_dir(src)? {
         let entry = entry?;
         let meta = fs::symlink_metadata(entry.path())?;
@@ -59,33 +63,65 @@ pub fn copy_tree(src: &Path, dst: &Path, remaining: &mut u64) -> io::Result<()> 
     Ok(())
 }
 
+fn remove_path(path: &Path) -> io::Result<()> {
+    let meta = match fs::symlink_metadata(path) {
+        Ok(meta) => meta,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e),
+    };
+    if meta.file_type().is_symlink() {
+        // Windows directory links (including junctions) require remove_dir.
+        #[cfg(windows)]
+        { return fs::remove_dir(path).or_else(|_| fs::remove_file(path)); }
+        #[cfg(not(windows))]
+        { return fs::remove_file(path); }
+    }
+    if meta.is_dir() { fs::remove_dir_all(path) } else { fs::remove_file(path) }
+}
+
+fn rollback(old: &Path, target: &Path, had_target: bool) {
+    if had_target {
+        let _ = fs::rename(old, target);
+    }
+}
+
 /// `bundled` içeriğini `target` konumuna güvenli biçimde (kopyala → yer değiştir) taşır.
 pub fn sync(bundled: &Path, target: &Path) -> Result<(), String> {
     let parent = target.parent().ok_or("Hedef klasör geçersiz")?;
     fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     let name = target.file_name().ok_or("Hedef klasör geçersiz")?.to_string_lossy().into_owned();
     let new = parent.join(format!("{name}.new"));
-    let old = parent.join(format!("{name}.old"));
-    let _ = fs::remove_dir_all(&new);
-    let _ = fs::remove_dir_all(&old);
+    let mut old = parent.join(format!("{name}.old"));
+    remove_path(&new).map_err(|e| e.to_string())?;
+    if remove_path(&old).is_err() {
+        let millis = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| e.to_string())?.as_millis();
+        old = parent.join(format!("{name}.old.{millis}"));
+        let mut suffix = 0u64;
+        while old.symlink_metadata().is_ok() {
+            suffix += 1;
+            old = parent.join(format!("{name}.old.{millis}.{suffix}"));
+        }
+    }
+    let had_target = target.symlink_metadata().is_ok();
     let mut budget = MAX_COPY_BYTES;
     if let Err(e) = copy_tree(bundled, &new, &mut budget) {
-        let _ = fs::remove_dir_all(&new);
+        let _ = remove_path(&new);
         return Err(e.to_string());
     }
-    if target.exists() {
+    if had_target {
         if let Err(e) = fs::rename(target, &old) {
-            let _ = fs::remove_dir_all(&new);
+            let _ = remove_path(&new);
             return Err(format!("Eklenti klasörü değiştirilemedi: {e}"));
         }
     }
     if let Err(e) = fs::rename(&new, target) {
-        let _ = fs::rename(&old, target);
-        let _ = fs::remove_dir_all(&new);
+        rollback(&old, target, had_target);
+        let _ = remove_path(&new);
         return Err(format!("Eklenti klasörü değiştirilemedi: {e}"));
     }
     // Kilitliyse bir sonraki başlangıçta temizlenir.
-    let _ = fs::remove_dir_all(&old);
+    if had_target { let _ = remove_path(&old); }
     Ok(())
 }
 
@@ -99,7 +135,7 @@ pub fn spawn_sync(app: AppHandle) {
         if !needs_sync(read_version(&target).as_deref(), &bundled_version) {
             // Önceki eşitlemeden kalan .old klasörünü temizle.
             if let (Some(parent), Some(name)) = (target.parent(), target.file_name()) {
-                let _ = fs::remove_dir_all(parent.join(format!("{}.old", name.to_string_lossy())));
+                let _ = remove_path(&parent.join(format!("{}.old", name.to_string_lossy())));
             }
             return;
         }
@@ -125,6 +161,58 @@ mod tests {
         assert!(needs_sync(None, "0.5.5"));
         assert!(needs_sync(Some("0.5.4"), "0.5.5"));
         assert!(!needs_sync(Some("0.5.5"), "0.5.5"));
+    }
+
+    #[test]
+    fn validates_base_path() {
+        let absolute = std::env::temp_dir();
+        assert!(valid_base(&absolute));
+        assert!(!valid_base(Path::new("relative")));
+        assert!(!valid_base(&absolute.join("..")));
+        assert!(!valid_base(Path::new("")));
+    }
+
+    #[test]
+    fn first_install_creates_target() {
+        let root = temp("first");
+        let src = root.join("src");
+        fs::create_dir(&src).unwrap();
+        fs::write(src.join("manifest.json"), "{}").unwrap();
+        let target = root.join("extension");
+        sync(&src, &target).unwrap();
+        assert!(target.join("manifest.json").is_file());
+        assert!(!root.join("extension.old").exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn stale_new_is_replaced() {
+        let root = temp("stale-new");
+        let src = root.join("src");
+        fs::create_dir(&src).unwrap();
+        fs::write(src.join("fresh"), "ok").unwrap();
+        let stale = root.join("extension.new");
+        fs::create_dir(&stale).unwrap();
+        fs::write(stale.join("stale"), "old").unwrap();
+        let target = root.join("extension");
+        sync(&src, &target).unwrap();
+        assert!(target.join("fresh").is_file());
+        assert!(!target.join("stale").exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn rollback_skips_missing_previous_target() {
+        let root = temp("rollback");
+        let old = root.join("extension.old");
+        let target = root.join("extension");
+        fs::create_dir(&old).unwrap();
+        rollback(&old, &target, false);
+        assert!(old.is_dir());
+        assert!(!target.exists());
+        rollback(&old, &target, true);
+        assert!(target.is_dir());
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

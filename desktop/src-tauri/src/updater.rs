@@ -23,7 +23,8 @@ pub struct CheckResult {
     pub notes: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum Outcome {
     UpToDate,
     Postponed,
@@ -64,7 +65,7 @@ pub async fn check_info(app: &AppHandle) -> Result<CheckResult, String> {
 
 pub async fn check_and_install(app: &AppHandle, manual: bool) -> Result<Outcome, String> {
     let Some(_guard) = BusyGuard::acquire() else {
-        return Ok(Outcome::Postponed);
+        return if manual { Err("Güncelleme zaten denetleniyor veya indiriliyor.".into()) } else { Ok(Outcome::Postponed) };
     };
     let update = match find_update(app).await {
         Ok(u) => u,
@@ -85,11 +86,19 @@ pub async fn check_and_install(app: &AppHandle, manual: bool) -> Result<Outcome,
         return Ok(Outcome::Postponed);
     }
     crate::toast(app, &format!("LifeTools {} indiriliyor…", update.version));
-    if let Err(e) = update.download_and_install(|_, _| {}, || {}).await {
+    let bytes = update.download(|_, _| {}, || {}).await.map_err(|e| {
         let msg = e.to_string();
         crate::toast(app, &format!("Güncelleme başarısız: {msg}"));
-        return Err(msg);
+        msg
+    })?;
+    if !manual && crate::video_dl::any_running() {
+        return Ok(Outcome::Postponed);
     }
+    update.install(&bytes).map_err(|e| {
+        let msg = e.to_string();
+        crate::toast(app, &format!("Güncelleme başarısız: {msg}"));
+        msg
+    })?;
     app.restart();
 }
 

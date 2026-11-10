@@ -173,7 +173,15 @@ export function settingsView(): View {
     updateCheckBtn.disabled = true;
     updateStatus.textContent = 'İndiriliyor… Uygulama yeniden başlayacak.';
     try {
-      await api.updateInstall();
+      const outcome = await api.updateInstall();
+      if (outcome === 'up_to_date') {
+        updateStatus.textContent = 'LifeTools güncel.';
+        updateInstallBtn.hidden = true;
+      } else if (outcome === 'postponed') {
+        updateStatus.textContent = 'Şu an bir video indiriliyor, güncelleme sonra yapılacak.';
+      } else {
+        updateStatus.textContent = 'Güncelleme yüklendi. Uygulama yeniden başlayacak.';
+      }
     } catch (e) {
       updateStatus.textContent = `Güncelleme başarısız: ${errText(e)}`;
     } finally {

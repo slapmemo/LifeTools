@@ -240,8 +240,8 @@ pub async fn update_check(app: AppHandle) -> Result<crate::updater::CheckResult,
 }
 
 #[tauri::command]
-pub async fn update_install(app: AppHandle) -> Result<(), String> {
-    crate::updater::check_and_install(&app, true).await.map(|_| ())
+pub async fn update_install(app: AppHandle) -> Result<crate::updater::Outcome, String> {
+    crate::updater::check_and_install(&app, true).await
 }
 
 #[tauri::command]
