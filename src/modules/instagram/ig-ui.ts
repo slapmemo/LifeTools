@@ -5,17 +5,17 @@ import { PAGE_THEME } from '../../core/page-theme';
 import { setSeekBarsEnabled } from './seek-bar';
 import { SPEED_KEY, SPEEDS, applyPlaybackSpeed, formatSpeed, nextSpeed, parseSpeed } from './speed';
 import { visibleVideoRect } from './visibility';
+import { getInstagramPointer, scheduleInstagram as schedule, subscribeInstagram } from './scheduler';
 const byCode = new Map<string, InstagramVideo[]>();
 const byFilename = new Map<string, InstagramVideo>();
 const hosts = new Map<HTMLVideoElement, HTMLElement>();
 const speedButtons = new WeakMap<HTMLElement, HTMLButtonElement>();
 const closeSpeedMenus = new WeakMap<HTMLElement, () => void>();
 const updateSpeedMenus = new WeakMap<HTMLElement, () => void>();
-let enabled = true; let settings: Settings = defaults; let frame = 0;
+let enabled = true; let settings: Settings = defaults;
 let speed = 1; let speedReady = false;
-let lastPathname = location.pathname;
 const managed = new Map<HTMLVideoElement, () => void>();
-let pointer: { x: number; y: number } | undefined;
+let unsubscribe: (() => void) | undefined;
 function applySpeed(video: HTMLVideoElement): void { applyPlaybackSpeed(video, speed); }
 function updateSpeedLabels(): void { for (const host of hosts.values()) { const button = speedButtons.get(host); if (button) button.textContent = formatSpeed(speed); updateSpeedMenus.get(host)?.(); } }
 function setSpeed(value: number): void {
@@ -25,20 +25,20 @@ function setSpeed(value: number): void {
   void chrome.storage.local.set({ [SPEED_KEY]: speed });
   schedule();
 }
-function manageVideos(): void {
+function manageVideos(found: Iterable<HTMLVideoElement>): void {
   const active = enabled && settings.speedControl && speedReady;
   for (const [video, cleanup] of managed) if (!active || !video.isConnected) { cleanup(); managed.delete(video); }
   if (!active) return;
-  for (const video of document.querySelectorAll('video')) if (!managed.has(video)) {
+  for (const video of found) if (!managed.has(video)) {
     const apply = () => applySpeed(video);
     for (const name of ['play', 'loadedmetadata', 'ratechange']) video.addEventListener(name, apply);
     managed.set(video, () => { for (const name of ['play', 'loadedmetadata', 'ratechange']) video.removeEventListener(name, apply); });
     apply();
   }
 }
-document.addEventListener('pointermove', e => { pointer = { x: e.clientX, y: e.clientY }; }, true);
 document.addEventListener('pointerdown', e => { for (const host of hosts.values()) if (!e.composedPath().includes(host)) closeSpeedMenus.get(host)?.(); }, true);
 document.addEventListener('keydown', e => {
+  const pointer = getInstagramPointer();
   if (e.key === 'Escape') { for (const host of hosts.values()) closeSpeedMenus.get(host)?.(); return; }
   if (!enabled || !settings.speedControl || !speedReady || !pointer || !e.shiftKey || (e.key !== '>' && e.key !== '<') || e.altKey || e.ctrlKey || e.metaKey) return;
   const target = e.target as HTMLElement | null;
@@ -47,7 +47,6 @@ document.addEventListener('keydown', e => {
   if (!video) return;
   e.preventDefault(); e.stopPropagation(); setSpeed(nextSpeed(speed, e.key === '>' ? 1 : -1));
 }, true);
-function schedule(): void { if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); }); }
 function codeFor(video: HTMLVideoElement): string | undefined {
   const container = video.closest('article, [role="dialog"], [class*="reel"]');
   const link = container?.querySelector<HTMLAnchorElement>('a[href*="/p/"], a[href*="/reel/"]');
@@ -89,15 +88,14 @@ function create(video: HTMLVideoElement): HTMLElement {
   button.hidden = !settings.downloadButton; speedButton.hidden = !settings.speedControl; speedButton.textContent = formatSpeed(speed);
   document.documentElement.append(host); return host;
 }
-function render(): void {
-  if (location.pathname !== lastPathname) { lastPathname = location.pathname; schedule(); }
-  manageVideos();
+function render(found: NodeListOf<HTMLVideoElement>): void {
+  manageVideos(found);
   if (!enabled || (!settings.downloadButton && !settings.speedControl)) {
     for (const host of hosts.values()) host.remove();
     hosts.clear();
     return;
   }
-  for (const video of document.querySelectorAll('video')) {
+  for (const video of found) {
     const rect = visibleVideoRect(video);
     if (!rect) { hosts.get(video)?.remove(); hosts.delete(video); continue; }
     let host = hosts.get(video); if (!host) { host = create(video); hosts.set(video, host); }
@@ -107,9 +105,7 @@ function render(): void {
 }
 window.addEventListener('message', e => { if (e.source !== window || e.origin !== location.origin || e.data?.source !== CHANNEL) return; const m = e.data.media as InstagramVideo; if (!m || typeof m.code !== 'string' || !m.code || typeof m.pk !== 'string' || typeof m.username !== 'string' || typeof m.url !== 'string' || !validUrl(m.url) || !Number.isSafeInteger(m.count) || m.count < 1) return;
   const list = byCode.get(m.code) ?? []; const index = list.findIndex(x => x.index === m.index && x.pk === m.pk); if (index < 0) list.push(m); else list[index] = m; list.sort((a, b) => (a.index ?? 0) - (b.index ?? 0)); byCode.set(m.code, list); const name = new URL(m.url).pathname.split('/').pop(); if (name) byFilename.set(name, m); schedule(); });
-new MutationObserver(records => { if (records.some(r => [...r.addedNodes, ...r.removedNodes].some(n => !(n instanceof Element) || !n.hasAttribute('data-lifetools-instagram')))) schedule(); }).observe(document, { childList: true, subtree: true });
-window.addEventListener('scroll', schedule, true); window.addEventListener('resize', schedule); window.addEventListener('popstate', schedule);
-async function refresh(): Promise<void> { enabled = await isModuleEnabled(INSTAGRAM_ID); const data = await chrome.storage.local.get({ [SETTINGS_KEY]: defaults, [SPEED_KEY]: 1 }); settings = { ...defaults, ...data[SETTINGS_KEY] }; speed = parseSpeed(data[SPEED_KEY]); speedReady = true; for (const host of hosts.values()) host.remove(); hosts.clear(); setSeekBarsEnabled(enabled && settings.seekBar); manageVideos(); for (const video of managed.keys()) applySpeed(video); schedule(); }
+async function refresh(): Promise<void> { enabled = await isModuleEnabled(INSTAGRAM_ID); const data = await chrome.storage.local.get({ [SETTINGS_KEY]: defaults, [SPEED_KEY]: 1 }); settings = { ...defaults, ...data[SETTINGS_KEY] }; speed = parseSpeed(data[SPEED_KEY]); speedReady = true; for (const host of hosts.values()) host.remove(); hosts.clear(); setSeekBarsEnabled(enabled && settings.seekBar); if (enabled && (settings.downloadButton || settings.speedControl)) { if (!unsubscribe) unsubscribe = subscribeInstagram(render); schedule(); } else { unsubscribe?.(); unsubscribe = undefined; } manageVideos([]); for (const video of managed.keys()) applySpeed(video); }
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
   if (changes[MODULE_FLAGS_KEY] || changes[SETTINGS_KEY]) { void refresh(); return; }

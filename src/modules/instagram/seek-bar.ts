@@ -1,5 +1,6 @@
 import { PAGE_THEME } from '../../core/page-theme';
 import { visibleVideoRect } from './visibility';
+import { getInstagramPointer, scheduleInstagram, subscribeInstagram } from './scheduler';
 
 export function formatTime(value: number): string {
   const seconds = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
@@ -27,18 +28,7 @@ type Bar = { destroy(): void; position(): void };
 const bars = new WeakMap<HTMLVideoElement, Bar>();
 const videos = new Set<HTMLVideoElement>();
 let active = false;
-let pointer: { x: number; y: number } | undefined;
-let positionFrame = 0;
-let scanFrame = 0;
-let lastPathname = typeof location === 'undefined' ? '' : location.pathname;
-
-function positionAll(): void { for (const video of videos) bars.get(video)?.position(); }
-function schedulePositions(): void {
-  if (!positionFrame && videos.size && !document.hidden) positionFrame = requestAnimationFrame(() => {
-    positionFrame = 0;
-    positionAll();
-  });
-}
+let unsubscribe: (() => void) | undefined;
 
 function createBar(video: HTMLVideoElement): Bar {
   const host = document.createElement('div');
@@ -78,9 +68,9 @@ function createBar(video: HTMLVideoElement): Bar {
     buffer.style.width = `${bufferedPercent(end, duration)}%`;
     track.setAttribute('aria-valuemin', '0'); track.setAttribute('aria-valuemax', String(valid ? duration : 0)); track.setAttribute('aria-valuenow', String(video.currentTime || 0));
   }
-  function tick(): void { frame = 0; if (!visible) return; position(); if (!visible) return; update(); if (!video.paused && !video.ended && !frame) frame = requestAnimationFrame(tick); }
-  function play(): void { schedulePositions(); if (visible && !frame) frame = requestAnimationFrame(tick); }
-  function pause(): void { if (frame) cancelAnimationFrame(frame); frame = 0; update(); schedulePositions(); }
+  function tick(): void { frame = 0; if (!visible) return; update(); if (!video.paused && !video.ended && !frame) frame = requestAnimationFrame(tick); }
+  function play(): void { scheduleInstagram(); if (visible && !frame) frame = requestAnimationFrame(tick); }
+  function pause(): void { if (frame) cancelAnimationFrame(frame); frame = 0; update(); scheduleInstagram(); }
   function position(): void {
     const rect = visibleVideoRect(video);
     const next = rect ? barRect(rect, innerHeight) : null;
@@ -88,7 +78,7 @@ function createBar(video: HTMLVideoElement): Bar {
     if (host.style.display !== display) host.style.display = display;
     if (visible !== !!next) {
       visible = !!next;
-      if (visible) { update(); if (!video.paused && !video.ended) play(); }
+      if (visible) { update(); if (!video.paused && !video.ended && !frame) frame = requestAnimationFrame(tick); }
       else if (frame) { cancelAnimationFrame(frame); frame = 0; }
     }
     if (!next) return;
@@ -110,34 +100,22 @@ function createBar(video: HTMLVideoElement): Bar {
   const events = ['timeupdate', 'progress', 'durationchange', 'seeked', 'loadedmetadata'] as const;
   for (const name of events) video.addEventListener(name, update);
   video.addEventListener('play', play); video.addEventListener('pause', pause); video.addEventListener('ended', pause);
-  const resize = new ResizeObserver(schedulePositions); resize.observe(video);
-  position(); update(); if (!video.paused) play();
-  return { position, destroy() { resize.disconnect(); pause(); for (const name of events) video.removeEventListener(name, update); video.removeEventListener('play', play); video.removeEventListener('pause', pause); video.removeEventListener('ended', pause); host.remove(); } };
+  const metadata = () => scheduleInstagram();
+  video.addEventListener('loadedmetadata', metadata);
+  const resize = new ResizeObserver(scheduleInstagram); resize.observe(video);
+  update();
+  return { position, destroy() { resize.disconnect(); if (frame) cancelAnimationFrame(frame); for (const name of events) video.removeEventListener(name, update); video.removeEventListener('loadedmetadata', metadata); video.removeEventListener('play', play); video.removeEventListener('pause', pause); video.removeEventListener('ended', pause); host.remove(); } };
 }
 
-function scan(): void {
-  if (location.pathname !== lastPathname) { lastPathname = location.pathname; if (active) positionAll(); }
+function scan(found: NodeListOf<HTMLVideoElement>): void {
   for (const video of videos) if (!active || !video.isConnected) { bars.get(video)?.destroy(); bars.delete(video); videos.delete(video); }
-  if (!active) { if (positionFrame) cancelAnimationFrame(positionFrame); positionFrame = 0; return; }
-  for (const video of document.querySelectorAll('video')) if (!bars.has(video)) { bars.set(video, createBar(video)); videos.add(video); }
-  if (!videos.size && positionFrame) { cancelAnimationFrame(positionFrame); positionFrame = 0; }
-  schedulePositions();
+  if (!active) return;
+  for (const video of found) if (!bars.has(video)) { bars.set(video, createBar(video)); videos.add(video); }
+  for (const video of videos) bars.get(video)?.position();
 }
 if (typeof document !== 'undefined') {
-const observer = new MutationObserver(records => {
-  if (!records.some(record => [...record.addedNodes, ...record.removedNodes].some(node => !(node instanceof Element) || !node.hasAttribute('data-lifetools-instagram')))) return;
-  if (!scanFrame) scanFrame = requestAnimationFrame(() => { scanFrame = 0; scan(); });
-});
-observer.observe(document, { childList: true, subtree: true });
-window.addEventListener('scroll', schedulePositions, true);
-window.addEventListener('resize', schedulePositions);
-window.addEventListener('popstate', scan);
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden && positionFrame) { cancelAnimationFrame(positionFrame); positionFrame = 0; }
-  else if (!document.hidden) schedulePositions();
-});
-document.addEventListener('pointermove', event => { pointer = { x: event.clientX, y: event.clientY }; }, true);
 document.addEventListener('keydown', event => {
+  const pointer = getInstagramPointer();
   if (!active || !pointer || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
   const target = event.target as HTMLElement | null;
   if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') || target?.isContentEditable) return;
@@ -152,4 +130,9 @@ document.addEventListener('keydown', event => {
   event.preventDefault(); event.stopPropagation();
 }, true);
 }
-export function setSeekBarsEnabled(value: boolean): void { active = value; scan(); }
+export function setSeekBarsEnabled(value: boolean): void {
+  if (active === value) return;
+  active = value;
+  if (active) unsubscribe = subscribeInstagram(scan);
+  else { unsubscribe?.(); unsubscribe = undefined; for (const video of videos) { bars.get(video)?.destroy(); bars.delete(video); } videos.clear(); }
+}

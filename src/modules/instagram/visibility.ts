@@ -42,11 +42,6 @@ export function clearVisibilityCache(): void {
   cacheClearFrame = 0;
 }
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('scroll', clearVisibilityCache, true);
-  window.addEventListener('resize', clearVisibilityCache);
-}
-
 export function visibleVideoRect(video: HTMLVideoElement): Rect | null {
   if (visibilityCache.has(video)) return visibilityCache.get(video)!;
   const result = calculateVisibleVideoRect(video);
