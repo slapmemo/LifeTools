@@ -79,6 +79,20 @@ fn remove_path(path: &Path) -> io::Result<()> {
     if meta.is_dir() { fs::remove_dir_all(path) } else { fs::remove_file(path) }
 }
 
+fn cleanup_old(target: &Path) {
+    let (Some(parent), Some(name)) = (target.parent(), target.file_name()) else { return };
+    let prefix = format!("{}.old", name.to_string_lossy());
+    if let Ok(entries) = fs::read_dir(parent) {
+        for entry in entries.flatten() {
+            if entry.file_name().to_string_lossy().starts_with(&prefix) {
+                if let Ok(meta) = fs::symlink_metadata(entry.path()) {
+                    if meta.is_dir() || meta.file_type().is_symlink() { let _ = remove_path(&entry.path()); }
+                }
+            }
+        }
+    }
+}
+
 fn rollback(old: &Path, target: &Path, had_target: bool) {
     if had_target {
         let _ = fs::rename(old, target);
@@ -129,14 +143,11 @@ pub fn sync(bundled: &Path, target: &Path) -> Result<(), String> {
 pub fn spawn_sync(app: AppHandle) {
     std::thread::spawn(move || {
         let Some(target) = target_dir() else { return };
+        cleanup_old(&target);
         let Ok(resources) = app.path().resource_dir() else { return };
         let bundled = resources.join("extension");
         let Some(bundled_version) = read_version(&bundled) else { return };
         if !needs_sync(read_version(&target).as_deref(), &bundled_version) {
-            // Önceki eşitlemeden kalan .old klasörünü temizle.
-            if let (Some(parent), Some(name)) = (target.parent(), target.file_name()) {
-                let _ = remove_path(&parent.join(format!("{}.old", name.to_string_lossy())));
-            }
             return;
         }
         if let Err(e) = sync(&bundled, &target) {
@@ -148,6 +159,16 @@ pub fn spawn_sync(app: AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cleans_all_old_directories() {
+        let root = temp("cleanup-old");
+        for name in ["extension.old", "extension.old.123", "extension.old.123.1", "extension.other"] { fs::create_dir(root.join(name)).unwrap(); }
+        cleanup_old(&root.join("extension"));
+        for name in ["extension.old", "extension.old.123", "extension.old.123.1"] { assert!(!root.join(name).exists()); }
+        assert!(root.join("extension.other").exists());
+        let _ = fs::remove_dir_all(root);
+    }
 
     fn temp(name: &str) -> PathBuf {
         let p = std::env::temp_dir().join(format!("lifetools-ext-test-{name}-{}", std::process::id()));
