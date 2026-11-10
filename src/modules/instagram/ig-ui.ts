@@ -11,6 +11,7 @@ const hosts = new Map<HTMLVideoElement, HTMLElement>();
 const speedButtons = new WeakMap<HTMLElement, HTMLButtonElement>();
 let enabled = true; let settings: Settings = defaults; let frame = 0;
 let speed = 1; let speedReady = false;
+let lastPathname = location.pathname;
 const managed = new Map<HTMLVideoElement, () => void>();
 let pointer: { x: number; y: number } | undefined;
 function applySpeed(video: HTMLVideoElement): void { applyPlaybackSpeed(video, speed); }
@@ -73,6 +74,7 @@ function create(video: HTMLVideoElement): HTMLElement {
   document.documentElement.append(host); return host;
 }
 function render(): void {
+  if (location.pathname !== lastPathname) { lastPathname = location.pathname; schedule(); }
   manageVideos();
   for (const video of document.querySelectorAll('video')) {
     const rect = visibleVideoRect(video);

@@ -29,6 +29,7 @@ const videos = new Set<HTMLVideoElement>();
 let active = false;
 let hovered: HTMLVideoElement | undefined;
 let positionFrame = 0;
+let lastPathname = typeof location === 'undefined' ? '' : location.pathname;
 
 function positionAll(): void { for (const video of videos) bars.get(video)?.position(); }
 function schedulePositions(): void {
@@ -110,6 +111,7 @@ function createBar(video: HTMLVideoElement): Bar {
 }
 
 function scan(): void {
+  if (location.pathname !== lastPathname) { lastPathname = location.pathname; positionAll(); }
   for (const video of videos) if (!active || !video.isConnected) { bars.get(video)?.destroy(); bars.delete(video); videos.delete(video); if (hovered === video) hovered = undefined; }
   if (!active) { if (positionFrame) cancelAnimationFrame(positionFrame); positionFrame = 0; return; }
   for (const video of document.querySelectorAll('video')) if (!bars.has(video)) { bars.set(video, createBar(video)); videos.add(video); }

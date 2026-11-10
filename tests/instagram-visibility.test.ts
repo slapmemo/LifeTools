@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { clipRect, isMostlyVisible, type Rect } from '../src/modules/instagram/visibility';
+import { clipRect, isExploreGridVideo, isMostlyVisible, type Rect } from '../src/modules/instagram/visibility';
 
 const rect = (left: number, top: number, right: number, bottom: number): Rect => ({ left, top, right, bottom, width: right - left, height: bottom - top });
 const viewport = { width: 1000, height: 800 };
 
 describe('Instagram video visibility', () => {
+  it('hides Explore grid videos but permits dialogs and other paths', () => {
+    expect(isExploreGridVideo('/explore/', false)).toBe(true);
+    expect(isExploreGridVideo('/explore/search/', false)).toBe(true);
+    expect(isExploreGridVideo('/explore', false)).toBe(true);
+    expect(isExploreGridVideo('/explore/', true)).toBe(false);
+    expect(isExploreGridVideo('/', false)).toBe(false);
+    expect(isExploreGridVideo('/reels/', false)).toBe(false);
+    expect(isExploreGridVideo('/exploreX', false)).toBe(false);
+  });
   it('rejects carousel slides outside the clip or only 30% visible', () => {
     const clip = rect(200, 100, 500, 400);
     const outside = rect(500, 100, 800, 400);

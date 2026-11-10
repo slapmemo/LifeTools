@@ -16,7 +16,12 @@ export function isMostlyVisible(original: Rect, clipped: Rect | null, minFractio
     && clipped.width * clipped.height / (original.width * original.height) >= minFraction;
 }
 
+export function isExploreGridVideo(pathname: string, insideDialog: boolean): boolean {
+  return !insideDialog && (pathname === '/explore' || pathname.startsWith('/explore/'));
+}
+
 export function visibleVideoRect(video: HTMLVideoElement): Rect | null {
+  if (isExploreGridVideo(location.pathname, video.closest('[role="dialog"]') !== null)) return null;
   if (!video.isConnected) return null;
   const dialogs = document.querySelectorAll('[role="dialog"]');
   let topDialog: Element | undefined;
