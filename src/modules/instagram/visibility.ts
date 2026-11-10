@@ -24,18 +24,45 @@ export function isUncovered(videoArea: number, commonAncestorArea: number, maxRa
   return videoArea > 0 && commonAncestorArea <= videoArea * maxRatio;
 }
 
+const visibilityCache = new Map<HTMLVideoElement, Rect | null>();
+let cachedTopDialog: Element | null | undefined;
+let cacheClearFrame = 0;
+
+export function clearVisibilityCache(): void {
+  visibilityCache.clear();
+  cachedTopDialog = undefined;
+  if (cacheClearFrame) cancelAnimationFrame(cacheClearFrame);
+  cacheClearFrame = 0;
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('scroll', clearVisibilityCache, true);
+  window.addEventListener('resize', clearVisibilityCache);
+}
+
 export function visibleVideoRect(video: HTMLVideoElement): Rect | null {
-  if (isExploreGridVideo(location.pathname, video.closest('[role="dialog"]') !== null)) return null;
+  if (visibilityCache.has(video)) return visibilityCache.get(video)!;
+  const result = calculateVisibleVideoRect(video);
+  visibilityCache.set(video, result);
+  if (!cacheClearFrame) cacheClearFrame = requestAnimationFrame(clearVisibilityCache);
+  return result;
+}
+
+function calculateVisibleVideoRect(video: HTMLVideoElement): Rect | null {
   if (!video.isConnected) return null;
-  const dialogs = document.querySelectorAll('[role="dialog"]');
-  let topDialog: Element | undefined;
-  for (const dialog of dialogs) {
-    if (!dialog.isConnected) continue;
-    const rect = dialog.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) topDialog = dialog;
-  }
-  if (topDialog && !topDialog.contains(video)) return null;
+  if (isExploreGridVideo(location.pathname, video.closest('[role="dialog"]') !== null)) return null;
   const original = video.getBoundingClientRect();
+  const viewport = { width: innerWidth, height: innerHeight };
+  if (!isMostlyVisible(original, clipRect(original, [], viewport))) return null;
+  if (cachedTopDialog === undefined) {
+    cachedTopDialog = null;
+    for (const dialog of document.querySelectorAll('[role="dialog"]')) {
+      if (!dialog.isConnected) continue;
+      const rect = dialog.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) cachedTopDialog = dialog;
+    }
+  }
+  if (cachedTopDialog && !cachedTopDialog.contains(video)) return null;
   const clips: Rect[] = [];
   for (let element: HTMLElement | null = video; element; element = element.parentElement) {
     const style = getComputedStyle(element);

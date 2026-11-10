@@ -39,7 +39,7 @@ document.addEventListener('keydown', e => {
   if (!enabled || !settings.speedControl || !speedReady || !pointer || !e.shiftKey || (e.key !== '>' && e.key !== '<') || e.altKey || e.ctrlKey || e.metaKey) return;
   const target = e.target as HTMLElement | null;
   if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') || target?.isContentEditable) return;
-  const video = [...managed.keys()].find(v => { const r = visibleVideoRect(v); return r && pointer!.x >= r.left && pointer!.x <= r.right && pointer!.y >= r.top && pointer!.y <= r.bottom; });
+  const video = [...managed.keys()].find(v => { const raw = v.getBoundingClientRect(); if (pointer!.x < raw.left || pointer!.x > raw.right || pointer!.y < raw.top || pointer!.y > raw.bottom) return false; const r = visibleVideoRect(v); return r && pointer!.x >= r.left && pointer!.x <= r.right && pointer!.y >= r.top && pointer!.y <= r.bottom; });
   if (!video) return;
   e.preventDefault(); e.stopPropagation(); setSpeed(nextSpeed(speed, e.key === '>' ? 1 : -1));
 }, true);

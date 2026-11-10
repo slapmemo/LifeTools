@@ -65,7 +65,7 @@ function createBar(video: HTMLVideoElement): Bar {
   const thumb = document.createElement('div'); thumb.className = 'thumb';
   const tip = document.createElement('div'); tip.className = 'tip';
   track.append(rail, buffer, played, thumb); wrap.append(label, track, tip); root.append(style, wrap); document.documentElement.append(host);
-  let frame = 0; let dragging = false;
+  let frame = 0; let dragging = false; let visible = false;
   const finite = () => Number.isFinite(video.duration) && video.duration > 0;
   function update(): void {
     const duration = video.duration; const valid = finite();
@@ -78,14 +78,19 @@ function createBar(video: HTMLVideoElement): Bar {
     buffer.style.width = `${bufferedPercent(end, duration)}%`;
     track.setAttribute('aria-valuemin', '0'); track.setAttribute('aria-valuemax', String(valid ? duration : 0)); track.setAttribute('aria-valuenow', String(video.currentTime || 0));
   }
-  function tick(): void { frame = 0; update(); if (!video.paused && !video.ended) frame = requestAnimationFrame(tick); }
-  function play(): void { if (!frame) frame = requestAnimationFrame(tick); }
+  function tick(): void { frame = 0; if (!visible) return; update(); if (!video.paused && !video.ended) frame = requestAnimationFrame(tick); }
+  function play(): void { if (visible && !frame) frame = requestAnimationFrame(tick); }
   function pause(): void { if (frame) cancelAnimationFrame(frame); frame = 0; update(); }
   function position(): void {
     const rect = visibleVideoRect(video);
     const next = rect ? barRect(rect, innerHeight) : null;
     const display = next ? '' : 'none';
     if (host.style.display !== display) host.style.display = display;
+    if (visible !== !!next) {
+      visible = !!next;
+      if (visible) { update(); if (!video.paused && !video.ended) play(); }
+      else if (frame) { cancelAnimationFrame(frame); frame = 0; }
+    }
     if (!next) return;
     const left = `${next.left}px`; const top = `${next.top}px`; const width = `${next.width}px`;
     if (host.style.left !== left) host.style.left = left;
@@ -105,7 +110,7 @@ function createBar(video: HTMLVideoElement): Bar {
   const events = ['timeupdate', 'progress', 'durationchange', 'seeked', 'loadedmetadata'] as const;
   for (const name of events) video.addEventListener(name, update);
   video.addEventListener('play', play); video.addEventListener('pause', pause); video.addEventListener('ended', pause);
-  const resize = new ResizeObserver(position); resize.observe(video);
+  const resize = new ResizeObserver(schedulePositions); resize.observe(video);
   position(); update(); if (!video.paused) play();
   return { position, destroy() { resize.disconnect(); pause(); for (const name of events) video.removeEventListener(name, update); video.removeEventListener('play', play); video.removeEventListener('pause', pause); video.removeEventListener('ended', pause); host.remove(); } };
 }
@@ -121,15 +126,15 @@ function scan(): void {
 if (typeof document !== 'undefined') {
 const observer = new MutationObserver(scan);
 observer.observe(document, { childList: true, subtree: true });
-window.addEventListener('scroll', positionAll, true);
-window.addEventListener('resize', positionAll);
+window.addEventListener('scroll', schedulePositions, true);
+window.addEventListener('resize', schedulePositions);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && positionFrame) { cancelAnimationFrame(positionFrame); positionFrame = 0; }
   else if (!document.hidden) { positionAll(); schedulePositions(); }
 });
 document.addEventListener('pointermove', event => {
   hovered = undefined;
-  for (const video of videos) { const r = visibleVideoRect(video); if (r && event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom) hovered = video; }
+  for (const video of videos) { const raw = video.getBoundingClientRect(); if (event.clientX < raw.left || event.clientX > raw.right || event.clientY < raw.top || event.clientY > raw.bottom) continue; const r = visibleVideoRect(video); if (r && event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom) hovered = video; }
 }, true);
 document.addEventListener('keydown', event => {
   if (!active || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') || event.altKey || event.ctrlKey || event.metaKey) return;
