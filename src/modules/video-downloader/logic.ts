@@ -3,6 +3,7 @@ export const YOUTUBE_ORIGINS = ['https://www.youtube.com/*'];
 export const YOUTUBE_BUTTON_KEY = 'videoDownloaderYoutubeButton';
 export const MODE_LABELS = { video_best: 'En iyi kalite', video_1080: '1080p', video_720: '720p', audio_mp3: 'Sadece ses (MP3)', 'playlist:video_best': 'Tüm liste · en iyi kalite', 'playlist:video_720': 'Tüm liste · 720p', 'playlist:audio_mp3': 'Tüm liste · MP3', 'selected:video_best': 'Seçilenler · en iyi kalite', 'selected:video_720': 'Seçilenler · 720p', 'selected:audio_mp3': 'Seçilenler · MP3' } as const;
 export function playlistRowVideoId(href: string): string | null { try { const u = new URL(href, 'https://www.youtube.com'); const id = u.searchParams.get('v'); return u.hostname === 'www.youtube.com' && u.pathname === '/watch' && id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null; } catch { return null; } }
+export function rangeBetween(ids: string[], a: string, b: string): string[] { const i = ids.indexOf(a), j = ids.indexOf(b); return i < 0 || j < 0 ? [] : ids.slice(Math.min(i, j), Math.max(i, j) + 1); }
 export function selectionSummary(count: number): string { return `${count} video seçildi`; }
 export type VideoMode = keyof typeof MODE_LABELS | `height:${number}`;
 export interface SizeEstimate { sizeBytes: number | null; approx: boolean }
