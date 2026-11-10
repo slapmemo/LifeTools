@@ -8,6 +8,8 @@ const KEY = 'videoDownloadJobs';
 const ALARM = 'video-download-poll';
 const INSTALL = 'video-download-install';
 let trackingQueue: Promise<void> = Promise.resolve();
+const FAILURE_KEY = 'videoDownloadPollFailures';
+export function nextBackoff(failures: number): number { return Math.min(60, 2 ** failures); }
 function belongsToPage(job: VideoJob, page: string | undefined): boolean { if (!page) return false; return jobMatchesPage(job, page) || (!!youtubePlaylistId(page) && (job.mode.startsWith('playlist:') || job.mode.startsWith('selected:')) && youtubePlaylistId(job.url) === youtubePlaylistId(page)); }
 function updateTracked(update: (ids: string[]) => string[]): Promise<void> {
   const next = trackingQueue.then(async () => { await chrome.storage.session.set({ [KEY]: update(await tracked()) }); });
@@ -33,14 +35,25 @@ export async function startDownload(url: string, mode: VideoMode = 'video_best',
   }
 }
 async function poll(): Promise<void> {
-  const ids = await tracked(); const finished: string[] = [];
-  for (const id of ids) {
-    try {
-      const job = (await videoCall('video_job', { jobId: id })).job as VideoJob;
-      if (job.state !== 'running') { if (job.state === 'done') await notify(`video-${id}`, `İndirildi: ${(job.file || '').split(/[\\/]/).pop() || 'dosya'}`); finished.push(id); }
-    } catch { /* Bağlantı döndüğünde yeniden dene. */ }
+  const ids = await tracked();
+  if (!ids.length) { await chrome.storage.session.set({ [FAILURE_KEY]: 0 }); return; }
+  let jobs: VideoJob[];
+  try {
+    jobs = (await videoCall('video_jobs')).jobs as VideoJob[];
+    if (!Array.isArray(jobs)) throw new Error('Geçersiz iş listesi.');
+  } catch {
+    const data = await chrome.storage.session.get({ [FAILURE_KEY]: 0 });
+    const failures = Number(data[FAILURE_KEY]) + 1;
+    await chrome.storage.session.set({ [FAILURE_KEY]: failures >= 5 ? 0 : failures });
+    if (failures >= 5) { await updateTracked(current => current.filter(id => !ids.includes(id))); if ((await tracked()).length) await chrome.alarms.create(ALARM, { delayInMinutes: 0.025 }); }
+    else if ((await tracked()).length) await chrome.alarms.create(ALARM, { delayInMinutes: nextBackoff(failures) / 60 });
+    return;
   }
+  await chrome.storage.session.set({ [FAILURE_KEY]: 0 });
+  const byId = new Map(jobs.map(job => [job.id, job]));
+  const finished = ids.filter(id => byId.get(id)?.state !== 'running');
   await updateTracked(current => current.filter(id => !finished.includes(id)));
+  for (const id of finished) { const job = byId.get(id); if (job?.state === 'done') await notify(`video-${id}`, `İndirildi: ${(job.file || '').split(/[\\/]/).pop() || 'dosya'}`); }
   if ((await tracked()).length) await chrome.alarms.create(ALARM, { delayInMinutes: 0.025 });
 }
 export function initVideoBackground(): void {
@@ -54,6 +67,10 @@ export function initVideoBackground(): void {
   chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === ALARM) void poll(); });
   chrome.notifications.onButtonClicked.addListener((id) => { if (id === INSTALL) void videoCall('video_tools_install').then(() => notify(INSTALL, 'Kurulum başladı. Bir dakika sonra tekrar deneyin.')).catch(e => notify(INSTALL, e instanceof Error ? e.message : UNREACHABLE)); });
   chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+    if (sender.tab && msg?.type === 'video-downloader:has-active') {
+      void tracked().then(ids => respond({ ok: true, active: ids.length > 0 })).catch(() => respond({ ok: false, active: false }));
+      return true;
+    }
     if (sender.tab && (msg?.type === 'video-downloader:jobs' || msg?.type === 'video-downloader:cancel')) {
       void (async () => {
         if (!await isModuleEnabled(VIDEO_ID)) throw new Error('Modül kapalı.');

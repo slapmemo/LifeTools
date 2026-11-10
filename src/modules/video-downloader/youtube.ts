@@ -2,27 +2,39 @@ import { PAGE_THEME } from '../../core/page-theme';
 import { cacheFresh, estimateFromPlayer, friendlyVideoError, formatChip, formatQualityLabel, jobMatchesPage, menuPosition, MODE_LABELS, playlistRowVideoId, rangeBetween, selectionSummary, youtubePage, youtubePlaylistId, youtubeVideoId, type PlayerFormat, type VideoFormats, type VideoJob } from './logic';
 
 let host: HTMLElement | null = null;
+let hostAnchor: HTMLElement | null = null;
+let hostPlacement: 'after' | 'inside' = 'after';
+let repositionMenu: (() => void) | undefined;
 let route = '';
 let frame = 0;
 let refreshChip: (() => void) | undefined;
+let pollTimer: ReturnType<typeof setTimeout> | undefined;
+let polling = false;
+let displayedJobId: string | undefined;
+function stopPolling(): void { polling = false; if (pollTimer !== undefined) clearTimeout(pollTimer); pollTimer = undefined; }
+function schedulePoll(): void { if (polling && !document.hidden && pollTimer === undefined) pollTimer = setTimeout(() => { pollTimer = undefined; refreshChip?.(); }, 1500); }
 const startedHere = new Set<string>();
 let visitUrl = location.href;
 let visit = 0;
-function recordStart(response: { jobId?: string }, startedVisit: number): void { if (response?.jobId && visit === startedVisit && location.href === visitUrl) startedHere.add(response.jobId); refreshChip?.(); }
+function recordStart(response: { ok?: boolean; jobId?: string }, startedVisit: number): void { if (response?.ok && response.jobId && visit === startedVisit && location.href === visitUrl) { startedHere.add(response.jobId); polling = true; if (!document.hidden) refreshChip?.(); } }
 const ROW_SELECTOR = 'ytd-playlist-video-renderer, ytd-browse[page-subtype="playlist"] yt-lockup-view-model';
 let selection: { url: string; ids: Set<string>; bar: HTMLElement; update: () => void; cleanup: () => void; links: Map<HTMLAnchorElement, string | null> } | null = null;
 function endSelection(): void { if (!selection) return; const current = selection; selection = null; current.cleanup(); current.bar.remove(); current.links.forEach((value, link) => { if (value === null) link.removeAttribute('draggable'); else link.setAttribute('draggable', value); }); document.querySelectorAll('[data-lifetools-select]').forEach(el => el.remove()); document.querySelectorAll(ROW_SELECTOR).forEach(el => { el.removeAttribute('data-lifetools-select-row'); el.removeAttribute('data-lifetools-selected'); }); document.querySelector('[data-lifetools-select-style]')?.remove(); }
 function selectionRows(): void {
   if (!selection) return;
-  for (const row of document.querySelectorAll<HTMLElement>(ROW_SELECTOR)) {
-    if (row.querySelector('[data-lifetools-select]')) continue;
+  const rows = Array.from(document.querySelectorAll<HTMLElement>(ROW_SELECTOR.split(', ').map(selector => `${selector}:not([data-lifetools-select-row])`).join(', ')));
+  const additions: { row: HTMLElement; link: HTMLAnchorElement; id: string; target: HTMLElement; title: string }[] = [];
+  for (const row of rows) {
     const link = row.querySelector<HTMLAnchorElement>('a#video-title[href], a#thumbnail[href], a[href*="/watch\x3fv="]'); if (!link) continue;
     const id = playlistRowVideoId(link.href); if (!id) continue;
     const section = row.closest('ytd-item-section-renderer');
     if (row.matches('yt-lockup-view-model') && (/önerilen videolar|recommended videos/i.test(section?.querySelector('#title, h2, h3')?.textContent ?? '') || (!new URL(link.href).searchParams.has('list') && !row.closest('ytd-playlist-video-list-renderer, ytd-browse[page-subtype="playlist"] #contents')))) continue;
+    const target = row.matches('yt-lockup-view-model') ? Array.from(row.children).find((child): child is HTMLElement => { if (!(child instanceof HTMLElement)) return false; const style = getComputedStyle(child); return style.display.includes('flex') && style.flexDirection.startsWith('row'); }) ?? row : row.querySelector<HTMLElement>('#content') ?? row;
+    additions.push({ row, link, id, target, title: row.querySelector<HTMLElement>('#video-title')?.textContent?.trim() || link.getAttribute('title') || id });
+  }
+  for (const { row, id, target, title } of additions) {
     for (const item of row.querySelectorAll<HTMLAnchorElement>('a')) { if (!selection.links.has(item)) selection.links.set(item, item.getAttribute('draggable')); if (item.getAttribute('draggable') !== 'false') item.setAttribute('draggable', 'false'); }
-    const box = document.createElement('input'); box.type = 'checkbox'; box.setAttribute('data-lifetools-select', ''); box.setAttribute('aria-label', `Videoyu seç: ${row.querySelector<HTMLElement>('#video-title')?.textContent?.trim() || link?.getAttribute('title') || id}`); box.dataset.videoId = id; box.checked = selection.ids.has(id); row.setAttribute('data-lifetools-select-row', ''); row.toggleAttribute('data-lifetools-selected', box.checked);
-    const target = row.matches('yt-lockup-view-model') ? Array.from(row.children).find((child): child is HTMLElement => child instanceof HTMLElement && getComputedStyle(child).display.includes('flex') && getComputedStyle(child).flexDirection.startsWith('row')) ?? row : row.querySelector<HTMLElement>('#content') ?? row; target.prepend(box);
+    const box = document.createElement('input'); box.type = 'checkbox'; box.setAttribute('data-lifetools-select', ''); box.setAttribute('aria-label', `Videoyu seç: ${title}`); box.dataset.videoId = id; box.checked = selection.ids.has(id); row.setAttribute('data-lifetools-select-row', ''); row.toggleAttribute('data-lifetools-selected', box.checked); target.prepend(box);
   }
 }
 function beginSelection(url: string, title: string): void {
@@ -32,10 +44,10 @@ function beginSelection(url: string, title: string): void {
   const wrap = document.createElement('div'); wrap.className = 'wrap'; const container = document.createElement('div'); container.className = 'bar'; const summary = document.createElement('span'); summary.className = 'summary'; const divider = document.createElement('span'); divider.className = 'divider'; const all = document.createElement('button'); all.className = 'text'; { const long = document.createElement('span'); long.className = 'long'; long.textContent = 'Tümünü seç'; const short = document.createElement('span'); short.className = 'short'; short.textContent = 'Tümü'; all.append(long, short); } const clear = document.createElement('button'); clear.className = 'text'; clear.textContent = 'Temizle'; const download = document.createElement('button'); download.className = 'primary'; download.textContent = 'İndir ▾'; const cancel = document.createElement('button'); cancel.className = 'text spacer'; cancel.textContent = 'Vazgeç'; const menu = document.createElement('div'); menu.className = 'menu'; menu.hidden = true; const hint = document.createElement('div'); hint.className = 'hint'; hint.textContent = 'Uzun listelerde önce aşağı kaydır: YouTube videoları kaydırdıkça yükler.';
   const update = () => { if (!selection) return; const number = document.createElement('strong'); number.textContent = String(selection.ids.size); summary.replaceChildren(number, document.createTextNode(' video seçildi')); download.disabled = selection.ids.size === 0; if (download.disabled) menu.hidden = true; document.querySelectorAll<HTMLInputElement>('[data-lifetools-select]').forEach(box => { box.checked = selection!.ids.has(box.dataset.videoId!); box.closest(ROW_SELECTOR)?.toggleAttribute('data-lifetools-selected', box.checked); }); };
   let lastRow: Element | null = null;
-  const click = (event: MouseEvent) => { const target = event.target; if (!(target instanceof Element) || target.closest('[data-lifetools-select-bar]')) return; const row = target.closest(ROW_SELECTOR); if (!row || !row.hasAttribute('data-lifetools-select-row')) return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); const box = row.querySelector<HTMLInputElement>('[data-lifetools-select]'); if (!box || !selection) return; const rowIds = Array.from(document.querySelectorAll<HTMLInputElement>('[data-lifetools-select]')).map(item => item.dataset.videoId!); const last = lastRow?.querySelector<HTMLInputElement>('[data-lifetools-select]')?.dataset.videoId; if (event.shiftKey && last) { for (const id of rangeBetween(rowIds, last, box.dataset.videoId!)) selection.ids.add(id); } else if (selection.ids.has(box.dataset.videoId!)) selection.ids.delete(box.dataset.videoId!); else selection.ids.add(box.dataset.videoId!); lastRow = row; selection.update(); setTimeout(() => selection?.update(), 0); };
+  const click = (event: MouseEvent) => { const target = event.target; if (!(target instanceof Element) || target.closest('[data-lifetools-select-bar]')) return; const row = target.closest(ROW_SELECTOR); if (!row || !row.hasAttribute('data-lifetools-select-row')) return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); const box = row.querySelector<HTMLInputElement>('[data-lifetools-select]'); if (!box || !selection) return; const rowIds = Array.from(document.querySelectorAll<HTMLInputElement>('[data-lifetools-select]')).map(item => item.dataset.videoId!); const last = lastRow?.querySelector<HTMLInputElement>('[data-lifetools-select]')?.dataset.videoId; if (event.shiftKey && last) { for (const id of rangeBetween(rowIds, last, box.dataset.videoId!)) selection.ids.add(id); } else if (selection.ids.has(box.dataset.videoId!)) selection.ids.delete(box.dataset.videoId!); else selection.ids.add(box.dataset.videoId!); lastRow = row; setTimeout(() => selection?.update(), 0); };
   const block = (event: Event) => { if (event.target instanceof Element && event.target.closest(ROW_SELECTOR)?.hasAttribute('data-lifetools-select-row') && !event.target.closest('[data-lifetools-select-bar]')) event.preventDefault(); };
   document.addEventListener('click', click, true); document.addEventListener('auxclick', block, true); document.addEventListener('pointerdown', block, true);
-  selection = { url, ids: new Set(), bar, update, links: new Map(), cleanup: () => { document.removeEventListener('click', click, true); document.removeEventListener('auxclick', block, true); document.removeEventListener('pointerdown', block, true); } }; all.onclick = () => { document.querySelectorAll<HTMLInputElement>('[data-lifetools-select]').forEach(box => { if (box.getBoundingClientRect().width && box.getBoundingClientRect().height) selection?.ids.add(box.dataset.videoId!); }); update(); }; clear.onclick = () => { selection?.ids.clear(); update(); }; cancel.onclick = endSelection; download.onclick = () => { menu.hidden = !menu.hidden; };
+  selection = { url, ids: new Set(), bar, update, links: new Map(), cleanup: () => { document.removeEventListener('click', click, true); document.removeEventListener('auxclick', block, true); document.removeEventListener('pointerdown', block, true); } }; all.onclick = () => { document.querySelectorAll<HTMLInputElement>('[data-lifetools-select]').forEach(box => { const rect = box.getBoundingClientRect(); if (rect.width && rect.height) selection?.ids.add(box.dataset.videoId!); }); update(); }; clear.onclick = () => { selection?.ids.clear(); update(); }; cancel.onclick = endSelection; download.onclick = () => { menu.hidden = !menu.hidden; };
   for (const [mode, label] of [['selected:video_best', 'En iyi kalite'], ['selected:video_720', '720p'], ['selected:audio_mp3', 'Sadece ses (MP3)']] as const) { const item = document.createElement('button'); item.textContent = label; item.onclick = () => { if (!selection) return; const ids = [...new Set(Array.from(document.querySelectorAll<HTMLInputElement>('[data-lifetools-select]')).map(box => box.dataset.videoId!).filter(id => selection!.ids.has(id)))]; if (!ids.length || ids.length > 500) { summary.textContent = ids.length > 500 ? 'En fazla 500 video seçilebilir' : selectionSummary(0); return; } const startedVisit = visit; void chrome.runtime.sendMessage({ type: 'video-downloader:start', url, mode, items: ids, folderName: title || 'YouTube seçimi' }).then((response: { ok?: boolean; message?: string; jobId?: string }) => { if (response?.ok && response.message !== 'İndirme iptal edildi.') { endSelection(); recordStart(response, startedVisit); } else summary.textContent = response?.message || 'İndirme başlatılamadı.'; }).catch(() => { summary.textContent = 'İndirme başlatılamadı.'; }); }; menu.append(item); }
   container.append(summary, divider, all, clear, cancel, download); wrap.append(container, menu, hint); shadow.append(style, wrap); document.documentElement.append(bar); selectionRows(); update();
 }
@@ -66,10 +78,11 @@ function loadFormats(url: string, id: string): Promise<VideoFormats> {
 const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); }); };
 
 function render(): void {
-  if (visitUrl !== location.href) { visitUrl = location.href; visit++; startedHere.clear(); }
+  if (visitUrl !== location.href) { visitUrl = location.href; visit++; startedHere.clear(); displayedJobId = undefined; stopPolling(); }
   const kind = youtubePage(location.href);
   if (selection && (kind !== 'playlist' || selection.url !== location.href)) endSelection();
   if (selection) selectionRows();
+  if (host?.isConnected && route === location.href && hostAnchor?.isConnected && (hostPlacement === 'inside' ? host.parentElement === hostAnchor : host.previousElementSibling === hostAnchor)) return;
   const visible = (element: Element) => { const rect = element.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; };
   const browse = kind === 'playlist' ? Array.from(document.querySelectorAll<HTMLElement>('ytd-browse:not([hidden])')).find(element => element.getAttribute('page-subtype') === 'playlist' && visible(element)) ?? Array.from(document.querySelectorAll<HTMLElement>('ytd-browse:not([hidden])')).find(visible) ?? document.body : null;
   const header = browse?.querySelector<HTMLElement>('yt-page-header-view-model, yt-page-header-renderer, ytd-playlist-header-renderer') ?? browse;
@@ -86,7 +99,7 @@ function render(): void {
   const actions = kind === 'shorts' ? document.querySelector<HTMLElement>('ytd-reel-video-renderer[is-active] #actions') : kind === 'playlist' ? playActions ?? newActions ?? legacyActions ?? playLink?.parentElement ?? null : null;
   const watchlist = anchor?.parentElement?.querySelector<HTMLElement>('[data-lifetools-watchlist]');
   const target = watchlist ?? anchor;
-  if (kind === 'other' || (kind !== 'playlist' && !target && !actions)) { host?.remove(); host = null; refreshChip = undefined; return; }
+  if (kind === 'other' || (kind !== 'playlist' && !target && !actions)) { host?.remove(); host = null; hostAnchor = null; refreshChip = undefined; repositionMenu = undefined; stopPolling(); return; }
   const correct = kind === 'playlist' ? actions ? host?.previousElementSibling === actions : host?.parentElement === document.documentElement : actions ? host?.parentElement === actions : host?.previousElementSibling === target;
   if (host?.isConnected && route === location.href && correct) return;
   host?.remove(); route = location.href;
@@ -103,6 +116,7 @@ function render(): void {
   const chip = document.createElement('span'); chip.className = 'chip'; chip.hidden = true;
   const menu = document.createElement('div'); menu.className = 'menu'; menu.hidden = true;
   const position = () => { const p = menuPosition(button.getBoundingClientRect(), menu.getBoundingClientRect(), { width: innerWidth, height: innerHeight }); menu.style.left = `${p.left}px`; menu.style.top = `${p.top}px`; };
+  repositionMenu = () => { if (!menu.hidden) position(); };
   const addItem = (mode: string, label: string, url: string) => {
     const item = document.createElement('button'); item.type = 'button'; item.textContent = label;
     item.addEventListener('click', () => { menu.hidden = true; const startedVisit = visit; void chrome.runtime.sendMessage({ type: 'video-downloader:start', url, mode }).then(response => recordStart(response, startedVisit)).catch(() => {}); }); menu.append(item);
@@ -133,23 +147,30 @@ function render(): void {
   if (kind === 'playlist' && /\b(private|gizli)\b/i.test(header?.textContent ?? '')) { const hint = document.createElement('span'); hint.style.cssText = 'color:#aaa;font:12px Arial'; hint.textContent = 'Gizli liste: indirmek için «Liste dışı» yap'; row.append(hint); }
   shadow.append(style, row, menu);
   if (kind === 'playlist') { if (actions) { wrapper.style.cssText = 'display:flex;margin:10px 0 0'; actions.insertAdjacentElement('afterend', wrapper); } else { wrapper.style.cssText = 'position:fixed;left:24px;bottom:24px;z-index:2147483000'; document.documentElement.append(wrapper); } } else if (actions) actions.append(wrapper); else target!.insertAdjacentElement('afterend', wrapper);
+  hostAnchor = kind === 'playlist' ? actions ?? document.documentElement : actions ?? target;
+  hostPlacement = (kind === 'playlist' ? !actions : !!actions) ? 'inside' : 'after';
   refreshChip = () => {
+    if (document.hidden) return;
     const page = route;
     void chrome.runtime.sendMessage({ type: 'video-downloader:jobs' }).then(response => {
-      if (route !== page || !wrapper.isConnected || !response?.ok) return;
+      if (route !== page || !wrapper.isConnected) return;
+      if (!response?.ok) { stopPolling(); return; }
       const jobs = response.jobs as VideoJob[];
-      const job = jobs.find(j => j.state === 'running' && jobMatchesPage(j, page)) ?? jobs.find(j => startedHere.has(j.id));
+      const job = jobs.find(j => j.state === 'running' && (jobMatchesPage(j, page) || startedHere.has(j.id))) ?? jobs.find(j => j.id === displayedJobId) ?? jobs.find(j => startedHere.has(j.id));
+      displayedJobId = job?.id;
+      if (job?.state === 'running') { polling = true; schedulePoll(); } else stopPolling();
       chip.hidden = !job; chip.replaceChildren();
       if (!job) return;
       chip.title = job.state === 'done' ? job.file ?? '' : job.state === 'error' ? friendlyVideoError(job.error ?? '') : '';
       chip.append(document.createTextNode(formatChip(job)));
       if (job.state === 'running') { const cancel = document.createElement('button'); cancel.className = 'cancel'; cancel.type = 'button'; cancel.textContent = '×'; cancel.title = 'İptal'; cancel.setAttribute('aria-label', 'İptal'); cancel.addEventListener('click', () => { void chrome.runtime.sendMessage({ type: 'video-downloader:cancel', jobId: job.id }).then(() => refreshChip?.()).catch(() => {}); }); chip.append(cancel); }
-    }).catch(() => {});
+    }).catch(() => { if (route === page && wrapper.isConnected) stopPolling(); });
   };
-  refreshChip();
+  if (polling) { if (!document.hidden) refreshChip(); }
+  else void chrome.runtime.sendMessage({ type: 'video-downloader:has-active' }).then(response => { if (response?.ok && response.active && wrapper.isConnected && route === location.href) { if (document.hidden) polling = true; else refreshChip?.(); } }).catch(() => {});
 }
 document.addEventListener('yt-navigate-finish', schedule);
 new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
-window.addEventListener('resize', () => { host?.remove(); host = null; schedule(); });
-setInterval(() => refreshChip?.(), 1000);
+window.addEventListener('resize', () => repositionMenu?.());
+document.addEventListener('visibilitychange', () => { if (document.hidden) { if (pollTimer !== undefined) clearTimeout(pollTimer); pollTimer = undefined; } else if (polling) refreshChip?.(); });
 render();

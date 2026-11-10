@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { nextBackoff } from '../src/modules/video-downloader/background';
 import { acceptsUrl, cacheFresh, estimateFromPlayer, friendlyVideoError, formatJob, formatChip, formatQualityLabel, formatSize, FORMATS_CACHE_TTL, jobMatchesPage, menuPosition, MODE_LABELS, playlistRowVideoId, rangeBetween, selectionSummary, youtubePage, youtubePlaylistId, youtubeVideoId, type VideoJob } from '../src/modules/video-downloader/logic';
 describe('video indirici', () => {
+  it('bağlantı hatalarında bekleme süresini sınırlar', () => { expect([1, 2, 3, 4, 5, 6, 10].map(nextBackoff)).toEqual([2, 4, 8, 16, 32, 60, 60]); });
   it('liste satırlarını ve seçim sayısını gösterir', () => { expect(playlistRowVideoId('/watch?v=abcdefghijk&list=abc')).toBe('abcdefghijk'); expect(playlistRowVideoId('/watch?v=bad')).toBeNull(); expect(playlistRowVideoId('https://example.com/watch?v=abcdefghijk')).toBeNull(); expect(selectionSummary(3)).toBe('3 video seçildi'); expect(MODE_LABELS['selected:audio_mp3']).toBe('Seçilenler · MP3'); });
   it('shift ile seçilen aralığı bulur', () => { expect(rangeBetween(['a', 'b', 'c', 'd'], 'c', 'a')).toEqual(['a', 'b', 'c']); expect(rangeBetween(['a', 'b'], 'b', 'b')).toEqual(['b']); expect(rangeBetween(['a', 'b'], 'x', 'b')).toEqual([]); });
   it('oynatıcı akışlarından kalite ve ses boyutlarını tahmin eder', () => {
