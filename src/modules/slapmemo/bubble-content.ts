@@ -4,6 +4,7 @@ import { PAGE_THEME } from '../../core/page-theme';
 import { cleanUrl } from '../link-cleaner/clean';
 import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, bubbleButtons, bubblePosition, selectionUrl, shouldShowBubble, languageName, translationText } from './bubble-logic';
 import { datedTask, looksLikeAddress } from './bubble-logic';
+import { convert, findPriceAt, formatTry, parsePrice, type Rates } from '../currency/rates';
 
 let enabled = false;
 let hiddenSites: string[] = [];
@@ -39,11 +40,14 @@ function show(): void {
   let rect = range.getBoundingClientRect();
   if (!rect.width && !rect.height) rect = selection.getRangeAt(0).getBoundingClientRect();
   host = document.createElement('div');
+  host.setAttribute('data-lifetools-slapmemo-bubble', '');
+  const bubbleHost = host;
   const shadow = host.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
   style.textContent = PAGE_THEME + `:host{position:fixed;z-index:2147483647} .pill{display:flex;align-items:center;white-space:nowrap;background:var(--lt-surface);color:var(--lt-text);border:1px solid var(--lt-border);border-radius:10px;box-shadow:var(--lt-shadow);padding:3px} button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;min-height:28px;padding:3px 8px;border-radius:8px} button:hover{background:var(--lt-sub)} button.primary{background:var(--lt-accent);color:var(--lt-on-accent)} button.primary:hover{opacity:.88} .close{font-size:16px;padding:2px 7px;color:var(--lt-muted)} @media(max-width:600px){.label{display:none}button{padding:3px 5px}}`;
   const pill = document.createElement('div'); pill.className = 'pill';
   style.textContent += `.more-wrap{position:relative}.menu{position:absolute;right:0;top:100%;z-index:1;background:var(--lt-surface);color:var(--lt-text);border:1px solid var(--lt-border);border-radius:8px;box-shadow:var(--lt-shadow);padding:3px}.menu button{height:28px;white-space:nowrap}`;
+  style.textContent += `.fx{font-weight:700;padding:3px 8px;border-radius:8px;background:var(--lt-accent-soft);color:var(--lt-text);cursor:pointer}`;
   style.textContent += `.translation{box-sizing:border-box;width:min(420px,calc(100vw - 16px));max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;background:var(--lt-surface);color:var(--lt-text);border:1px solid var(--lt-border);border-radius:10px;box-shadow:var(--lt-shadow);padding:10px;margin-top:4px}.translation header{display:flex;align-items:center;justify-content:space-between;font-weight:600}.translation .actions{display:flex;flex-wrap:wrap;margin-top:8px}.translation .content{margin-top:6px}`;
   pill.addEventListener('mousedown', event => event.preventDefault());
   const save = document.createElement('button'); save.type = 'button'; save.textContent = '📝 Not';
@@ -159,8 +163,29 @@ function show(): void {
   const size = host.getBoundingClientRect();
   const position = bubblePosition(rect, { width: innerWidth, height: innerHeight }, size);
   host.style.left = `${position.left}px`; host.style.top = `${position.top}px`;
+  const price = text.length <= 40 ? parsePrice(text) ?? findPriceAt(text, Math.floor(text.length / 2)) : null;
+  if (price) void (chrome.runtime.sendMessage({ channel: 'currency', type: 'rates' }) as Promise<Rates | null>).then(rates => {
+    if (!rates || host !== bubbleHost || !bubbleHost.isConnected || window.getSelection()?.toString().trim() !== text) return;
+    const value = convert(price, rates.perTry);
+    if (value === null) return;
+    const tl = `≈ ${formatTry(value)}`;
+    const symbol = ({ USD: '$', EUR: '€', GBP: '£', JPY: '¥', PLN: 'zł' } as Record<string, string>)[price.currency] ?? price.currency;
+    const date = rates.date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1');
+    const chip = document.createElement('span'); chip.className = 'fx'; chip.textContent = tl;
+    chip.title = `1 ${symbol} = ${formatTry(rates.perTry[price.currency])} · ECB ${date}${rates.stale ? ' · eski kur' : ''}`;
+    chip.setAttribute('role', 'button'); chip.tabIndex = 0; chip.setAttribute('aria-label', `${tl} kopyala`);
+    const copy = () => { void navigator.clipboard.writeText(tl).then(() => {
+      chip.textContent = 'Kopyalandı ✓';
+      setTimeout(() => { chip.textContent = tl; }, 1500);
+    }).catch(() => {}); };
+    chip.addEventListener('click', copy);
+    chip.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); copy(); } });
+    pill.prepend(chip);
+    const updated = bubblePosition(rect, { width: innerWidth, height: innerHeight }, bubbleHost.getBoundingClientRect());
+    bubbleHost.style.left = `${updated.left}px`; bubbleHost.style.top = `${updated.top}px`;
+  }).catch(() => {});
 }
-function schedule(): void { hide(); timer = setTimeout(show, 150); }
+function schedule(): void { hide(); timer = setTimeout(show, 40); }
 document.addEventListener('mouseup', event => { if (!enabled || hiddenSites.includes(location.hostname)) return; if (!host || !event.composedPath().includes(host)) schedule(); });
 document.addEventListener('keyup', event => { if (!enabled || hiddenSites.includes(location.hostname)) return; if (!panelOpen && event.shiftKey && event.key.startsWith('Arrow')) schedule(); });
 document.addEventListener('pointerdown', event => { if (host && !event.composedPath().includes(host)) hide(); });

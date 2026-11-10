@@ -112,7 +112,15 @@ export function initHover(): void {
     const text = selection.toString().trim();
     if (!text || text.length > 40) return;
     const price = parsePrice(text) ?? findPriceAt(text, Math.floor(text.length / 2));
-    if (price) { selectionShown = true; show(price, range.getBoundingClientRect(), true); }
+    if (price) {
+      const rect = range.getBoundingClientRect();
+      const current = request;
+      timer = setTimeout(() => {
+        timer = undefined;
+        if (!enabled || current !== request || document.querySelector('[data-lifetools-slapmemo-bubble]') || window.getSelection()?.toString().trim() !== text) return;
+        selectionShown = true; show(price, rect, true);
+      }, 50);
+    }
   }
   document.addEventListener('mousedown', hide);
   document.addEventListener('mouseup', showSelection);
