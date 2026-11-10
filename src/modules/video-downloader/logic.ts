@@ -31,7 +31,7 @@ export function estimateFromPlayer(formats: PlayerFormat[], duration: number | n
     const fps = selected.fps ?? null;
     return { height, fps, label: `${height}p${fps && fps > 30 ? fps : ''}`, sizeBytes: videoBytes != null && audioBytes != null ? videoBytes + audioBytes : null, approx: true };
   });
-  return { formats: results, audio: { sizeBytes: duration && duration > 0 ? duration * 192000 / 8 : null, approx: true }, title: null, duration };
+  return { formats: results, audio: { sizeBytes: duration && duration > 0 ? duration * 245000 / 8 : null, approx: true }, title: null, duration };
 }
 export function friendlyVideoError(text: string): string { return /private|does not exist/i.test(text) ? 'Gizli listeler indirilemez. Listeyi «Liste dışı» yapıp tekrar dene.' : text; }
 export const FORMATS_CACHE_TTL = 10 * 60 * 1000;
@@ -41,6 +41,15 @@ export function youtubePlaylistId(raw: string): string | null { try { const u = 
 export function formatSize(sizeBytes: number | null, approx: boolean): string { if (sizeBytes == null) return 'boyut bilinmiyor'; const prefix = approx ? '~' : ''; return sizeBytes < 1024 ** 3 ? `${prefix}${Math.round(sizeBytes / 1024 ** 2)} MB` : `${prefix}${(sizeBytes / 1024 ** 3).toFixed(1).replace('.', ',')} GB`; }
 export function formatQualityLabel(label: string, estimate: SizeEstimate): string { return `${label} · ${formatSize(estimate.sizeBytes, estimate.approx)}`; }
 export interface VideoJob { id: string; url: string; mode: string; state: string; percent: string | null; speed: string | null; eta: string | null; item?: string | null; file: string | null; error: string | null }
+export function jobMatchesPage(job: VideoJob, pageUrl: string): boolean {
+  const page = youtubePage(pageUrl);
+  if (page === 'playlist') { const id = youtubePlaylistId(pageUrl); return !!id && youtubePlaylistId(job.url) === id; }
+  if (page !== 'watch' && page !== 'shorts') return false;
+  const id = youtubeVideoId(pageUrl);
+  let jobId = youtubeVideoId(job.url);
+  if (!jobId) { try { const url = new URL(job.url); if (url.protocol === 'https:' && url.hostname === 'youtu.be') jobId = url.pathname.split('/')[1] || null; } catch {} }
+  return !!id && id === jobId;
+}
 export interface ToolStatus { ytdlp: { installed: boolean; version: string | null }; ffmpeg: boolean; installing: boolean; error: string | null; folder: string }
 export function acceptsUrl(raw: string): boolean { try { const u = new URL(raw); return ['http:', 'https:'].includes(u.protocol) && !!u.hostname; } catch { return false; } }
 export function youtubePage(raw: string): 'watch' | 'shorts' | 'playlist' | 'other' { try { const u = new URL(raw); if (u.protocol !== 'https:' || u.hostname !== 'www.youtube.com') return 'other'; if (u.pathname === '/watch' && !!u.searchParams.get('v')) return 'watch'; if (u.pathname === '/playlist' && !!u.searchParams.get('list')) return 'playlist'; if (/^\/shorts\/[^/]+/.test(u.pathname)) return 'shorts'; } catch {} return 'other'; }

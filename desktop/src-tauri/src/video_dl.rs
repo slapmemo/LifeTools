@@ -86,7 +86,7 @@ fn args(url: &str, mode: &str, dir: &Path, output: &Path) -> Result<Vec<String>,
     let mut a = vec!["--ffmpeg-location".into(), dir.to_string_lossy().into_owned(), "--no-quiet".into(), if playlist { "--yes-playlist" } else { "--no-playlist" }.into(), "--newline".into(), "--progress-template".into(), if playlist { "download:LT_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(info.playlist_index)s/%(info.n_entries)s" } else { "download:LT_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s" }.into(), "--print".into(), "after_move:LT_FILE:%(filepath)s".into(), "--merge-output-format".into(), "mp4".into(), "-o".into(), output.join(if playlist { "%(playlist_title).100B/%(playlist_index)03d - %(title).150B [%(id)s].%(ext)s" } else { "%(title).150B [%(id)s].%(ext)s" }).to_string_lossy().into_owned()];
     if playlist { a.push("--ignore-errors".into()); }
     let selected = if playlist { mode.strip_prefix("playlist:").unwrap() } else { mode };
-    match selected { "video_best" | "video_1080" | "video_720" => { a.push("-f".into()); a.push(match selected { "video_best" => "bv*+ba/b", "video_1080" => "bv*[height<=1080]+ba/b[height<=1080]", _ => "bv*[height<=720]+ba/b[height<=720]" }.into()); }, "audio_mp3" => a.extend(["-x".into(), "--audio-format".into(), "mp3".into()]), _ => { let raw = selected.strip_prefix("height:").ok_or("Geçersiz indirme modu")?; if raw.is_empty() || !raw.bytes().all(|b| b.is_ascii_digit()) { return Err("Geçersiz indirme modu".into()); } let height: u32 = raw.parse().map_err(|_| "Geçersiz indirme modu")?; if !(144..=4320).contains(&height) { return Err("Geçersiz indirme modu".into()); } a.extend(["-f".into(), format!("bv*[height={height}]+ba/b[height={height}]/bv*[height<={height}]+ba/b[height<={height}]")]); } }; a.extend(["--".into(), url.into()]); Ok(a)
+    match selected { "video_best" | "video_1080" | "video_720" => { a.push("-f".into()); a.push(match selected { "video_best" => "bv*+ba/b", "video_1080" => "bv*[height<=1080]+ba/b[height<=1080]", _ => "bv*[height<=720]+ba/b[height<=720]" }.into()); }, "audio_mp3" => a.extend(["-f", "bestaudio/best", "-x", "--audio-format", "mp3", "--audio-quality", "0", "--embed-thumbnail", "--add-metadata"].map(String::from)), _ => { let raw = selected.strip_prefix("height:").ok_or("Geçersiz indirme modu")?; if raw.is_empty() || !raw.bytes().all(|b| b.is_ascii_digit()) { return Err("Geçersiz indirme modu".into()); } let height: u32 = raw.parse().map_err(|_| "Geçersiz indirme modu")?; if !(144..=4320).contains(&height) { return Err("Geçersiz indirme modu".into()); } a.extend(["-f".into(), format!("bv*[height={height}]+ba/b[height={height}]/bv*[height<={height}]+ba/b[height<={height}]")]); } }; a.extend(["--".into(), url.into()]); Ok(a)
 }
 
 #[derive(Serialize)]
@@ -218,6 +218,18 @@ pub fn open_folder() -> Result<(), String> { let dir = selected_dir()?; Command:
 
 #[cfg(test)] mod playlist_tests {
     use super::*;
+    #[test] fn mp3_quality_for_all_modes() {
+        let url = "https://www.youtube.com/playlist?list=abc";
+        let dir = Path::new("tools"); let out = Path::new("out");
+        let ids = vec!["abcdefghijk".to_string()];
+        let cases = [args(url, "audio_mp3", dir, out).unwrap(), args(url, "playlist:audio_mp3", dir, out).unwrap(), selected_args(url, "selected:audio_mp3", dir, out, &ids, "Liste").unwrap()];
+        for a in cases {
+            assert!(a.windows(2).any(|pair| pair == ["-f", "bestaudio/best"]));
+            assert!(a.windows(2).any(|pair| pair == ["--audio-quality", "0"]));
+            assert!(a.iter().any(|x| x == "--embed-thumbnail"));
+            assert!(a.iter().any(|x| x == "--add-metadata"));
+        }
+    }
     #[test] fn selected_arguments_and_validation() {
         let ids = vec!["abcdefghijk".to_string(), "12345678901".to_string(), "abcdefghijk".to_string()];
         for mode in ["selected:video_best", "selected:video_720", "selected:audio_mp3"] { let a = selected_args("https://www.youtube.com/playlist?list=x", mode, Path::new("tools"), Path::new("out"), &ids, "Liste").unwrap(); assert!(a.contains(&"--no-playlist".to_string())); assert!(a.contains(&"--ignore-errors".to_string())); assert!(a.iter().any(|x| x.contains("%(autonumber)03d"))); let p = a.iter().position(|x| x == "--").unwrap(); assert_eq!(&a[p + 1..], ["https://www.youtube.com/watch?v=abcdefghijk", "https://www.youtube.com/watch?v=12345678901"]); }

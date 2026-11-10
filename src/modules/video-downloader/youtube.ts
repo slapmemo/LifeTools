@@ -1,10 +1,14 @@
 import { PAGE_THEME } from '../../core/page-theme';
-import { cacheFresh, estimateFromPlayer, friendlyVideoError, formatChip, formatQualityLabel, menuPosition, MODE_LABELS, playlistRowVideoId, rangeBetween, selectionSummary, youtubePage, youtubePlaylistId, youtubeVideoId, type PlayerFormat, type VideoFormats, type VideoJob } from './logic';
+import { cacheFresh, estimateFromPlayer, friendlyVideoError, formatChip, formatQualityLabel, jobMatchesPage, menuPosition, MODE_LABELS, playlistRowVideoId, rangeBetween, selectionSummary, youtubePage, youtubePlaylistId, youtubeVideoId, type PlayerFormat, type VideoFormats, type VideoJob } from './logic';
 
 let host: HTMLElement | null = null;
 let route = '';
 let frame = 0;
 let refreshChip: (() => void) | undefined;
+const startedHere = new Set<string>();
+let visitUrl = location.href;
+let visit = 0;
+function recordStart(response: { jobId?: string }, startedVisit: number): void { if (response?.jobId && visit === startedVisit && location.href === visitUrl) startedHere.add(response.jobId); refreshChip?.(); }
 const ROW_SELECTOR = 'ytd-playlist-video-renderer, ytd-browse[page-subtype="playlist"] yt-lockup-view-model';
 let selection: { url: string; ids: Set<string>; bar: HTMLElement; update: () => void; cleanup: () => void; links: Map<HTMLAnchorElement, string | null> } | null = null;
 function endSelection(): void { if (!selection) return; const current = selection; selection = null; current.cleanup(); current.bar.remove(); current.links.forEach((value, link) => { if (value === null) link.removeAttribute('draggable'); else link.setAttribute('draggable', value); }); document.querySelectorAll('[data-lifetools-select]').forEach(el => el.remove()); document.querySelectorAll(ROW_SELECTOR).forEach(el => { el.removeAttribute('data-lifetools-select-row'); el.removeAttribute('data-lifetools-selected'); }); document.querySelector('[data-lifetools-select-style]')?.remove(); }
@@ -32,7 +36,7 @@ function beginSelection(url: string, title: string): void {
   const block = (event: Event) => { if (event.target instanceof Element && event.target.closest(ROW_SELECTOR)?.hasAttribute('data-lifetools-select-row') && !event.target.closest('[data-lifetools-select-bar]')) event.preventDefault(); };
   document.addEventListener('click', click, true); document.addEventListener('auxclick', block, true); document.addEventListener('pointerdown', block, true);
   selection = { url, ids: new Set(), bar, update, links: new Map(), cleanup: () => { document.removeEventListener('click', click, true); document.removeEventListener('auxclick', block, true); document.removeEventListener('pointerdown', block, true); } }; all.onclick = () => { document.querySelectorAll<HTMLInputElement>('[data-lifetools-select]').forEach(box => { if (box.getBoundingClientRect().width && box.getBoundingClientRect().height) selection?.ids.add(box.dataset.videoId!); }); update(); }; clear.onclick = () => { selection?.ids.clear(); update(); }; cancel.onclick = endSelection; download.onclick = () => { menu.hidden = !menu.hidden; };
-  for (const [mode, label] of [['selected:video_best', 'En iyi kalite'], ['selected:video_720', '720p'], ['selected:audio_mp3', 'Sadece ses (MP3)']] as const) { const item = document.createElement('button'); item.textContent = label; item.onclick = () => { if (!selection) return; const ids = [...new Set(Array.from(document.querySelectorAll<HTMLInputElement>('[data-lifetools-select]')).map(box => box.dataset.videoId!).filter(id => selection!.ids.has(id)))]; if (!ids.length || ids.length > 500) { summary.textContent = ids.length > 500 ? 'En fazla 500 video seçilebilir' : selectionSummary(0); return; } void chrome.runtime.sendMessage({ type: 'video-downloader:start', url, mode, items: ids, folderName: title || 'YouTube seçimi' }).then((response: { ok?: boolean; message?: string }) => { if (response?.ok && response.message !== 'İndirme iptal edildi.') { endSelection(); refreshChip?.(); } else summary.textContent = response?.message || 'İndirme başlatılamadı.'; }).catch(() => { summary.textContent = 'İndirme başlatılamadı.'; }); }; menu.append(item); }
+  for (const [mode, label] of [['selected:video_best', 'En iyi kalite'], ['selected:video_720', '720p'], ['selected:audio_mp3', 'Sadece ses (MP3)']] as const) { const item = document.createElement('button'); item.textContent = label; item.onclick = () => { if (!selection) return; const ids = [...new Set(Array.from(document.querySelectorAll<HTMLInputElement>('[data-lifetools-select]')).map(box => box.dataset.videoId!).filter(id => selection!.ids.has(id)))]; if (!ids.length || ids.length > 500) { summary.textContent = ids.length > 500 ? 'En fazla 500 video seçilebilir' : selectionSummary(0); return; } const startedVisit = visit; void chrome.runtime.sendMessage({ type: 'video-downloader:start', url, mode, items: ids, folderName: title || 'YouTube seçimi' }).then((response: { ok?: boolean; message?: string; jobId?: string }) => { if (response?.ok && response.message !== 'İndirme iptal edildi.') { endSelection(); recordStart(response, startedVisit); } else summary.textContent = response?.message || 'İndirme başlatılamadı.'; }).catch(() => { summary.textContent = 'İndirme başlatılamadı.'; }); }; menu.append(item); }
   container.append(summary, divider, all, clear, cancel, download); wrap.append(container, menu, hint); shadow.append(style, wrap); document.documentElement.append(bar); selectionRows(); update();
 }
 const formatsCache = new Map<string, { timestamp: number; data: VideoFormats }>();
@@ -62,6 +66,7 @@ function loadFormats(url: string, id: string): Promise<VideoFormats> {
 const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); }); };
 
 function render(): void {
+  if (visitUrl !== location.href) { visitUrl = location.href; visit++; startedHere.clear(); }
   const kind = youtubePage(location.href);
   if (selection && (kind !== 'playlist' || selection.url !== location.href)) endSelection();
   if (selection) selectionRows();
@@ -100,7 +105,7 @@ function render(): void {
   const position = () => { const p = menuPosition(button.getBoundingClientRect(), menu.getBoundingClientRect(), { width: innerWidth, height: innerHeight }); menu.style.left = `${p.left}px`; menu.style.top = `${p.top}px`; };
   const addItem = (mode: string, label: string, url: string) => {
     const item = document.createElement('button'); item.type = 'button'; item.textContent = label;
-    item.addEventListener('click', () => { menu.hidden = true; void chrome.runtime.sendMessage({ type: 'video-downloader:start', url, mode }).then(() => refreshChip?.()).catch(() => {}); }); menu.append(item);
+    item.addEventListener('click', () => { menu.hidden = true; const startedVisit = visit; void chrome.runtime.sendMessage({ type: 'video-downloader:start', url, mode }).then(response => recordStart(response, startedVisit)).catch(() => {}); }); menu.append(item);
   };
   let request = 0;
   button.addEventListener('click', () => {
@@ -133,7 +138,7 @@ function render(): void {
     void chrome.runtime.sendMessage({ type: 'video-downloader:jobs' }).then(response => {
       if (route !== page || !wrapper.isConnected || !response?.ok) return;
       const jobs = response.jobs as VideoJob[];
-      const job = jobs.find(j => j.state === 'running') ?? jobs[0];
+      const job = jobs.find(j => j.state === 'running' && jobMatchesPage(j, page)) ?? jobs.find(j => startedHere.has(j.id));
       chip.hidden = !job; chip.replaceChildren();
       if (!job) return;
       chip.title = job.state === 'done' ? job.file ?? '' : job.state === 'error' ? friendlyVideoError(job.error ?? '') : '';
