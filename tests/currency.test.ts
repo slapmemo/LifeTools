@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { convert, formatTry, parsePrice, ratesToPerTry } from '../src/modules/currency/rates';
+import { priceCandidate } from '../src/modules/currency/hover';
 
 describe('currency', () => {
+  it('selects only small price candidates', () => {
+    expect(priceCandidate('  € 12,50  ', 3)).toEqual({ currency: 'EUR', amount: 12.5 });
+    expect(priceCandidate('€12', 4)).toBeNull();
+    expect(priceCandidate('$' + '1'.repeat(40), 0)).toBeNull();
+    expect(priceCandidate('not a price', 0)).toBeNull();
+  });
   it.each([
     ['$12.99', 'USD', 12.99], ['$12.99 USD', 'USD', 12.99],
     ['12,99€', 'EUR', 12.99], ['€ 1.234,56', 'EUR', 1234.56],
