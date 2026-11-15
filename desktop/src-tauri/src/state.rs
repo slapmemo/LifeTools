@@ -1,5 +1,4 @@
 use crate::battery::NotifyTracker;
-use crate::win::PinnedWindow;
 use rusqlite::Connection;
 use std::sync::atomic::{AtomicIsize, AtomicU64};
 use std::sync::{Mutex, MutexGuard};
@@ -9,8 +8,6 @@ const PROGRAMMATIC_TTL: Duration = Duration::from_secs(6);
 
 pub struct AppState {
     db: Mutex<Connection>,
-    /// Bu uygulamanın üstte tuttuğu pencereler.
-    pub pinned: Mutex<Vec<PinnedWindow>>,
     /// Geçmişten panoya geri kopyalanan metin; dinleyici bunu yeniden eklemez.
     pub suppress: Mutex<Option<(String, Instant)>>,
     pub toast_gen: AtomicU64,
@@ -25,7 +22,6 @@ impl AppState {
     pub fn new(conn: Connection) -> Self {
         AppState {
             db: Mutex::new(conn),
-            pinned: Mutex::new(Vec::new()),
             suppress: Mutex::new(None),
             toast_gen: AtomicU64::new(0),
             snippet_target: AtomicIsize::new(0),

@@ -93,6 +93,13 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 9, statements: [
     'CREATE TABLE note_pages (note_id INTEGER PRIMARY KEY REFERENCES notes(id) ON DELETE CASCADE, text TEXT NOT NULL, saved_at INTEGER NOT NULL)',
     'CREATE TABLE note_images (note_id INTEGER PRIMARY KEY REFERENCES notes(id) ON DELETE CASCADE, data_url TEXT NOT NULL, width INTEGER, height INTEGER)'
+  ] },
+  { version: 10, statements: ['ALTER TABLE session_tabs ADD COLUMN note TEXT'] },
+  // Sabitleme / tamamlandı / arşiv / hatırlatma. Masaüstü uygulaması da aynı ifadelerle oluşturabilir
+  // (desktop/src-tauri/src/db/notes.rs NOTE_META_DDL); bu yüzden IF NOT EXISTS ve birebir aynı olmalı.
+  { version: 11, statements: [
+    'CREATE TABLE IF NOT EXISTS note_meta (note_id INTEGER PRIMARY KEY REFERENCES notes(id) ON DELETE CASCADE, pinned INTEGER NOT NULL DEFAULT 0, done_at INTEGER, archived_at INTEGER, remind_at INTEGER, reminded_at INTEGER)',
+    'CREATE INDEX IF NOT EXISTS idx_note_meta_remind ON note_meta(remind_at)'
   ] }
 ];
 

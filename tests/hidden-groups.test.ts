@@ -5,7 +5,7 @@ import { runMigrations } from '../src/db/migrations';
 import { createMemoryExecutor } from './sqlite-memory';
 
 const session: Session = { id: 1, name: HIDDEN_PREFIX + 'Sonra', created_at: 1, tab_count: 2 };
-const tab: SessionTab = { id: 1, session_id: 1, position: 0, url: 'https://example.com', title: null, pinned: 0, group_title: 'Sonra', group_color: 'blue' };
+const tab: SessionTab = { id: 1, session_id: 1, position: 0, url: 'https://example.com', title: null, pinned: 0, group_title: 'Sonra', group_color: 'blue', note: null };
 describe('hiddenGroupModel', () => {
   it('builds a chip only for marked single-group sessions', () => {
     expect(hiddenGroupModel(session, [tab, { ...tab, id: 2 }])).toEqual({ id: 1, name: 'Sonra', color: 'blue', count: 2 });
@@ -30,7 +30,7 @@ describe('hidden group card logic', () => {
   it('removes only the chosen hidden tab and deletes the empty group', async () => {
     const ex = await createMemoryExecutor(); await runMigrations(ex);
     const repo = createSessionsRepo(ex);
-    const input = { url: tab.url, title: null, pinned: false, group_title: 'Sonra', group_color: 'blue' };
+    const input = { url: tab.url, title: null, pinned: false, group_title: 'Sonra', group_color: 'blue', note: null };
     const id = await repo.save(HIDDEN_PREFIX + 'Sonra', [input, input]);
     const ordinary = await repo.save('Diğer', [input]);
     const [first, second] = await repo.tabs(id);

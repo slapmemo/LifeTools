@@ -7,7 +7,7 @@ import { exportData, restoreData, validateBackup } from '../src/core/backup';
 test('version 8 upgrades, attachments survive backup and delete with their note', async () => {
   const ex = await createMemoryExecutor();
   await runMigrations(ex, MIGRATIONS.filter(m => m.version <= 8));
-  expect(await runMigrations(ex)).toEqual({ from: 8, to: 9, applied: [9] });
+  expect(await runMigrations(ex)).toEqual({ from: 8, to: 11, applied: [9, 10, 11] });
   const repo = createNotesRepo(ex);
   const { note } = await repo.addNote({ category: 'note', text: 'Sayfa' });
   await repo.savePage(note.id, 'İçerik'); await repo.saveImage(note.id, 'data:image/jpeg;base64,YQ==', 10, 10);

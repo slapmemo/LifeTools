@@ -43,14 +43,15 @@ pub struct Prefs {
     pub copy_only: bool,
     pub picker_shortcut: String,
     pub snippets_shortcut: String,
-    pub topmost_shortcut: String,
+    /// Boş metin = kapalı.
+    pub quicknote_shortcut: String,
     /// Yeni sürümleri otomatik indirip kur.
     pub auto_update: bool,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { battery_notify: true, copy_only: false, picker_shortcut: "Ctrl+Alt+V".into(), snippets_shortcut: "Ctrl+Shift+Space".into(), topmost_shortcut: "Ctrl+Alt+T".into(), auto_update: true }
+        Prefs { battery_notify: true, copy_only: false, picker_shortcut: "Ctrl+Alt+V".into(), snippets_shortcut: "Ctrl+Shift+Space".into(), quicknote_shortcut: "Ctrl+Alt+N".into(), auto_update: true }
     }
 }
 

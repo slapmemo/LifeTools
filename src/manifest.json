@@ -49,6 +49,9 @@
       },
       "description": "Komut merkezini aç"
     },
+    "save-tab-to-group": {
+      "description": "Sekmeyi kayıtlı gruba kaydet ve kapat"
+    },
     "action-link-copy": {
       "description": "Sayfanın temiz linkini kopyala"
     },

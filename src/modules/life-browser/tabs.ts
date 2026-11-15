@@ -4,7 +4,7 @@ import { extensionBaseUrl, isInternalTabUrl } from '../../core/internal-tab';
 /** chrome.tabs.Tab'ın bu modülde kullanılan alt kümesi (saf fonksiyonlar için). */
 export interface TabLike { id?: number; url?: string; title?: string; pinned: boolean; groupId?: number; index?: number }
 export interface GroupInfo { title: string | null; color: string | null }
-export interface SessionTabInput { url: string; title: string | null; pinned: boolean; group_title: string | null; group_color: string | null }
+export interface SessionTabInput { url: string; title: string | null; pinned: boolean; group_title: string | null; group_color: string | null; note?: string | null }
 export interface GroupPlan { site: string; tabIds: number[] }
 export interface DuplicateSet { url: string; keep: number; close: number[] }
 

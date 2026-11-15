@@ -49,6 +49,19 @@
         "visible": false
       },
       {
+        "label": "quicknote",
+        "title": "Hızlı not",
+        "url": "index.html",
+        "width": 420,
+        "height": 230,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "backgroundColor": "#171d19",
+        "visible": false
+      },
+      {
         "label": "toast",
         "title": "LifeTools bildirimi",
         "url": "index.html",

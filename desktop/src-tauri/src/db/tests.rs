@@ -112,7 +112,7 @@
         let old: Prefs = serde_json::from_str(r#"{"battery_notify":false,"copy_only":true}"#).unwrap();
         assert_eq!(old, Prefs { battery_notify: false, copy_only: true, ..Prefs::default() });
         let d = db();
-        assert_eq!(load_prefs(&d).unwrap(), Prefs { battery_notify: true, copy_only: false, picker_shortcut: "Ctrl+Alt+V".into(), snippets_shortcut: "Ctrl+Shift+Space".into(), topmost_shortcut: "Ctrl+Alt+T".into(), auto_update: true });
+        assert_eq!(load_prefs(&d).unwrap(), Prefs { battery_notify: true, copy_only: false, picker_shortcut: "Ctrl+Alt+V".into(), snippets_shortcut: "Ctrl+Shift+Space".into(), quicknote_shortcut: "Ctrl+Alt+N".into(), auto_update: true });
         save_prefs(&d, &Prefs { battery_notify: false, copy_only: true, ..Prefs::default() }).unwrap();
         assert_eq!(load_prefs(&d).unwrap(), Prefs { battery_notify: false, copy_only: true, ..Prefs::default() });
     }
@@ -335,4 +335,110 @@
         assert_eq!(saved.max_items, 10);
         assert_eq!(saved.exclusions, vec!["a.exe", "b.exe"]);
         assert_eq!(load_settings(&d).unwrap(), saved);
+    }
+
+    fn notes_db() -> Connection {
+        let d = Connection::open_in_memory().unwrap();
+        d.execute_batch("CREATE TABLE notes (id INTEGER PRIMARY KEY, category TEXT NOT NULL CHECK(category IN ('note','read','watch','idea')), text TEXT NOT NULL, url TEXT, page_title TEXT, user_note TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+            CREATE VIRTUAL TABLE notes_fts USING fts5(text, user_note, page_title, tokenize = 'unicode61 remove_diacritics 2');
+            CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN INSERT INTO notes_fts(rowid, text, user_note, page_title) VALUES (new.id, replace(replace(new.text, 'ı', 'i'), 'İ', 'I'), coalesce(new.user_note, ''), coalesce(new.page_title, '')); END;
+            CREATE TRIGGER notes_ad AFTER DELETE ON notes BEGIN DELETE FROM notes_fts WHERE rowid = old.id; END;
+            CREATE TABLE note_pages (note_id INTEGER PRIMARY KEY REFERENCES notes(id) ON DELETE CASCADE, text TEXT NOT NULL, saved_at INTEGER NOT NULL);").unwrap();
+        d
+    }
+
+    fn ls(d: &Connection, category: &str, query: &str) -> Result<NotesPage> {
+        list_notes(d, &ListOptions { category, query, archived: false, show_done: true, sort: "new" })
+    }
+
+    #[test]
+    fn notes_unavailable_until_moved_to_desktop() {
+        let d = Connection::open_in_memory().unwrap();
+        let page = ls(&d, "", "").unwrap();
+        assert!(!page.available);
+        assert_eq!(add_note(&d, "note", "Merhaba", None, None).unwrap_err(), NOT_MOVED);
+    }
+
+    #[test]
+    fn notes_add_list_search_update_delete() {
+        let mut d = notes_db();
+        let id = add_note(&d, "idea", "  Işık ayarı  ", Some(" "), Some("Çok önemli")).unwrap();
+        let other = add_note(&d, "read", "Makale", Some("https://ornek.com"), None).unwrap();
+        let note = get_note(&d, id).unwrap().unwrap();
+        assert_eq!(note.text, "Işık ayarı");
+        assert_eq!(note.url, None);
+        assert!(note.created_at > 1_000_000_000_000, "milisaniye olmalı");
+        let fts: i64 = d.query_row("SELECT count(*) FROM notes_fts WHERE notes_fts MATCH 'isik'", [], |r| r.get(0)).unwrap();
+        assert_eq!(fts, 1, "eklenti araması masaüstünden eklenen notu bulmalı");
+        assert_eq!(ls(&d, "", "").unwrap().notes.iter().map(|n| n.id).collect::<Vec<_>>().len(), 2);
+        assert_eq!(ls(&d, "read", "").unwrap().notes[0].id, other);
+        assert_eq!(ls(&d, "", "işik").unwrap().notes[0].id, id);
+        assert_eq!(ls(&d, "", "önemli").unwrap().notes[0].id, id);
+        assert!(add_note(&d, "bad", "x", None, None).is_err());
+        assert!(add_note(&d, "note", "   ", None, None).is_err());
+        update_note(&d, id, "note", "Yeni metin", Some("")).unwrap();
+        let note = get_note(&d, id).unwrap().unwrap();
+        assert_eq!((note.category.as_str(), note.text.as_str(), note.user_note), ("note", "Yeni metin", None));
+        assert!(update_note(&d, 999, "note", "x", None).is_err());
+        d.execute("INSERT INTO note_pages VALUES(?1,'sayfa',1)", [id]).unwrap();
+        delete_note(&mut d, id).unwrap();
+        assert!(get_note(&d, id).unwrap().is_none());
+        let pages: i64 = d.query_row("SELECT count(*) FROM note_pages", [], |r| r.get(0)).unwrap();
+        assert_eq!(pages, 0);
+    }
+
+    #[test]
+    fn note_meta_pin_done_archive_reminder_and_counts() {
+        let mut d = notes_db();
+        let a = add_note(&d, "note", "Birinci #iş", None, None).unwrap();
+        let b = add_note(&d, "read", "İkinci", None, None).unwrap();
+        let c = add_note(&d, "read", "Üçüncü", None, None).unwrap();
+        // Yeni olan önce; sabitlenen en üste çıkar.
+        assert_eq!(ls(&d, "", "").unwrap().notes.iter().map(|n| n.id).collect::<Vec<_>>(), vec![c, b, a]);
+        set_note_pinned(&d, a, true).unwrap();
+        let page = ls(&d, "", "").unwrap();
+        assert_eq!(page.notes[0].id, a);
+        assert!(page.notes[0].pinned);
+        assert_eq!(page.counts, NoteCounts { all: 3, note: 1, read: 2, watch: 0, idea: 0, archived: 0 });
+        // Etiket araması metin üzerinden.
+        assert_eq!(ls(&d, "", "#iş").unwrap().notes.iter().map(|n| n.id).collect::<Vec<_>>(), vec![a]);
+        // Tamamlanan, show_done kapalıyken gizlenir.
+        set_note_done(&d, b, true).unwrap();
+        let hidden = list_notes(&d, &ListOptions { category: "", query: "", archived: false, show_done: false, sort: "new" }).unwrap();
+        assert!(hidden.notes.iter().all(|n| n.id != b));
+        assert!(get_note(&d, b).unwrap().unwrap().done_at.is_some());
+        set_note_done(&d, b, false).unwrap();
+        assert!(get_note(&d, b).unwrap().unwrap().done_at.is_none());
+        // Arşiv ayrı görünümde, sayılara girmez.
+        set_note_archived(&d, c, true).unwrap();
+        assert!(ls(&d, "", "").unwrap().notes.iter().all(|n| n.id != c));
+        let arch = list_notes(&d, &ListOptions { category: "", query: "", archived: true, show_done: true, sort: "new" }).unwrap();
+        assert_eq!(arch.notes.iter().map(|n| n.id).collect::<Vec<_>>(), vec![c]);
+        assert_eq!((arch.counts.all, arch.counts.read, arch.counts.archived), (2, 1, 1));
+        // Eski önce sıralaması.
+        let old = list_notes(&d, &ListOptions { category: "", query: "", archived: false, show_done: true, sort: "old" }).unwrap();
+        assert_eq!(old.notes.iter().map(|n| n.id).collect::<Vec<_>>(), vec![a, b]);
+        // Hatırlatma bir kez bildirilir; yeni zaman verilince yeniden.
+        set_note_reminder(&d, b, Some(1_000)).unwrap();
+        assert_eq!(take_due_reminders(&d, 999).unwrap(), vec![]);
+        assert_eq!(take_due_reminders(&d, 1_000).unwrap(), vec![(b, "İkinci".to_string())]);
+        assert_eq!(take_due_reminders(&d, 2_000).unwrap(), vec![]);
+        set_note_reminder(&d, b, Some(3_000)).unwrap();
+        assert_eq!(take_due_reminders(&d, 3_000).unwrap().len(), 1);
+        set_note_reminder(&d, b, None).unwrap();
+        assert!(get_note(&d, b).unwrap().unwrap().remind_at.is_none());
+        assert!(set_note_pinned(&d, 999, true).is_err());
+        // Kategori ve yalnız metin güncelleme.
+        set_note_category(&d, a, "idea").unwrap();
+        update_note_text(&d, a, "- [x] bitti").unwrap();
+        let n = get_note(&d, a).unwrap().unwrap();
+        assert_eq!((n.category.as_str(), n.text.as_str()), ("idea", "- [x] bitti"));
+        // Sayfa ekleri ve silmede meta temizliği.
+        d.execute("INSERT INTO note_pages VALUES(?1,'sayfa metni',5)", [a]).unwrap();
+        assert!(get_note(&d, a).unwrap().unwrap().has_page);
+        assert_eq!(note_page(&d, a).unwrap().unwrap().text, "sayfa metni");
+        assert!(note_image(&d, a).unwrap().is_none());
+        delete_note(&mut d, a).unwrap();
+        let metas: i64 = d.query_row("SELECT count(*) FROM note_meta WHERE note_id=?1", [a], |r| r.get(0)).unwrap();
+        assert_eq!(metas, 0);
     }

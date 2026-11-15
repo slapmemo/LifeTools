@@ -85,8 +85,11 @@ export function bindThemeListener(): void {
 }
 
 export function settingsView(): View {
-  const defaults = ['Ctrl+Alt+V', 'Ctrl+Shift+Space', 'Ctrl+Alt+T'];
+  const defaults = ['Ctrl+Alt+V', 'Ctrl+Shift+Space', 'Ctrl+Alt+N'];
   let shortcuts = [...defaults];
+  // Boş metin = kısayol kapalı. Yeniden açınca son kullanılan tuş geri gelir.
+  const lastOn = [...defaults];
+  const rememberOn = (values: string[]) => values.forEach((v, i) => { if (v) lastOn[i] = v; });
   let recording: number | null = null;
   let saving = false;
   const shortcutError = h('p', { class: 'muted', role: 'alert' });
@@ -115,8 +118,26 @@ export function settingsView(): View {
     });
     return button;
   });
+  const shortcutToggles = defaults.map((_, index) => {
+    const toggle = h('input', { type: 'checkbox', title: 'Kısayolu aç / kapat', 'aria-label': 'Kısayolu aç / kapat' });
+    toggle.addEventListener('change', () => {
+      if (saving) return;
+      recording = null;
+      const next = [...shortcuts];
+      next[index] = toggle.checked ? lastOn[index] : '';
+      void saveShortcuts(next);
+    });
+    return toggle;
+  });
   function renderShortcuts(): void {
-    shortcutButtons.forEach((button, index) => { button.textContent = recording === index ? 'Tuşlara bas…' : shortcuts[index]; button.disabled = saving; });
+    shortcutButtons.forEach((button, index) => {
+      const on = shortcuts[index] !== '';
+      button.textContent = recording === index ? 'Tuşlara bas…' : on ? shortcuts[index] : 'Kapalı';
+      button.disabled = saving || !on;
+      shortcutToggles[index].checked = on;
+      shortcutToggles[index].disabled = saving;
+    });
+    disableAllShortcuts.disabled = saving || shortcuts.every(s => s === '');
   }
   async function saveShortcuts(next: string[]): Promise<void> {
     saving = true;
@@ -125,6 +146,7 @@ export function settingsView(): View {
     try {
       await api.shortcutsSet(next[0], next[1], next[2]);
       shortcuts = next;
+      rememberOn(next);
     } catch (e) {
       shortcutError.textContent = errText(e);
     } finally {
@@ -134,6 +156,10 @@ export function settingsView(): View {
   }
   const resetShortcuts = h('button', { type: 'button' }, 'Varsayılana dön');
   resetShortcuts.addEventListener('click', () => { if (!saving) { recording = null; void saveShortcuts([...defaults]); } });
+  const disableAllShortcuts = h('button', { type: 'button' }, 'Tümünü kapat');
+  disableAllShortcuts.addEventListener('click', () => { if (!saving) { recording = null; void saveShortcuts(['', '', '']); } });
+  const shortcutRow = (label: string, index: number) =>
+    h('div', { class: 'settings-row' }, label, h('div', { class: 'toolbar' }, shortcutButtons[index], shortcutToggles[index]));
   const autostart = h('input', { type: 'checkbox' });
   const copyOnly = h('input', { type: 'checkbox' });
   const battNotify = h('input', { type: 'checkbox' });
@@ -261,10 +287,11 @@ export function settingsView(): View {
       h('label', { class: 'settings-row' }, 'Windows açılışında başlat', autostart),
       h('label', { class: 'settings-row' }, 'Pil %20 altına düşünce bildir', battNotify)),
     h('div', { class: 'card settings-card' }, h('h3', {}, 'Kısayollar'),
-      h('div', { class: 'settings-row' }, 'Pano seçici', shortcutButtons[0]),
-      h('div', { class: 'settings-row' }, 'Etkin pencereyi üstte tut / bırak', shortcutButtons[2]),
-      h('div', { class: 'settings-row' }, 'Şablon seçici', shortcutButtons[1]),
-      h('label', { class: 'settings-row' }, 'Şablonu yalnızca panoya kopyala (otomatik yapıştırma yok)', copyOnly)),
+      shortcutRow('Pano seçici', 0),
+      shortcutRow('Şablon seçici', 1),
+      shortcutRow('Hızlı not', 2),
+      h('label', { class: 'settings-row' }, 'Şablonu yalnızca panoya kopyala (otomatik yapıştırma yok)', copyOnly),
+      h('div', { class: 'toolbar' }, resetShortcuts, disableAllShortcuts), shortcutError),
     h('div', { class: 'card settings-card' }, h('h3', {}, 'Chrome bağlantısı'),
       h('p', { class: 'muted' }, 'Eklentinin verileri bu uygulamanın veritabanında (%APPDATA%\\LifeTools\\lifetools.db) saklanabilir. Önce burada bağla, sonra eklentide "Verileri masaüstüne taşı" düğmesine bas. Bağlantıdan sonra Chrome\'u yeniden başlatmak gerekmez.'),
       h('div', { class: 'toolbar' }, nativeConnect, nativeRemove), nativeStatus,
@@ -369,7 +396,8 @@ export function settingsView(): View {
       const s = await api.settingsGet();
       fill(s.expire_days, s.max_items, s.exclusions);
       const p = await api.prefsGet();
-      shortcuts = [p.picker_shortcut, p.snippets_shortcut, p.topmost_shortcut];
+      shortcuts = [p.picker_shortcut, p.snippets_shortcut, p.quicknote_shortcut];
+      rememberOn(shortcuts);
       renderShortcuts();
       copyOnly.checked = p.copy_only;
       battNotify.checked = p.battery_notify;

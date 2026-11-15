@@ -26,7 +26,7 @@ test('boş hedefe aktarım: migrasyon çalışır, sayılar doğrulanıp döner,
   await source.exec("INSERT INTO notes VALUES (1,'note','çalışma',NULL,NULL,NULL,1,2)");
   await source.exec("INSERT INTO snippets VALUES (1,'/a','A','B',0,1,1)");
   await source.exec("INSERT INTO sessions VALUES (7,'Oturum',1)");
-  await source.exec("INSERT INTO session_tabs VALUES (1,7,0,'https://a.com',NULL,0,NULL,NULL)");
+  await source.exec("INSERT INTO session_tabs (id,session_id,position,url,title,pinned,group_title,group_color) VALUES (1,7,0,'https://a.com',NULL,0,NULL,NULL)");
   const before = await countRows(source);
   const counts = await transferData(source, target);
   expect(counts).toEqual(before);

@@ -30,24 +30,30 @@ use std::sync::Mutex;
 
 struct ActiveShortcuts(Mutex<[Option<Shortcut>; 3]>);
 
-fn parse_shortcuts(picker: &str, snippets: &str, topmost: &str) -> Result<[Shortcut; 3], String> {
-    let parse = |value: &str| -> Result<Shortcut, String> {
+/// Boş metin kısayolun kapalı olduğu anlamına gelir; kapalı kısayol kaydedilmez.
+fn parse_shortcuts(picker: &str, snippets: &str, quicknote: &str) -> Result<[Option<Shortcut>; 3], String> {
+    let parse = |value: &str| -> Result<Option<Shortcut>, String> {
+        if value.trim().is_empty() { return Ok(None); }
         let shortcut: Shortcut = value.parse().map_err(|_| "Geçersiz kısayol".to_string())?;
         if !shortcut.mods.intersects(Modifiers::CONTROL | Modifiers::ALT | Modifiers::SUPER) {
             return Err("Kısayol Ctrl, Alt veya Win içermeli".into());
         }
-        Ok(shortcut)
+        Ok(Some(shortcut))
     };
-    let values = [parse(picker)?, parse(snippets)?, parse(topmost)?];
-    if values[0] == values[1] || values[0] == values[2] || values[1] == values[2] {
-        return Err("Kısayollar birbirinden farklı olmalı".into());
+    let values = [parse(picker)?, parse(snippets)?, parse(quicknote)?];
+    for i in 0..values.len() {
+        for j in (i + 1)..values.len() {
+            if values[i].is_some() && values[i] == values[j] {
+                return Err("Kısayollar birbirinden farklı olmalı".into());
+            }
+        }
     }
     Ok(values)
 }
 
 #[tauri::command]
-fn shortcuts_set(app: AppHandle, picker: String, snippets: String, topmost: String) -> Result<(), String> {
-    let new = parse_shortcuts(&picker, &snippets, &topmost)?;
+fn shortcuts_set(app: AppHandle, picker: String, snippets: String, quicknote: String) -> Result<(), String> {
+    let new = parse_shortcuts(&picker, &snippets, &quicknote)?;
     let active = app.state::<ActiveShortcuts>();
     let mut current = active.0.lock().map_err(|e| e.to_string())?;
     let old = *current;
@@ -68,16 +74,16 @@ fn shortcuts_set(app: AppHandle, picker: String, snippets: String, topmost: Stri
     }
     let mut registered = Vec::new();
     let result = (|| -> Result<(), String> {
-        for sc in new {
+        for sc in new.into_iter().flatten() {
             manager.register(sc).map_err(|_| "Bu kısayol başka bir uygulama tarafından kullanılıyor".to_string())?;
             registered.push(sc);
         }
         let state = app.state::<Arc<AppState>>();
         let db = state.db();
         let mut prefs = db::load_prefs(&db).map_err(|e| e.to_string())?;
-        prefs.picker_shortcut = picker;
-        prefs.snippets_shortcut = snippets;
-        prefs.topmost_shortcut = topmost;
+        prefs.picker_shortcut = picker.trim().to_string();
+        prefs.snippets_shortcut = snippets.trim().to_string();
+        prefs.quicknote_shortcut = quicknote.trim().to_string();
         db::save_prefs(&db, &prefs).map_err(|e| e.to_string())?;
         Ok(())
     })();
@@ -91,7 +97,7 @@ fn shortcuts_set(app: AppHandle, picker: String, snippets: String, topmost: Stri
         if restored != old { return Err(format!("{error}; önceki kısayollardan bazıları geri yüklenemedi")); }
         return Err(error);
     }
-    *current = new.map(Some);
+    *current = new;
     Ok(())
 }
 
@@ -100,10 +106,18 @@ mod shortcut_tests {
     use super::*;
     #[test]
     fn validates_shortcuts() {
-        assert!(parse_shortcuts("Ctrl+Alt+V", "Ctrl+Shift+Space", "Ctrl+Alt+T").is_ok());
-        assert!(parse_shortcuts("V", "Ctrl+Shift+Space", "Ctrl+Alt+T").is_err());
-        assert!(parse_shortcuts("Shift+V", "Ctrl+Shift+Space", "Ctrl+Alt+T").is_err());
-        assert!(parse_shortcuts("ctrl+alt+v", "Ctrl+Alt+V", "Ctrl+Alt+T").is_err());
+        assert!(parse_shortcuts("Ctrl+Alt+V", "Ctrl+Shift+Space", "Ctrl+Alt+N").is_ok());
+        assert!(parse_shortcuts("V", "Ctrl+Shift+Space", "").is_err());
+        assert!(parse_shortcuts("Shift+V", "Ctrl+Shift+Space", "").is_err());
+        assert!(parse_shortcuts("ctrl+alt+v", "Ctrl+Alt+V", "").is_err());
+        assert!(parse_shortcuts("Ctrl+Alt+V", "", "Ctrl+Alt+V").is_err());
+    }
+    #[test]
+    fn empty_shortcut_is_disabled() {
+        let all_off = parse_shortcuts("", " ", "").unwrap();
+        assert!(all_off.iter().all(|s| s.is_none()));
+        let one_off = parse_shortcuts("Ctrl+Alt+V", "", "Ctrl+Alt+N").unwrap();
+        assert!(one_off[0].is_some() && one_off[1].is_none() && one_off[2].is_some());
     }
 }
 
@@ -171,23 +185,6 @@ fn toast(app: &AppHandle, msg: &str) {
     });
 }
 
-fn label_of(w: &win::PinnedWindow) -> String {
-    let t = w.title.trim();
-    let s = if t.is_empty() { w.exe.as_str() } else { t };
-    let short: String = s.chars().take(40).collect();
-    if short.is_empty() { "Pencere".to_string() } else { short }
-}
-
-fn toggle_topmost(app: &AppHandle) {
-    let state = app.state::<Arc<AppState>>();
-    match win::toggle_foreground(&state.pinned) {
-        Ok(win::Toggle::Pinned(w)) => toast(app, &format!("Üstte tutuluyor: {}", label_of(&w))),
-        Ok(win::Toggle::Released(w)) => toast(app, &format!("Üstte tutma kaldırıldı: {}", label_of(&w))),
-        Err(e) => toast(app, &e),
-    }
-    let _ = app.emit("windows-changed", ());
-}
-
 fn place_near_cursor(w: &WebviewWindow) {
     let Some((cx, cy)) = win::cursor_pos() else { return };
     let (ww, wh) = w
@@ -237,15 +234,45 @@ fn toggle_snippets(app: &AppHandle) {
     let _ = app.emit_to("snippets", "snippets-open", ());
 }
 
+fn toggle_quicknote(app: &AppHandle) {
+    let Some(w) = app.get_webview_window("quicknote") else { return };
+    if w.is_visible().unwrap_or(false) {
+        let _ = w.hide();
+        return;
+    }
+    place_near_cursor(&w);
+    let _ = w.show();
+    let _ = w.set_focus();
+    let _ = app.emit_to("quicknote", "quicknote-open", ());
+}
+
+/// Zamanı gelen not hatırlatmalarını Windows bildirimi olarak gösterir.
+fn fire_reminders(app: &AppHandle) {
+    use tauri_plugin_notification::NotificationExt;
+    let state = app.state::<Arc<AppState>>();
+    let due = match db::take_due_reminders(&state.db(), db::now_millis()) {
+        Ok(d) => d,
+        Err(e) => { eprintln!("Hatırlatmalar okunamadı: {e}"); return; }
+    };
+    if due.is_empty() { return; }
+    for (_, text) in &due {
+        let body: String = text.lines().next().unwrap_or("").chars().take(120).collect();
+        if app.notification().builder().title("LifeTools hatırlatma").body(body.clone()).show().is_err() {
+            toast(app, &format!("Hatırlatma: {body}"));
+        }
+    }
+    let _ = app.emit_to("main", "notes-changed", ());
+}
+
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "LifeTools'u aç", true, None::<&str>)?;
     let clip = MenuItem::with_id(app, "clipboard", "Pano geçmişi", true, None::<&str>)?;
-    let top = MenuItem::with_id(app, "topmost", "Etkin pencereyi üstte tut", true, None::<&str>)?;
+    let quick = MenuItem::with_id(app, "quicknote", "Hızlı not", true, None::<&str>)?;
     let ambient = MenuItem::with_id(app, "ambient", "Ortam sesi: Oynat/Durdur", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Ayarlar", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Çıkış", true, None::<&str>)?;
-    let items: [&dyn IsMenuItem<tauri::Wry>; 7] = [&open, &clip, &top, &ambient, &settings, &sep, &quit];
+    let items: [&dyn IsMenuItem<tauri::Wry>; 7] = [&open, &clip, &quick, &ambient, &settings, &sep, &quit];
     let menu = Menu::with_items(app, &items)?;
 
     let mut builder = TrayIconBuilder::with_id("main")
@@ -256,23 +283,12 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
             "open" => show_main(app, None),
             "clipboard" => show_main(app, Some("clipboard")),
             "settings" => show_main(app, Some("settings")),
+            "quicknote" => toggle_quicknote(app),
             // Ses ana pencerenin (gizli kalsa da çalışan) web görünümünde üretilir.
             "ambient" => {
                 let _ = app.emit_to("main", "ambient-toggle", ());
             }
-            "topmost" => {
-                // Menü kapandıktan sonra ön plan penceresi önceki pencereye döner.
-                let app = app.clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(Duration::from_millis(250));
-                    toggle_topmost(&app);
-                });
-            }
-            "quit" => {
-                let state = app.state::<Arc<AppState>>();
-                win::release_all(&state.pinned);
-                app.exit(0);
-            }
+            "quit" => app.exit(0),
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
@@ -311,6 +327,7 @@ fn main() {
             show_main(app, None);
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--autostart"])))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -323,7 +340,7 @@ fn main() {
                     match action {
                         Some(0) => toggle_picker(app),
                         Some(1) => toggle_snippets(app),
-                        Some(2) => toggle_topmost(app),
+                        Some(2) => toggle_quicknote(app),
                         _ => {}
                     }
                 })
@@ -334,7 +351,7 @@ fn main() {
                 api.prevent_close();
                 let _ = window.hide();
             }
-            WindowEvent::Focused(false) if matches!(window.label(), "picker" | "snippets") => {
+            WindowEvent::Focused(false) if matches!(window.label(), "picker" | "snippets" | "quicknote") => {
                 let _ = window.hide();
             }
             _ => {}
@@ -361,13 +378,25 @@ fn main() {
             commands::settings_set,
             commands::autostart_get,
             commands::autostart_set,
-            commands::windows_list,
-            commands::windows_release,
-            commands::windows_release_all,
             commands::picker_hide,
             commands::electricity_get,
             commands::electricity_save,
             commands::electricity_estimate,
+            commands::note_list,
+            commands::note_add,
+            commands::note_update,
+            commands::note_delete,
+            commands::note_open_url,
+            commands::note_set_text,
+            commands::note_set_category,
+            commands::note_set_pinned,
+            commands::note_set_done,
+            commands::note_set_archived,
+            commands::note_set_reminder,
+            commands::note_image,
+            commands::note_page,
+            commands::quicknote_add,
+            commands::quicknote_hide,
             commands::snippet_list,
             commands::snippet_save,
             commands::snippet_delete,
@@ -403,16 +432,17 @@ fn main() {
             build_tray(app)?;
 
             let mut prefs = db::load_prefs(&state.db()).unwrap_or_default();
-            let shortcuts = parse_shortcuts(&prefs.picker_shortcut, &prefs.snippets_shortcut, &prefs.topmost_shortcut).unwrap_or_else(|_| {
+            let shortcuts = parse_shortcuts(&prefs.picker_shortcut, &prefs.snippets_shortcut, &prefs.quicknote_shortcut).unwrap_or_else(|_| {
                 let defaults = db::Prefs::default();
                 prefs.picker_shortcut = defaults.picker_shortcut;
                 prefs.snippets_shortcut = defaults.snippets_shortcut;
-                prefs.topmost_shortcut = defaults.topmost_shortcut;
+                prefs.quicknote_shortcut = defaults.quicknote_shortcut;
                 let _ = db::save_prefs(&state.db(), &prefs);
-                parse_shortcuts(&prefs.picker_shortcut, &prefs.snippets_shortcut, &prefs.topmost_shortcut).unwrap()
+                parse_shortcuts(&prefs.picker_shortcut, &prefs.snippets_shortcut, &prefs.quicknote_shortcut).unwrap()
             });
             let mut registered = [None; 3];
             for (i, sc) in shortcuts.into_iter().enumerate() {
+                let Some(sc) = sc else { continue };
                 match app.global_shortcut().register(sc) {
                     Ok(()) => registered[i] = Some(sc),
                     Err(e) => eprintln!("Kısayol kaydedilemedi ({sc:?}): {e}"),
@@ -428,6 +458,12 @@ fn main() {
             std::thread::spawn(move || loop {
                 refresh_batteries(&handle);
                 std::thread::sleep(Duration::from_secs(300));
+            });
+
+            let handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                fire_reminders(&handle);
+                std::thread::sleep(Duration::from_secs(20));
             });
 
             let st = state.clone();

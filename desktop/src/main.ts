@@ -8,6 +8,7 @@ import { mountPicker } from './picker';
 import { applyCachedTheme, applyTheme, bindThemeListener, normalizeTheme } from './views/ayarlar';
 import { mountSnippetPicker } from './views/sablonlar';
 import { mountToast } from './toast';
+import { mountQuickNote } from './quicknote';
 
 // İlk boyamadan önce data-theme özniteliğini uygula (get_setting / set_setting ile senkron)
 const initialTheme = applyCachedTheme();
@@ -23,4 +24,5 @@ document.body.dataset.view = label;
 if (label === 'picker') mountPicker(root);
 else if (label === 'snippets') mountSnippetPicker(root);
 else if (label === 'toast') mountToast(root);
+else if (label === 'quicknote') mountQuickNote(root);
 else mountMain(root);

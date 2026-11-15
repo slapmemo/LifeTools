@@ -5,11 +5,13 @@ mod dashboard;
 mod snippets;
 mod prefs;
 mod clipboard;
+mod notes;
 
 pub use dashboard::*;
 pub use snippets::*;
 pub use prefs::*;
 pub use clipboard::*;
+pub use notes::*;
 
 #[cfg(test)]
 mod tests;

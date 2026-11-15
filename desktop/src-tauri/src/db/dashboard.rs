@@ -32,7 +32,7 @@ pub fn backup_data(db: &Connection) -> std::result::Result<serde_json::Value, St
     } else { 0 };
     let timestamp: String = tx.query_row("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now')", [], |r| r.get(0)).map_err(|e| e.to_string())?;
     let mut tables = serde_json::Map::new();
-    for name in ["notes", "snippets", "tasks", "site_time", "sessions", "session_tabs", "tab_labels", "tab_notes", "watch_items", "note_pages", "note_images"] {
+    for name in ["notes", "snippets", "tasks", "site_time", "sessions", "session_tabs", "tab_labels", "tab_notes", "watch_items", "note_pages", "note_images", "note_meta"] {
         if !table_exists(&tx, name).map_err(|e| e.to_string())? { continue; }
         let mut stmt = tx.prepare(&format!("SELECT * FROM {name} ORDER BY rowid")).map_err(|e| e.to_string())?;
         let columns: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
@@ -72,7 +72,7 @@ pub fn dashboard_summary(db: &Connection, today: &str) -> Result<DashboardSummar
         out.today_tasks = st.query_map([today], |r| Ok(DashboardTask { id:r.get(0)?, title:r.get(1)?, due:r.get(2)? }))?.collect::<Result<_>>()?;
     }
     if out.notes_available {
-        let mut st = db.prepare("SELECT id,coalesce(nullif(trim(page_title),''),text),updated_at FROM notes ORDER BY updated_at DESC,id DESC LIMIT 5")?;
+        let mut st = db.prepare("SELECT id,coalesce(nullif(trim(page_title),''),text),updated_at/1000 FROM notes ORDER BY updated_at DESC,id DESC LIMIT 5")?;
         out.notes = st.query_map([], |r| { let text: String = r.get(1)?; Ok(DashboardNote { id:r.get(0)?, title:text.lines().next().unwrap_or("").chars().take(100).collect(), updated_at:r.get(2)? }) })?.collect::<Result<_>>()?;
     }
     if out.sites_available {

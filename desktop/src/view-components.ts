@@ -14,7 +14,7 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape') cl
 
 export function rowMenu(actions: { label: string; run: () => void | Promise<void>; danger?: boolean }[]): HTMLElement {
   const popover = h('div', { class: 'card kebab-popover', hidden: true });
-  const toggle = h('button', { type: 'button', class: 'icon-button', title: '??lemler', 'aria-label': '??lemler', 'aria-expanded': 'false' }, icon('ellipsis', 18));
+  const toggle = h('button', { type: 'button', class: 'icon-button', title: 'İşlemler', 'aria-label': 'İşlemler', 'aria-expanded': 'false' }, icon('ellipsis', 18));
   const menu = h('div', { class: 'kebab-menu', onClick: (e: Event) => e.stopPropagation() }, toggle, popover);
   toggle.addEventListener('click', () => {
     const opening = popover.hidden;

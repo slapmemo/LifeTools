@@ -6,13 +6,13 @@ import { h } from './dom';
 import * as ayarlar from './views/ayarlar';
 import * as anasayfa from './views/anasayfa';
 import * as elektrik from './views/elektrik';
+import * as notlar from './views/notlar';
 import * as ortam from './views/ortam';
 import * as pano from './views/pano';
-import * as pencereler from './views/pencereler';
 import * as piller from './views/piller';
 import * as sablonlar from './views/sablonlar';
 
-export type RouteId = 'anasayfa' | 'notlar' | 'gorevler' | 'izleme' | 'sablonlar' | 'pano' | 'ortam' | 'pencereler' | 'piller' | 'elektrik' | 'ayarlar';
+export type RouteId = 'anasayfa' | 'notlar' | 'gorevler' | 'izleme' | 'sablonlar' | 'pano' | 'ortam' | 'piller' | 'elektrik' | 'ayarlar';
 interface NavItem { id: RouteId; label: string; icon: IconName; }
 interface SectionModule { mount: (container: HTMLElement) => void; unmount?: () => void; refresh?: () => Promise<void> | void; }
 
@@ -26,7 +26,6 @@ const TOP_ITEMS: NavItem[] = [
   { id: 'ortam', label: 'Ortam sesi', icon: 'headphones' }
 ];
 const OTHER_ITEMS: NavItem[] = [
-  { id: 'pencereler', label: 'Pencereler', icon: 'app-window' },
   { id: 'piller', label: 'Piller', icon: 'battery-medium' },
   { id: 'elektrik', label: 'Elektrik', icon: 'zap' }
 ];
@@ -37,7 +36,7 @@ const ROUTE_ALIASES: Record<string, RouteId> = {
   notes: 'notlar', notlar: 'notlar', tasks: 'gorevler', gorevler: 'gorevler',
   watchlist: 'izleme', 'izleme-listesi': 'izleme', izleme: 'izleme',
   snippets: 'sablonlar', sablonlar: 'sablonlar', clipboard: 'pano', pano: 'pano',
-  ambient: 'ortam', ortam: 'ortam', windows: 'pencereler', pencereler: 'pencereler',
+  ambient: 'ortam', ortam: 'ortam',
   batteries: 'piller', piller: 'piller', electricity: 'elektrik', elektrik: 'elektrik',
   settings: 'ayarlar', ayarlar: 'ayarlar'
 };
@@ -61,10 +60,10 @@ function placeholderView(iconName: IconName, text: string): SectionModule {
 export function mountMain(root: HTMLElement): void {
   const views: Record<RouteId, SectionModule> = {
     anasayfa: { mount: (container) => anasayfa.mount(container, show) },
-    notlar: placeholderView('notebook-pen', 'Notlar eklentiyle ortak veritabanından gelecek.'),
+    notlar,
     gorevler: placeholderView('list-checks', 'Görevler eklentiyle ortak veritabanından gelecek.'),
     izleme: placeholderView('clapperboard', 'İzleme listesi eklentiyle ortak veritabanından gelecek.'),
-    sablonlar, pano, ortam, pencereler, piller, elektrik, ayarlar
+    sablonlar, pano, ortam, piller, elektrik, ayarlar
   };
 
   const buttons = new Map<RouteId, HTMLButtonElement>();
@@ -133,5 +132,5 @@ export function mountMain(root: HTMLElement): void {
   void listen<string>('navigate', (e) => { const t = ROUTE_ALIASES[e.payload]; if (t) show(t); });
   void listen('ambient-toggle', () => void ortam.toggleFromTray());
   void listen('clipboard-changed', () => { if (current === 'pano') void pano.refresh(); });
-  void listen('windows-changed', () => { if (current === 'pencereler') void pencereler.refresh(); });
+  void listen('notes-changed', () => { if (current === 'notlar') void notlar.refresh(); });
 }

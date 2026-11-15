@@ -3,13 +3,15 @@ import { MODULE_FLAGS_KEY, resolveEnabled } from './module-state';
 export const CONTEXT_MENU_ROOT_ID = 'lifetools';
 export const CONTEXT_MENU_ROOT_TITLE = 'LifeTools';
 
-export type MenuContext = 'selection' | 'editable' | 'link' | 'page';
+export type MenuContext = 'selection' | 'editable' | 'link' | 'page' | 'action';
 
 export interface ContextMenuContribution {
   id: string;
   title: string;
   contexts: readonly MenuContext[];
   targetUrlPatterns?: readonly string[];
+  type?: 'separator';
+  disabled?: boolean;
   parent?: string;
   moduleId?: string;
   enabled: (flags?: unknown) => boolean;
@@ -20,11 +22,13 @@ export interface ContextMenuItemSpec {
   id: string;
   title: string;
   parentId?: string;
+  type?: 'separator';
+  disabled?: boolean;
   contexts: MenuContext[];
   targetUrlPatterns?: string[];
 }
 
-const CANONICAL_CONTEXT_ORDER: readonly MenuContext[] = ['selection', 'editable', 'link', 'page'];
+const CANONICAL_CONTEXT_ORDER: readonly MenuContext[] = ['selection', 'editable', 'link', 'page', 'action'];
 
 const CANONICAL_TOP_ORDER: readonly string[] = [
   'slapmemo',
@@ -78,11 +82,10 @@ export function buildContextMenuTree(
 
   if (topLevel.length === 0) return [];
 
-  const enabledTopIds = new Set(topLevel.map(item => item.id));
   const childrenByParent = new Map<string, ContextMenuContribution[]>();
 
   for (const item of contributions) {
-    if (!item.parent || !enabledTopIds.has(item.parent)) continue;
+    if (!item.parent) continue;
     if (!isItemEnabled(item, flags)) continue;
     const list = childrenByParent.get(item.parent) ?? [];
     list.push(item);
@@ -115,25 +118,13 @@ export function buildContextMenuTree(
     }
   ];
 
-  for (const top of activeTopLevel) {
-    result.push({
-      id: top.id,
-      title: top.title,
-      parentId: CONTEXT_MENU_ROOT_ID,
-      contexts: [...top.contexts],
-      ...(top.targetUrlPatterns ? { targetUrlPatterns: [...top.targetUrlPatterns] } : {})
-    });
-    const children = childrenByParent.get(top.id) ?? [];
-    for (const child of children) {
-      result.push({
-        id: child.id,
-        title: child.title,
-        parentId: top.id,
-        contexts: [...child.contexts],
-        ...(child.targetUrlPatterns ? { targetUrlPatterns: [...child.targetUrlPatterns] } : {})
-      });
-    }
-  }
+  const append = (item: ContextMenuContribution, parentId: string): void => {
+    result.push({ id: item.id, title: item.title, parentId, contexts: [...item.contexts],
+      ...(item.type ? { type: item.type } : {}), ...(item.disabled ? { disabled: true } : {}),
+      ...(item.targetUrlPatterns ? { targetUrlPatterns: [...item.targetUrlPatterns] } : {}) });
+    for (const child of childrenByParent.get(item.id) ?? []) append(child, item.id);
+  };
+  for (const top of activeTopLevel) append(top, CONTEXT_MENU_ROOT_ID);
 
   return result;
 }
@@ -174,11 +165,12 @@ export function clearContextMenuContributions(): void {
 /** Modülün sağ tık menüsü öğelerini kaydeder/günceller ve ağacı yeniden kurmak üzere zamanlar. */
 export function setContextMenuContributions(
   sourceId: string,
-  items: readonly ContextMenuContribution[]
+  items: readonly ContextMenuContribution[],
+  schedule = true
 ): void {
   sourceContributions.set(sourceId, [...items]);
   ensureContextMenuListeners();
-  scheduleContextMenuRebuild();
+  if (schedule) scheduleContextMenuRebuild();
 }
 
 /** Tekil öğe katkısı ekler veya günceller. */
@@ -221,7 +213,8 @@ function createMenuItem(spec: ContextMenuItemSpec): Promise<void> {
     }
     const props: chrome.contextMenus.CreateProperties = {
       id: spec.id,
-      title: spec.title,
+      ...(spec.type === 'separator' ? { type: 'separator' as const } : { title: spec.title }),
+      ...(spec.disabled ? { enabled: false } : {}),
       contexts: spec.contexts as [chrome.contextMenus.ContextType, ...chrome.contextMenus.ContextType[]],
       ...(spec.targetUrlPatterns ? { targetUrlPatterns: spec.targetUrlPatterns } : {}),
       ...(spec.parentId ? { parentId: spec.parentId } : {})

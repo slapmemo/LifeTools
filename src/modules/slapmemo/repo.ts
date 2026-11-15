@@ -107,23 +107,20 @@ export function createNotesRepo(ex: Executor, now: () => number = Date.now) {
     async listNotes(options: ListOptions = {}): Promise<Note[]> {
       const limit = options.limit ?? 50;
       const offset = options.offset ?? 0;
+      // Masaüstünde arşivlenen notlar listede gösterilmez; sabitlenenler önce gelir.
+      const base = 'SELECT n.* FROM notes n LEFT JOIN note_meta m ON m.note_id = n.id WHERE m.archived_at IS NULL';
+      const order = ' ORDER BY coalesce(m.pinned, 0) DESC, n.created_at DESC, n.id DESC LIMIT ? OFFSET ?';
       if (options.category) {
-        return ex.query<Note>(
-          'SELECT * FROM notes WHERE category = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?',
-          [options.category, limit, offset]
-        );
+        return ex.query<Note>(base + ' AND n.category = ?' + order, [options.category, limit, offset]);
       }
-      return ex.query<Note>('SELECT * FROM notes ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?', [
-        limit,
-        offset
-      ]);
+      return ex.query<Note>(base + order, [limit, offset]);
     },
 
     async searchNotes(query: string, category?: NoteCategory | null): Promise<Note[]> {
       const match = buildFtsQuery(query);
       if (!match) return [];
       const sql =
-        'SELECT n.* FROM notes_fts JOIN notes n ON n.id = notes_fts.rowid WHERE notes_fts MATCH ?' +
+        'SELECT n.* FROM notes_fts JOIN notes n ON n.id = notes_fts.rowid LEFT JOIN note_meta m ON m.note_id = n.id WHERE notes_fts MATCH ? AND m.archived_at IS NULL' +
         (category ? ' AND n.category = ?' : '') +
         ' ORDER BY n.created_at DESC, n.id DESC LIMIT ?';
       const params = category ? [match, category, SEARCH_LIMIT] : [match, SEARCH_LIMIT];
@@ -152,7 +149,7 @@ export function createNotesRepo(ex: Executor, now: () => number = Date.now) {
     },
 
     async deleteNote(id: number): Promise<void> {
-      await ex.batch([{ sql: 'DELETE FROM note_images WHERE note_id = ?', params: [id] }, { sql: 'DELETE FROM note_pages WHERE note_id = ?', params: [id] }, { sql: 'DELETE FROM notes WHERE id = ?', params: [id] }]);
+      await ex.batch([{ sql: 'DELETE FROM note_images WHERE note_id = ?', params: [id] }, { sql: 'DELETE FROM note_pages WHERE note_id = ?', params: [id] }, { sql: 'DELETE FROM note_meta WHERE note_id = ?', params: [id] }, { sql: 'DELETE FROM notes WHERE id = ?', params: [id] }]);
     }
   };
 }

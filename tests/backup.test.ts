@@ -11,7 +11,7 @@ test('yedek Türkçe verilerle geri yüklenir ve FTS korunur', async () => {
   await ex.exec("INSERT INTO site_time VALUES ('2026-01-01','örnek.com',42)");
   const backup = await exportData(ex, { enabled: true });
   await ex.exec('DELETE FROM notes'); await ex.exec('DELETE FROM snippets'); await ex.exec('DELETE FROM tasks'); await ex.exec('DELETE FROM site_time');
-  expect(await restoreData(ex, validateBackup(JSON.parse(JSON.stringify(backup))))).toEqual({ notes: 1, snippets: 1, tasks: 1, site_time: 1, sessions: 0, session_tabs: 0, tab_labels: 0, tab_notes: 0, watch_items: 0, note_pages: 0, note_images: 0 });
+  expect(await restoreData(ex, validateBackup(JSON.parse(JSON.stringify(backup))))).toEqual({ notes: 1, snippets: 1, tasks: 1, site_time: 1, sessions: 0, session_tabs: 0, tab_labels: 0, tab_notes: 0, watch_items: 0, note_pages: 0, note_images: 0, note_meta: 0 });
   expect((await exportData(ex, backup.settings)).tables).toEqual(backup.tables);
   expect(await ex.query("SELECT rowid FROM notes_fts WHERE notes_fts MATCH 'calisma' ")).toHaveLength(1);
 });
@@ -36,8 +36,8 @@ test('hatalı geri yükleme ve toplu işlem geri alınır', async () => {
 test('yedek oturumları ve oturum sekmelerini içerir ve geri yükler', async () => {
   const ex = await createMemoryExecutor(); await runMigrations(ex);
   await ex.exec("INSERT INTO sessions VALUES (7,'İş oturumu',100)");
-  await ex.exec("INSERT INTO session_tabs VALUES (1,7,0,'https://örnek.com/a','Başlık',1,NULL,NULL)");
-  await ex.exec("INSERT INTO session_tabs VALUES (2,7,1,'https://example.com/b',NULL,0,'Araştırma','blue')");
+  await ex.exec("INSERT INTO session_tabs (id,session_id,position,url,title,pinned,group_title,group_color) VALUES (1,7,0,'https://örnek.com/a','Başlık',1,NULL,NULL)");
+  await ex.exec("INSERT INTO session_tabs (id,session_id,position,url,title,pinned,group_title,group_color) VALUES (2,7,1,'https://example.com/b',NULL,0,'Araştırma','blue')");
   const backup = await exportData(ex, { zombieTabsHours: 12 });
   expect(backup.tables.sessions).toHaveLength(1);
   expect(backup.tables.session_tabs).toHaveLength(2);

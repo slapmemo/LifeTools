@@ -15,12 +15,6 @@ export interface Settings {
   exclusions: string[];
 }
 
-export interface PinnedWindow {
-  hwnd: number;
-  title: string;
-  exe: string;
-}
-
 export interface Component {
   name: string;
   watts: number;
@@ -51,12 +45,42 @@ export interface Snippet {
   updated_at: number;
 }
 
+export type NoteCategory = 'note' | 'read' | 'watch' | 'idea';
+
+export interface Note {
+  id: number;
+  category: NoteCategory;
+  text: string;
+  url: string | null;
+  page_title: string | null;
+  user_note: string | null;
+  created_at: number;
+  updated_at: number;
+  pinned: boolean;
+  done_at: number | null;
+  archived_at: number | null;
+  remind_at: number | null;
+  has_page: boolean;
+  has_image: boolean;
+}
+
+export interface NoteCounts { all: number; note: number; read: number; watch: number; idea: number; archived: number }
+
+export interface NotesPage {
+  available: boolean;
+  notes: Note[];
+  counts: NoteCounts;
+}
+
+export type NoteSort = 'new' | 'old' | 'updated';
+export interface NoteListOptions { archived: boolean; showDone: boolean; sort: NoteSort }
+
 export interface Prefs {
   battery_notify: boolean;
   copy_only: boolean;
   picker_shortcut: string;
   snippets_shortcut: string;
-  topmost_shortcut: string;
+  quicknote_shortcut: string;
   auto_update?: boolean;
 }
 
@@ -117,6 +141,24 @@ export const api = {
   videoJobs: () => invoke<VideoJob[]>('video_jobs'),
   videoCancel: (jobId: string) => invoke<void>('video_cancel', { jobId }),
   dashboardSummary: () => invoke<DashboardSummary>('dashboard_summary'),
+  noteList: (category: string, query: string, o: NoteListOptions) =>
+    invoke<NotesPage>('note_list', { category, query, archived: o.archived, showDone: o.showDone, sort: o.sort }),
+  noteSetText: (id: number, text: string) => invoke<void>('note_set_text', { id, text }),
+  noteSetCategory: (id: number, category: NoteCategory) => invoke<void>('note_set_category', { id, category }),
+  noteSetPinned: (id: number, pinned: boolean) => invoke<void>('note_set_pinned', { id, pinned }),
+  noteSetDone: (id: number, done: boolean) => invoke<void>('note_set_done', { id, done }),
+  noteSetArchived: (id: number, archived: boolean) => invoke<void>('note_set_archived', { id, archived }),
+  noteSetReminder: (id: number, remindAt: number | null) => invoke<void>('note_set_reminder', { id, remindAt }),
+  noteImage: (id: number) => invoke<string | null>('note_image', { id }),
+  notePage: (id: number) => invoke<{ text: string; saved_at: number } | null>('note_page', { id }),
+  quicknoteAdd: (category: NoteCategory, text: string) => invoke<void>('quicknote_add', { category, text }),
+  quicknoteHide: () => invoke<void>('quicknote_hide'),
+  noteAdd: (category: NoteCategory, text: string, url: string | null, userNote: string | null) =>
+    invoke<number>('note_add', { category, text, url, userNote }),
+  noteUpdate: (id: number, category: NoteCategory, text: string, userNote: string | null) =>
+    invoke<void>('note_update', { id, category, text, userNote }),
+  noteDelete: (id: number) => invoke<void>('note_delete', { id }),
+  noteOpenUrl: (url: string) => invoke<void>('note_open_url', { url }),
   snippetList: (query: string) => invoke<Snippet[]>('snippet_list', { query }),
   snippetSave: (id: number | null, trigger: string, title: string, body: string) =>
     invoke<number>('snippet_save', { id, trigger, title, body }),
@@ -125,7 +167,7 @@ export const api = {
   snippetPickerHide: () => invoke<void>('snippet_picker_hide'),
   prefsGet: () => invoke<Prefs>('prefs_get'),
   prefsSet: (prefs: Prefs) => invoke<void>('prefs_set', { prefs }),
-  shortcutsSet: (picker: string, snippets: string, topmost: string) => invoke<void>('shortcuts_set', { picker, snippets, topmost }),
+  shortcutsSet: (picker: string, snippets: string, quicknote: string) => invoke<void>('shortcuts_set', { picker, snippets, quicknote }),
   batteryList: () => invoke<DeviceBattery[]>('battery_list'),
   presetList: () => invoke<AmbientPreset[]>('ambient_preset_list'),
   presetSave: (name: string, configJson: string) =>
@@ -154,9 +196,6 @@ export const api = {
   settingsSet: (settings: Settings) => invoke<Settings>('settings_set', { settings }),
   autostartGet: () => invoke<boolean>('autostart_get'),
   autostartSet: (enabled: boolean) => invoke<boolean>('autostart_set', { enabled }),
-  windowsList: () => invoke<PinnedWindow[]>('windows_list'),
-  windowsRelease: (hwnd: number) => invoke<PinnedWindow[]>('windows_release', { hwnd }),
-  windowsReleaseAll: () => invoke<PinnedWindow[]>('windows_release_all'),
   pickerHide: () => invoke<void>('picker_hide'),
   elecGet: () => invoke<Electricity>('electricity_get'),
   elecSave: (data: Electricity) => invoke<void>('electricity_save', { data }),

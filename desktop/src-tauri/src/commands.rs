@@ -1,7 +1,6 @@
 use crate::db::{self, ClipboardItem, Settings};
 use crate::electricity::{self, Electricity, Estimate};
 use crate::state::AppState;
-use crate::win::{self, PinnedWindow};
 use std::sync::Arc;
 use std::time::Instant;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -107,29 +106,108 @@ pub fn autostart_set(app: AppHandle, enabled: bool) -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub fn windows_list(state: St) -> Vec<PinnedWindow> {
-    win::list_pinned(&state.pinned)
-}
-
-#[tauri::command]
-pub fn windows_release(app: AppHandle, state: St, hwnd: i64) -> Vec<PinnedWindow> {
-    win::release(&state.pinned, hwnd as isize);
-    let _ = app.emit("windows-changed", ());
-    win::list_pinned(&state.pinned)
-}
-
-#[tauri::command]
-pub fn windows_release_all(app: AppHandle, state: St) -> Vec<PinnedWindow> {
-    win::release_all(&state.pinned);
-    let _ = app.emit("windows-changed", ());
-    win::list_pinned(&state.pinned)
-}
-
-#[tauri::command]
 pub fn picker_hide(app: AppHandle) {
     if let Some(w) = app.get_webview_window("picker") {
         let _ = w.hide();
     }
+}
+
+#[tauri::command]
+pub fn note_list(state: St, category: String, query: String, archived: Option<bool>, show_done: Option<bool>, sort: Option<String>) -> Result<db::NotesPage, String> {
+    let opts = db::ListOptions {
+        category: &category, query: &query, archived: archived.unwrap_or(false),
+        show_done: show_done.unwrap_or(true), sort: sort.as_deref().unwrap_or("new"),
+    };
+    db::list_notes(&state.db(), &opts).map_err(err)
+}
+
+#[tauri::command]
+pub fn note_set_text(state: St, id: i64, text: String) -> Result<(), String> {
+    db::update_note_text(&state.db(), id, &text)
+}
+
+#[tauri::command]
+pub fn note_set_category(state: St, id: i64, category: String) -> Result<(), String> {
+    db::set_note_category(&state.db(), id, &category)
+}
+
+#[tauri::command]
+pub fn note_set_pinned(state: St, id: i64, pinned: bool) -> Result<(), String> {
+    db::set_note_pinned(&state.db(), id, pinned)
+}
+
+#[tauri::command]
+pub fn note_set_done(state: St, id: i64, done: bool) -> Result<(), String> {
+    db::set_note_done(&state.db(), id, done)
+}
+
+#[tauri::command]
+pub fn note_set_archived(state: St, id: i64, archived: bool) -> Result<(), String> {
+    db::set_note_archived(&state.db(), id, archived)
+}
+
+/// `remind_at`: milisaniye; `None` hatırlatmayı kaldırır.
+#[tauri::command]
+pub fn note_set_reminder(state: St, id: i64, remind_at: Option<i64>) -> Result<(), String> {
+    db::set_note_reminder(&state.db(), id, remind_at)
+}
+
+#[tauri::command]
+pub fn note_image(state: St, id: i64) -> Result<Option<String>, String> {
+    db::note_image(&state.db(), id).map_err(err)
+}
+
+#[tauri::command]
+pub fn note_page(state: St, id: i64) -> Result<Option<db::NotePage>, String> {
+    db::note_page(&state.db(), id).map_err(err)
+}
+
+/// Hızlı not penceresinden: not ekler, pencereyi gizler ve onay bildirimi gösterir.
+#[tauri::command]
+pub fn quicknote_add(app: AppHandle, state: St, category: String, text: String) -> Result<(), String> {
+    db::add_note(&state.db(), &category, &text, None, None)?;
+    if let Some(w) = app.get_webview_window("quicknote") { let _ = w.hide(); }
+    crate::toast(&app, "Not eklendi");
+    let _ = app.emit_to("main", "notes-changed", ());
+    Ok(())
+}
+
+#[tauri::command]
+pub fn quicknote_hide(app: AppHandle) {
+    if let Some(w) = app.get_webview_window("quicknote") { let _ = w.hide(); }
+}
+
+#[tauri::command]
+pub fn note_add(state: St, category: String, text: String, url: Option<String>, user_note: Option<String>) -> Result<i64, String> {
+    db::add_note(&state.db(), &category, &text, url.as_deref(), user_note.as_deref())
+}
+
+#[tauri::command]
+pub fn note_update(state: St, id: i64, category: String, text: String, user_note: Option<String>) -> Result<(), String> {
+    db::update_note(&state.db(), id, &category, &text, user_note.as_deref())
+}
+
+#[tauri::command]
+pub fn note_delete(state: St, id: i64) -> Result<(), String> {
+    db::delete_note(&mut state.db(), id).map_err(err)
+}
+
+/// Notun bağlantısını varsayılan tarayıcıda açar; yalnızca http(s) adresleri.
+#[tauri::command]
+pub fn note_open_url(url: String) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    let url = url.trim();
+    let lower = url.to_ascii_lowercase();
+    if !(lower.starts_with("https://") || lower.starts_with("http://")) || url.chars().any(|c| c.is_whitespace() || c == '"') {
+        return Err("Yalnızca http(s) bağlantıları açılabilir.".into());
+    }
+    let root = std::env::var_os("SystemRoot").ok_or("SystemRoot bulunamadı")?;
+    std::process::Command::new(std::path::PathBuf::from(root).join("explorer.exe"))
+        .arg(url)
+        .creation_flags(0x0800_0000)
+        .spawn()
+        .map_err(err)?;
+    Ok(())
 }
 
 #[tauri::command]

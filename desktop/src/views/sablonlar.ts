@@ -71,13 +71,13 @@ export function snippetsView(): View {
     for (const s of items) {
       const menu = rowMenu([
         { label: 'Düzenle', run: () => openForm(s) },
-        { label: 'Kopyala', run: async () => { try { await navigator.clipboard.writeText(s.body); flash('Panoya kopyaland?.'); } catch (e) { flash(errText(e)); } } },
+        { label: 'Kopyala', run: async () => { try { await navigator.clipboard.writeText(s.body); flash('Panoya kopyalandı.'); } catch (e) { flash(errText(e)); } } },
         { label: 'Sil', danger: true, run: async () => { await api.snippetDelete(s.id); await refresh(); } }
       ]);
       list.append(h('div', { class: 'list-row clickable', title: 'Tıkla: düzenle', onClick: () => openForm(s) },
         h('div', { class: 'list-row-content' }, h('strong', {}, s.trigger), ' ' + s.title,
           h('div', { class: 'muted clamp-2' }, s.body)),
-        h('div', { class: 'list-row-meta muted' }, `${s.use_count}?`),
+        h('div', { class: 'list-row-meta muted' }, `${s.use_count}×`),
         h('div', { class: 'list-row-actions' }, menu)));
     }
   }

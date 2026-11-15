@@ -52,7 +52,6 @@ Metin seçimi baloncuğu not, görev, izleme, link ve pano işlemlerinin yanınd
 
 - **Ana sayfa:** Özet kartlarını ve hızlı erişimleri gösterir; uygulamayı açınca buradan ilgili bölüme geç.
 - **Pano geçmişi:** Kopyalanan metinleri ara, sabitle veya sil; `Ctrl+Alt+V` seçiciden panoya geri kopyalar.
-- **Pencereler:** `Ctrl+Alt+T` veya tepsi menüsüyle etkin pencereyi üstte tut; Pencereler bölümünden bırak.
 - **Şablonlar:** Bölümde şablon oluştur; `Ctrl+Shift+Space` ile seçip etkin uygulamaya yapıştır.
 - **Elektrik tahmini:** Bileşen gücü, kullanım süresi ve birim fiyat girerek tüketim ve maliyet tahmini gör.
 - **Piller:** Piller bölümünde Windows'un bildirdiği sistem ve Bluetooth pil düzeylerini gör ve yenile.
