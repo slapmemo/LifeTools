@@ -15,26 +15,6 @@ export interface Settings {
   exclusions: string[];
 }
 
-export interface Component {
-  name: string;
-  watts: number;
-}
-
-export interface Electricity {
-  components: Component[];
-  hours: number;
-  price: number | null;
-}
-
-export interface Estimate {
-  daily_kwh: number;
-  monthly_kwh: number;
-  yearly_kwh: number;
-  daily_tl: number;
-  monthly_tl: number;
-  yearly_tl: number;
-}
-
 export interface Snippet {
   id: number;
   trigger: string;
@@ -73,6 +53,12 @@ export interface NotesPage {
 }
 
 export type NoteSort = 'new' | 'old' | 'updated';
+
+export type WatchKind = 'film' | 'dizi' | 'video' | 'diger';
+export type WatchStatus = 'izlenecek' | 'izleniyor' | 'bitti';
+export interface WatchItem { id: number; title: string; kind: WatchKind; status: WatchStatus; url: string | null; note: string | null; created_at: number; updated_at: number }
+export interface WatchCounts { all: number; izlenecek: number; izleniyor: number; bitti: number }
+export interface WatchPage { available: boolean; items: WatchItem[]; counts: WatchCounts }
 export interface NoteListOptions { archived: boolean; showDone: boolean; sort: NoteSort }
 
 export interface Prefs {
@@ -98,7 +84,7 @@ export interface ExtensionInfo {
 export interface DeviceBattery {
   id: string;
   name: string;
-  kind: 'system' | 'bluetooth';
+  kind: 'system' | 'bluetooth' | 'wireless';
   percent: number;
   charging: boolean | null;
 }
@@ -143,6 +129,12 @@ export const api = {
   dashboardSummary: () => invoke<DashboardSummary>('dashboard_summary'),
   noteList: (category: string, query: string, o: NoteListOptions) =>
     invoke<NotesPage>('note_list', { category, query, archived: o.archived, showDone: o.showDone, sort: o.sort }),
+  watchList: (status: string, kind: string, query: string) => invoke<WatchPage>('watch_list', { status, kind, query }),
+  watchAdd: (title: string, kind: WatchKind, url: string | null, note: string | null) => invoke<number>('watch_add', { title, kind, url, note }),
+  watchUpdate: (id: number, title: string, kind: WatchKind, url: string | null, note: string | null) =>
+    invoke<void>('watch_update', { id, title, kind, url, note }),
+  watchSetStatus: (id: number, status: WatchStatus) => invoke<void>('watch_set_status', { id, status }),
+  watchDelete: (id: number) => invoke<void>('watch_delete', { id }),
   noteSetText: (id: number, text: string) => invoke<void>('note_set_text', { id, text }),
   noteSetCategory: (id: number, category: NoteCategory) => invoke<void>('note_set_category', { id, category }),
   noteSetPinned: (id: number, pinned: boolean) => invoke<void>('note_set_pinned', { id, pinned }),
@@ -196,10 +188,7 @@ export const api = {
   settingsSet: (settings: Settings) => invoke<Settings>('settings_set', { settings }),
   autostartGet: () => invoke<boolean>('autostart_get'),
   autostartSet: (enabled: boolean) => invoke<boolean>('autostart_set', { enabled }),
-  pickerHide: () => invoke<void>('picker_hide'),
-  elecGet: () => invoke<Electricity>('electricity_get'),
-  elecSave: (data: Electricity) => invoke<void>('electricity_save', { data }),
-  elecEstimate: (data: Electricity) => invoke<Estimate>('electricity_estimate', { data })
+  pickerHide: () => invoke<void>('picker_hide')
 };
 
 export function errText(e: unknown): string {

@@ -1,5 +1,4 @@
 use crate::db::{self, ClipboardItem, Settings};
-use crate::electricity::{self, Electricity, Estimate};
 use crate::state::AppState;
 use std::sync::Arc;
 use std::time::Instant;
@@ -119,6 +118,31 @@ pub fn note_list(state: St, category: String, query: String, archived: Option<bo
         show_done: show_done.unwrap_or(true), sort: sort.as_deref().unwrap_or("new"),
     };
     db::list_notes(&state.db(), &opts).map_err(err)
+}
+
+#[tauri::command]
+pub fn watch_list(state: St, status: String, kind: String, query: String) -> Result<db::WatchPage, String> {
+    db::list_watch(&state.db(), &status, &kind, &query).map_err(err)
+}
+
+#[tauri::command]
+pub fn watch_add(state: St, title: String, kind: String, url: Option<String>, note: Option<String>) -> Result<i64, String> {
+    db::add_watch(&state.db(), &title, &kind, url.as_deref(), note.as_deref())
+}
+
+#[tauri::command]
+pub fn watch_update(state: St, id: i64, title: String, kind: String, url: Option<String>, note: Option<String>) -> Result<(), String> {
+    db::update_watch(&state.db(), id, &title, &kind, url.as_deref(), note.as_deref())
+}
+
+#[tauri::command]
+pub fn watch_set_status(state: St, id: i64, status: String) -> Result<(), String> {
+    db::set_watch_status(&state.db(), id, &status)
+}
+
+#[tauri::command]
+pub fn watch_delete(state: St, id: i64) -> Result<(), String> {
+    db::delete_watch(&state.db(), id).map_err(err)
 }
 
 #[tauri::command]
@@ -366,22 +390,6 @@ pub fn extension_open_folder() -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-pub fn electricity_get(state: St) -> Result<Electricity, String> {
-    let raw = db::get_setting(&state.db(), "electricity").map_err(err)?;
-    Ok(raw.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default())
-}
-
-#[tauri::command]
-pub fn electricity_save(state: St, data: Electricity) -> Result<(), String> {
-    let json = serde_json::to_string(&data).map_err(err)?;
-    db::set_setting(&state.db(), "electricity", &json).map_err(err)
-}
-
-#[tauri::command]
-pub fn electricity_estimate(data: Electricity) -> Result<Estimate, String> {
-    electricity::estimate(&data)
-}
 #[tauri::command]
 pub fn video_tools_status() -> Result<crate::video_dl::ToolStatus, String> { crate::video_dl::status() }
 #[tauri::command]

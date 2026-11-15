@@ -6,12 +6,14 @@ mod snippets;
 mod prefs;
 mod clipboard;
 mod notes;
+mod watch;
 
 pub use dashboard::*;
 pub use snippets::*;
 pub use prefs::*;
 pub use clipboard::*;
 pub use notes::*;
+pub use watch::*;
 
 #[cfg(test)]
 mod tests;

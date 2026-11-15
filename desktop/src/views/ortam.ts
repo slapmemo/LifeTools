@@ -55,7 +55,7 @@ export function ambientView(): View {
     const vol = h('input', { type: 'range', min: '0', max: '100', 'aria-label': `${CHANNEL_LABELS[id]} ses düzeyi` });
     const card = h('div', { class: 'card sound-card' },
       h('div', { class: 'sound-card-header' }, h('span', { class: 'sound-icon' }, icon(sound.icon, 22)),
-        h('strong', { class: 'grow' }, CHANNEL_LABELS[id]), h('label', { class: 'switch' }, on)),
+        h('strong', { class: 'grow' }, CHANNEL_LABELS[id]), h('label', { class: 'switch', title: 'Aç / kapat' }, on, h('span', { class: 'switch-track' }))),
       h('label', { class: 'sound-volume' }, h('span', { class: 'muted' }, 'Ses düzeyi'), vol));
     chRows.set(id, { on, vol, card });
     const changed = () => {

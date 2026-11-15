@@ -33,7 +33,6 @@ cargo test
 - **Notlar:** Eklentiyle ortak notları ekle, düzenle ve ara. Markdown (başlık, liste, `- [ ]` yapılacak, **kalın**, `kod`), `#etiket` ile süzme, sabitleme, tamamlandı işareti, arşiv, Windows bildirimiyle hatırlatma ve 6 saniye içinde geri alınabilen silme var. Eklentinin kaydettiği görsel ve sayfa metni notun altında görünür. `Ctrl+Alt+N` ya da tepsi menüsündeki «Hızlı not» her yerden küçük bir not penceresi açar.
 - **Pano geçmişi:** Metinleri ara, sabitle, sil veya kaydı duraklat. `Ctrl+Alt+V` seçicisi bir metni panoya kopyalar; otomatik yapıştırmaz.
 - **Şablonlar:** Şablonları oluştur ve ara; `Ctrl+Shift+Space` seçicisinde Enter ile önceki pencereye yapıştır. Ayarlar'da yalnızca panoya kopyalama seçilebilir; yazarken otomatik genişletme yoktur.
-- **Elektrik tahmini:** Güç, günlük kullanım ve birim fiyattan tahmini tüketim ve maliyeti hesapla.
 - **Piller:** Windows'un bildirdiği sistem ve Bluetooth pil düzeylerini gör; düşük pil bildirimini Ayarlar'dan yönet.
 - **Ortam sesi:** Cihazda üretilen sesleri karıştır, zamanlayıcı ve ön ayar kullan; tepsi menüsünden oynatmayı kontrol et.
 - **Ayarlar:** Tema, Windows başlangıcı, pano saklama süresi ve sınırı, hariç tutulan uygulamalar, şablon modu ve bildirimleri düzenle. Her kısayol tek tek ya da «Tümünü kapat» ile kapatılabilir. Buradan yedek indirebilir ve Chrome bağlantısını yönetebilirsin.

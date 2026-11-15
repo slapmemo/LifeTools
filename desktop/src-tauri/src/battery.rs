@@ -8,7 +8,7 @@ pub const LOW_THRESHOLD: u8 = 20;
 pub struct DeviceBattery {
     pub id: String,
     pub name: String,
-    /// "system" | "bluetooth"
+    /// "system" | "bluetooth" | "wireless" (USB alıcılı)
     pub kind: String,
     pub percent: u8,
     /// Yalnızca Windows bildiriyorsa dolu (sistem pili).
@@ -54,6 +54,46 @@ pub fn bluetooth_device(name: &str, percent: u8) -> DeviceBattery {
         percent,
         charging: None,
     }
+}
+
+// ---------- USB alıcılı ATK/Compx (VID 0x373B) fareler ----------
+// Üretici sürücüsünün HID protokolü (topluluk çalışması: github.com/cyberphantom52/libatk-rs).
+// Rapor 0x08, 17 bayt: [rapor, komut, durum, adres(2), veri uzunluğu, veri(10), sağlama].
+// Sağlama = 0x55 - (ilk 16 baytın toplamı). Komut 0x04 = pil düzeyini oku (yalnız okuma).
+
+pub const ATK_VENDOR_ID: u16 = 0x373B;
+pub const ATK_USAGE_PAGE: u16 = 0xFF02;
+pub const ATK_REPORT_ID: u8 = 0x08;
+pub const ATK_REPORT_LEN: usize = 17;
+const ATK_CMD_BATTERY: u8 = 0x04;
+
+fn atk_checksum(bytes: &[u8]) -> u8 {
+    0x55u8.wrapping_sub(bytes.iter().fold(0u8, |acc, b| acc.wrapping_add(*b)))
+}
+
+/// Pil sorgusu raporu.
+pub fn atk_battery_request() -> [u8; ATK_REPORT_LEN] {
+    let mut r = [0u8; ATK_REPORT_LEN];
+    r[0] = ATK_REPORT_ID;
+    r[1] = ATK_CMD_BATTERY;
+    r[ATK_REPORT_LEN - 1] = atk_checksum(&r[..ATK_REPORT_LEN - 1]);
+    r
+}
+
+/// Pil cevabını çözer: (yüzde, şarj oluyor mu). Başka bir rapor, bozuk sağlama ya da
+/// fare çevrim dışıyken (veri yok) None.
+pub fn parse_atk_battery(resp: &[u8]) -> Option<(u8, bool)> {
+    if resp.len() < ATK_REPORT_LEN || resp[0] != ATK_REPORT_ID || resp[1] != ATK_CMD_BATTERY { return None; }
+    if atk_checksum(&resp[..ATK_REPORT_LEN - 1]) != resp[ATK_REPORT_LEN - 1] { return None; }
+    if resp[5] < 1 { return None; }
+    let percent = resp[6];
+    if percent > 100 { return None; }
+    let charging = resp[5] >= 2 && resp[7] != 0;
+    Some((percent, charging))
+}
+
+pub fn wireless_device(id: &str, name: &str, percent: u8, charging: bool) -> DeviceBattery {
+    DeviceBattery { id: format!("usb:{id}"), name: name.to_string(), kind: "wireless".into(), percent, charging: Some(charging) }
 }
 
 /// Aynı aygıt birden çok düğüm olarak görünebilir; ada göre ilk kayıt tutulur.
@@ -165,5 +205,22 @@ mod tests {
         assert_eq!(t.update(&[dev("a", 10, Some(false))], 20).len(), 1);
         assert!(t.update(&[dev("a", 10, Some(true))], 20).is_empty());
         assert_eq!(t.update(&[dev("a", 10, Some(false))], 20).len(), 1);
+    }
+
+    #[test]
+    fn atk_request_and_real_response() {
+        assert_eq!(atk_battery_request(), [0x08, 0x04, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x49]);
+        // ATK A9 Plus'tan gelen gerçek cevap (%90, şarj olmuyor).
+        let real = [0x08, 0x04, 0x00, 0x00, 0x00, 0x02, 0x5a, 0x00, 0x0f, 0xbe, 0, 0, 0, 0, 0, 0, 0x20];
+        assert_eq!(parse_atk_battery(&real), Some((90, false)));
+        let mut charging = real; charging[7] = 1; charging[16] = charging[16].wrapping_sub(1);
+        assert_eq!(parse_atk_battery(&charging), Some((90, true)));
+        let mut bad = real; bad[16] ^= 1;
+        assert_eq!(parse_atk_battery(&bad), None, "bozuk sağlama");
+        let mut other = real; other[1] = 0x03; other[16] = other[16].wrapping_add(1);
+        assert_eq!(parse_atk_battery(&other), None, "başka komut");
+        let mut offline = real; offline[5] = 0; offline[16] = offline[16].wrapping_add(2);
+        assert_eq!(parse_atk_battery(&offline), None, "veri yok");
+        assert_eq!(parse_atk_battery(&real[..10]), None);
     }
 }

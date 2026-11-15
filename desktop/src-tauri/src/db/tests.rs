@@ -442,3 +442,45 @@
         let metas: i64 = d.query_row("SELECT count(*) FROM note_meta WHERE note_id=?1", [a], |r| r.get(0)).unwrap();
         assert_eq!(metas, 0);
     }
+
+    fn watch_db() -> Connection {
+        let d = Connection::open_in_memory().unwrap();
+        d.execute_batch("CREATE TABLE watch_items (id INTEGER PRIMARY KEY, title TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('film','dizi','video','diger')), status TEXT NOT NULL DEFAULT 'izlenecek' CHECK(status IN ('izlenecek','izleniyor','bitti')), url TEXT, note TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)").unwrap();
+        d
+    }
+
+    #[test]
+    fn watch_unavailable_until_moved() {
+        let d = Connection::open_in_memory().unwrap();
+        assert!(!list_watch(&d, "", "", "").unwrap().available);
+        assert_eq!(add_watch(&d, "Film", "film", None, None).unwrap_err(), NOT_MOVED_WATCH);
+    }
+
+    #[test]
+    fn watch_add_list_filter_update_status_delete() {
+        let d = watch_db();
+        let a = add_watch(&d, "  Yüzüklerin Efendisi ", "film", Some(" "), Some("uzun sürüm")).unwrap();
+        let b = add_watch(&d, "Dark", "dizi", Some("https://ornek.com/dark"), None).unwrap();
+        let item = get_watch(&d, a).unwrap().unwrap();
+        assert_eq!((item.title.as_str(), item.status.as_str(), item.url.clone()), ("Yüzüklerin Efendisi", "izlenecek", None));
+        assert!(item.created_at > 1_000_000_000_000, "milisaniye olmalı");
+        assert_eq!(list_watch(&d, "", "", "").unwrap().items.len(), 2);
+        assert_eq!(list_watch(&d, "", "dizi", "").unwrap().items[0].id, b);
+        assert_eq!(list_watch(&d, "", "", "yuzuk").unwrap().items[0].id, a, "Türkçe harfsiz arama da bulur");
+        assert_eq!(list_watch(&d, "", "", "yüzük").unwrap().items[0].id, a);
+        assert_eq!(list_watch(&d, "", "", "SÜRÜM").unwrap().items[0].id, a);
+        set_watch_status(&d, a, "izleniyor").unwrap();
+        let page = list_watch(&d, "izleniyor", "", "").unwrap();
+        assert_eq!(page.items.iter().map(|i| i.id).collect::<Vec<_>>(), vec![a]);
+        assert_eq!(page.counts, WatchCounts { all: 2, izlenecek: 1, izleniyor: 1, bitti: 0 });
+        assert!(set_watch_status(&d, a, "kotu").is_err());
+        assert!(add_watch(&d, "x", "kitap", None, None).is_err());
+        assert!(add_watch(&d, "   ", "film", None, None).is_err());
+        assert!(add_watch(&d, "x", "film", Some("ftp://a"), None).is_err());
+        update_watch(&d, b, "Dark (2017)", "dizi", None, Some("3 sezon")).unwrap();
+        let updated = get_watch(&d, b).unwrap().unwrap();
+        assert_eq!((updated.title.as_str(), updated.url.clone(), updated.note.as_deref()), ("Dark (2017)", None, Some("3 sezon")));
+        assert!(update_watch(&d, 999, "x", "film", None, None).is_err());
+        delete_watch(&d, a).unwrap();
+        assert!(get_watch(&d, a).unwrap().is_none());
+    }

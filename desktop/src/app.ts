@@ -5,39 +5,37 @@ import { icon, type IconName } from '../../design/icons';
 import { h } from './dom';
 import * as ayarlar from './views/ayarlar';
 import * as anasayfa from './views/anasayfa';
-import * as elektrik from './views/elektrik';
+import * as izleme from './views/izleme';
 import * as notlar from './views/notlar';
 import * as ortam from './views/ortam';
 import * as pano from './views/pano';
 import * as piller from './views/piller';
 import * as sablonlar from './views/sablonlar';
 
-export type RouteId = 'anasayfa' | 'notlar' | 'gorevler' | 'izleme' | 'sablonlar' | 'pano' | 'ortam' | 'piller' | 'elektrik' | 'ayarlar';
+export type RouteId = 'anasayfa' | 'notlar' | 'izleme' | 'sablonlar' | 'pano' | 'ortam' | 'piller' | 'ayarlar';
 interface NavItem { id: RouteId; label: string; icon: IconName; }
 interface SectionModule { mount: (container: HTMLElement) => void; unmount?: () => void; refresh?: () => Promise<void> | void; }
 
 const TOP_ITEMS: NavItem[] = [
   { id: 'anasayfa', label: 'Ana sayfa', icon: 'home' },
   { id: 'notlar', label: 'Notlar', icon: 'notebook-pen' },
-  { id: 'gorevler', label: 'Görevler', icon: 'list-checks' },
   { id: 'izleme', label: 'İzleme listesi', icon: 'clapperboard' },
   { id: 'sablonlar', label: 'Şablonlar', icon: 'message-square-text' },
   { id: 'pano', label: 'Pano', icon: 'clipboard' },
   { id: 'ortam', label: 'Ortam sesi', icon: 'headphones' }
 ];
 const OTHER_ITEMS: NavItem[] = [
-  { id: 'piller', label: 'Piller', icon: 'battery-medium' },
-  { id: 'elektrik', label: 'Elektrik', icon: 'zap' }
+  { id: 'piller', label: 'Piller', icon: 'battery-medium' }
 ];
 const BOTTOM_ITEM: NavItem = { id: 'ayarlar', label: 'Ayarlar', icon: 'settings' };
 
 const ROUTE_ALIASES: Record<string, RouteId> = {
   home: 'anasayfa', 'ana-sayfa': 'anasayfa', anasayfa: 'anasayfa',
-  notes: 'notlar', notlar: 'notlar', tasks: 'gorevler', gorevler: 'gorevler',
+  notes: 'notlar', notlar: 'notlar',
   watchlist: 'izleme', 'izleme-listesi': 'izleme', izleme: 'izleme',
   snippets: 'sablonlar', sablonlar: 'sablonlar', clipboard: 'pano', pano: 'pano',
   ambient: 'ortam', ortam: 'ortam',
-  batteries: 'piller', piller: 'piller', electricity: 'elektrik', elektrik: 'elektrik',
+  batteries: 'piller', piller: 'piller',
   settings: 'ayarlar', ayarlar: 'ayarlar'
 };
 
@@ -49,21 +47,12 @@ function writeOtherCollapsed(collapsed: boolean): void {
   try { localStorage.setItem(OTHER_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch { /* yoksay */ }
 }
 
-function placeholderView(iconName: IconName, text: string): SectionModule {
-  return {
-    mount(container: HTMLElement): void {
-      container.replaceChildren(h('div', { class: 'empty-state' }, h('div', { class: 'empty-icon' }, icon(iconName, 24)), h('p', { class: 'empty-title' }, text)));
-    }
-  };
-}
-
 export function mountMain(root: HTMLElement): void {
   const views: Record<RouteId, SectionModule> = {
     anasayfa: { mount: (container) => anasayfa.mount(container, show) },
     notlar,
-    gorevler: placeholderView('list-checks', 'Görevler eklentiyle ortak veritabanından gelecek.'),
-    izleme: placeholderView('clapperboard', 'İzleme listesi eklentiyle ortak veritabanından gelecek.'),
-    sablonlar, pano, ortam, piller, elektrik, ayarlar
+    izleme,
+    sablonlar, pano, ortam, piller, ayarlar
   };
 
   const buttons = new Map<RouteId, HTMLButtonElement>();

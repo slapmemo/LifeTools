@@ -6,7 +6,6 @@ mod battery_win;
 mod clipboard;
 mod commands;
 mod db;
-mod electricity;
 mod extension_dir;
 mod native_host;
 mod native_reg;
@@ -379,14 +378,16 @@ fn main() {
             commands::autostart_get,
             commands::autostart_set,
             commands::picker_hide,
-            commands::electricity_get,
-            commands::electricity_save,
-            commands::electricity_estimate,
             commands::note_list,
             commands::note_add,
             commands::note_update,
             commands::note_delete,
             commands::note_open_url,
+            commands::watch_list,
+            commands::watch_add,
+            commands::watch_update,
+            commands::watch_set_status,
+            commands::watch_delete,
             commands::note_set_text,
             commands::note_set_category,
             commands::note_set_pinned,

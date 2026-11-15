@@ -75,14 +75,11 @@ body[data-view='toast'], body[data-view='picker'], body[data-view='snippets'], b
 .picker-row.selected { background: var(--accent-soft); }
 
 .switch { gap: var(--space-8); white-space: nowrap; }
-.electricity-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--space-12); align-items: start; }
-.electricity-form h3, .electricity-result-card h3, .settings-card h3 { margin: 0 0 var(--space-12); }
-.electricity-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-12); margin-top: var(--space-16); }
+.settings-card h3 { margin: 0 0 var(--space-12); }
 .field { display: flex; flex-direction: column; gap: var(--space-8); }
 .field input, .field textarea { width: 100%; }
-.electricity-result-row, .settings-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); padding: var(--space-12) 0; border-bottom: 1px solid var(--border); }
-.electricity-result-row:last-child, .settings-row:last-child { border-bottom: 0; }
-.electricity-result-row strong { font-size: var(--font-size-15); }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); padding: var(--space-12) 0; border-bottom: 1px solid var(--border); }
+.settings-row:last-child { border-bottom: 0; }
 .settings-view { max-width: 850px; }
 .settings-card { margin-bottom: var(--space-12); }
 .settings-card .field { margin-top: var(--space-12); }
@@ -162,3 +159,9 @@ body[data-view='toast'], body[data-view='picker'], body[data-view='snippets'], b
 .quicknote .hint { flex: 1; color: var(--danger); }
 
 .note-add .note-add-text { min-height: 96px; max-height: 80vh; resize: vertical; line-height: 1.5; }
+
+/* ---------- İzleme listesi ---------- */
+.watch-title { font-weight: 600; overflow-wrap: anywhere; }
+.watch-title.done { color: var(--muted); text-decoration: line-through; }
+.watch-status.izleniyor { background: var(--accent-soft); color: var(--accent); }
+.watch-status.bitti { color: var(--muted); }

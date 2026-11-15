@@ -19,10 +19,6 @@ export function mount(container: HTMLElement, navigate: (route: RouteId) => void
     if (!grid.isConnected) return;
     const active = Object.values(ambient.config.channels).filter((channel) => channel.on).length;
     grid.replaceChildren(
-      card('Görevler', !s.tasks_available ? [empty('Chrome eklentisi bağlı değil')] : [
-        row(`${s.open_count} açık görev · ${s.overdue_count} gecikmiş`),
-        ...(s.today_tasks.length ? s.today_tasks.map((task) => row(task.title)) : [empty('Bugün görev yok')])
-      ]),
       card('Notlar', !s.notes_available ? [empty('Chrome eklentisi bağlı değil')] : s.notes.length ? s.notes.map((note) => row(`${note.title} · ${fmtTime(note.updated_at)}`)) : [empty('Henüz not yok')]),
       card('Bugün sitelerde', !s.sites_available ? [empty('Chrome eklentisi bağlı değil')] : s.sites.length ? s.sites.map((site) => row(`${site.domain} · ${Math.floor(site.seconds / 60)} dk`)) : [empty('Bugün site kaydı yok')]),
       card('Piller', s.batteries.length ? s.batteries.map((battery) => row(`${battery.name} · %${battery.percent}`)) : [empty('Pil bilgisi bulunamadı')], 'piller'),

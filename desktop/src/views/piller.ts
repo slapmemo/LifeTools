@@ -17,6 +17,11 @@ export function batteriesView(): View {
       { class: 'muted' },
       "Yalnızca Windows'un bildirdiği değerler gösterilir; tahmin yapılmaz. 5 dakikada bir yenilenir. Pil %20 altına düşünce bildirim Ayarlar'dan kapatılabilir."
     ),
+    h(
+      'p',
+      { class: 'hint' },
+      "USB alıcılı (2.4 GHz) aygıtlar pil düzeyini Windows'a bildirmez. ATK/Compx yongalı fareler (ör. ATK A9) üreticinin protokolüyle okunur; diğer markalar (Razer, Logitech alıcıları vb.) şimdilik görünmez."
+    ),
     h('div', { class: 'toolbar' }, h('button', { onClick: () => void refresh() }, 'Yenile')),
     status,
     list
@@ -25,7 +30,7 @@ export function batteriesView(): View {
   function render(items: DeviceBattery[]): void {
     list.replaceChildren();
     if (items.length === 0) {
-      list.append(emptyState('Cihaz bulunamadı', "Windows'un pil düzeyi bildirdiği aygıt bulunamadı."));
+      list.append(emptyState('Cihaz bulunamadı', 'Pil düzeyi okunabilen aygıt yok (Bluetooth aygıtı, dizüstü pili ya da desteklenen USB alıcılı fare). Fare uykudaysa bir kez oynatıp Yenile de.'));
       return;
     }
     for (const d of items) {
@@ -37,7 +42,7 @@ export function batteriesView(): View {
           'div',
           { class: 'card battery-card' },
           h('div', { class: 'battery-heading' }, icon('battery-medium', 22),
-            h('div', { class: 'grow' }, h('strong', {}, d.name), h('div', { class: 'muted' }, d.kind === 'system' ? 'Sistem' : 'Bluetooth')),
+            h('div', { class: 'grow' }, h('strong', {}, d.name), h('div', { class: 'muted' }, d.kind === 'system' ? 'Sistem' : d.kind === 'wireless' ? 'USB alıcı' : 'Bluetooth')),
             h('strong', {}, `%${d.percent}`)),
           h('div', { class: 'bar battery-bar', role: 'progressbar', 'aria-label': `${d.name} pil düzeyi`, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(d.percent) }, fill),
           d.charging === true ? h('div', { class: 'battery-charging' }, icon('zap', 14), 'Şarj oluyor') : null
