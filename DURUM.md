@@ -1,6 +1,6 @@
 # LifeTools — Kaldığımız Yer
 
-> Son güncelleme: 10 Kasım 2026 (gece) · sürüm 0.5.6 · dal master (push edildi; `v0.5.5` ve `v0.5.6` Releases'te yayında)
+> Son güncelleme: 15 Kasım 2026 · sürüm 0.5.7 · dal master (push edildi; `v0.5.7` Releases'te)
 > Yeni bir sohbete/oturuma başlarken önce bu dosyayı oku. Eski planlar: `../LifeTools_Plan_v3_2026-11-06.md`, `../LifeTools_Arayuz_Plani_2026-11-06.md`, `../LifeTools_Ozellik_Rehberi_2026-11-08.md`.
 
 ## 1. Durum özeti
@@ -9,13 +9,21 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 
 | Alan | Durum |
 |---|---|
-| Sürüm | 0.5.6. `v0.5.5` ve `v0.5.6` GitHub Actions ile yayımlandı (yükleyici, `.sig`, `latest.json`, eklenti ZIP'i). `latest.json` 0.5.6'yı gösteriyor. |
+| Sürüm | 0.5.7. `v0.5.5`–`v0.5.7` GitHub Actions ile yayımlandı (yükleyici, `.sig`, `latest.json`, eklenti ZIP'i). |
 | Otomatik güncelleme | Yeni. Masaüstü imzalı güncellemeyi kendisi kurar; eklentiyi `%LOCALAPPDATA%\LifeTools\extension` klasöründe güncel tutar; eklenti oradan yüklendiyse kendini yeniden yükler. 0.5.5 → 0.5.6 otomatik güncellemesi henüz bir bilgisayarda doğrulanmadı (0.5.4 ve öncesinde güncelleyici yok, onlar elle kurmalı). |
-| Testler | Eklenti 269 test (vitest), masaüstü 83 test (`cargo test`). |
+| Testler | Eklenti 303 test (`npm test`), masaüstü 87 test (`cargo test`). Çıplak `npx vitest run` `legacy-x-prototype/tests/rules.test.mjs`'yi de toplar ve «test yok» der; `npm test` (`--dir tests`) kullan. |
 | İlk kurulum | Yeni kurulumda karşılama sayfası (`welcome.html`) açılır; önerilen modüller açık gelir (`src/core/onboarding.ts` `RECOMMENDED_MODULES`). Panel › Ayarlar'dan yeniden açılır. Güncellemede açılmaz. |
 | Arayüz | Panel, sekme değiştirici ve popup «yeni» tasarımda (yazılı kenar menüsü, mor vurgu #A69CFF, gerçek LT logosu satır içi SVG). Tasarım tuvali: claude.ai artifact «LifeTools Yeni Arayüz». |
 
-### Bu oturumda eklenenler (10 Kasım)
+### 0.5.7 (15 Kasım)
+- **Masaüstü Notlar (U4'ün ilk parçası):** eklentiyle ortak not ekranı. Sayılı sekmeler + Arşiv, sıralama, tamamlananları gizle, `#etiket` çubuğu ve aramada `#etiket`, Markdown (başlık, liste, tıklanabilir `- [ ]`, kalın/eğik/kod, bağlantı; `desktop/src/markdown.ts`, innerHTML yok), sabitleme, tamamlandı, arşiv, hatırlatma (Windows bildirimi, 20 sn'de bir `take_due_reminders`), eklentinin kaydettiği görsel ve sayfa metni, satırda kategori değiştirme ve kopyala, 6 sn geri alınabilen silme, büyüyen ve boyutu hatırlanan ekleme kutusu.
+- **`note_meta` tablosu:** sabit/tamamlandı/arşiv/hatırlatma burada; `notes`'a sütun eklenmez. Eklenti migrasyon 11 ve masaüstü `NOTE_META_DDL` aynı `CREATE TABLE IF NOT EXISTS` ifadesi (test `tests/note-meta.test.ts` eşitliği denetler). Yedekte var; eklenti arşivlenenleri listede/aramada gizler, sabitlenenleri önce gösterir.
+- **Hızlı not:** `Ctrl+Alt+N` veya tepsi «Hızlı not» → `quicknote` penceresi (`desktop/src/quicknote.ts`).
+- **Kısayollar kapatılabilir:** boş metin = kapalı (kaydedilmez); Ayarlar'da her kısayolun aç/kapa kutusu, «Tümünü kapat», «Varsayılana dön» (bu düğme ve hata metni daha önce sayfaya hiç eklenmemişti).
+- **Üstte tutma kaldırıldı:** `Ctrl+Alt+T`, tepsi öğesi, Pencereler sayfası, `windows_*` komutları ve ilgili Win32 kodu.
+- **Sekme yöneticisi:** sekmeyi kayıtlı gruba kaydetme kısayolu (`save-tab-to-group`), sürükle-bırak, sağ tık menüsü (`menu-logic.ts`, `saved-group-append.ts`).
+
+### 10 Kasım oturumunda eklenenler
 - **Instagram:** görünmeyen/kırpılmış/pencere arkasındaki videolarda düğme ve çubuk yok; Keşfet ızgarasında kontrol yok; ana sayfa düzeltmesi (`<html>`/`<body>` kırpıcı sayılmaz); hız düğmesi menü açar (0,5×–3×, tekerlekle adım). Tek ortak zamanlayıcı (`src/modules/instagram/scheduler.ts`), oynatırken kare başı hesap yok.
 - **Video İndirici (YouTube):** boyutlar sayfadaki oynatıcı verisinden anında (`yt-main.ts`, MAIN dünyası); oynatma listesi indirme (tümü veya «Videoları seç…» ile seçilenler, onay kutuları + alt çubuk, Shift ile aralık); düğme «Tümünü oynat» satırının altında, bulunamazsa sol altta yüzer; gizli liste uyarısı; MP3 en yüksek VBR (`--audio-quality 0`); durum etiketi yalnızca o sayfanın indirmesini gösterir; masaüstü yalnızca süren iş varken ve sekme görünürken sorgulanır.
 - **Döviz Çevirici (yeni modül `currency`):** ECB kuru (api.frankfurter.dev, 6 saat önbellek); Steam'in tüm mağaza sayfalarında fiyatlar Steam'in kendi kutusunda TL (tıklayınca o sayfada dolar); tüm sitelerde üstüne gelince/seçince TL ipucu (varsayılan kapalı, tüm site izni ister); «5 Mark», «5 euro», «10 dolar» gibi yazılar (DM sabit kur 1,95583); SlapMemo baloncuğunda seçili fiyatın TL'si.
@@ -28,15 +36,16 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 1. Otomatik güncellemeyi doğrula: 0.5.5 kurulu bilgisayarda masaüstü 0.5.6'ya kendiliğinden geçti mi (Ayarlar › Güncellemeler › Güncellemeleri denetle), eklenti `%LOCALAPPDATA%\LifeTools\extension`'dan yüklüyse 0.5.6 oldu mu? Olmadıysa güncelleyici günlüğüne/hata metnine bak. 0.5.5 kurulu değilse 0.5.6'yı elle kur, deneme 0.5.7'de.
 2. 0.5.6 değişikliklerini dene: Panel'den yedek al ve geri yükle (masaüstü arka ucu ile), YouTube'da indirme sırasında Görev Yöneticisi'nde `lifetools-desktop.exe` sayısı artmamalı.
 3. Kullanıcı testleri: YouTube liste seçerek indirme, Steam ana sayfa TL, Instagram ana sayfa/Keşfet, popup ses kartı.
-4. U4 (masaüstünde Notlar, Görevler, İzleme listesi) ve U5 (CC0 ortam sesleri; önce aday listesi, kullanıcı onayı) bekliyor.
-5. İsteğe bağlı: hafif takip engelleme modülü (önerildi, kullanıcı «her neyse» dedi), SmartScreen için kod imzalama.
+4. 0.5.7'yi gerçek kullanımda dene: hatırlatma bildirimi geliyor mu, `Ctrl+Alt+N`, eklentide arşivlenen notun gizlenmesi (eklentide ↻ sonrası migrasyon 11).
+5. U4'ün kalanı (masaüstünde Görevler, İzleme listesi) ve U5 (CC0 ortam sesleri; önce aday listesi, kullanıcı onayı) bekliyor.
+6. İsteğe bağlı: hafif takip engelleme modülü (önerildi, kullanıcı «her neyse» dedi), SmartScreen için kod imzalama.
 
 ## 3. Nasıl çalıştırılır
 
 - **Eklenti:** `npm install` → `npm run build` → `chrome://extensions` → Geliştirici modu → Paketlenmemiş öğe yükle → `dist/`. Değişiklikten sonra `npm run build` + eklentide ↻.
 - **Masaüstü:** `cd desktop` → `npm install` → `npm run tauri dev`. Testler: `cd desktop/src-tauri && cargo test`. Yükleyici: `npm run tauri build` (önce kökte `npm run build`, çünkü `dist/` yükleyiciye `extension/` olarak gömülür).
 - **Yayın:** tüm sürüm dosyalarını yükselt (aşağıda), commit, `git tag vX.Y.Z` + `git push origin vX.Y.Z`. `.github/workflows/release.yml` sürüm uyuşmazsa durur; derler, imzalar, `latest.json` ve `LifeTools-extension-X.Y.Z.zip` yükler. README'de «Sürüm yayınlama ve otomatik güncelleme» bölümü var.
-- **Sürüm dosyaları:** `package.json`, `package-lock.json` (2 yer), `src/manifest.json`, `desktop/package.json`, `desktop/package-lock.json` (2 yer), `desktop/src-tauri/tauri.conf.json`, `desktop/src-tauri/Cargo.toml`, `Cargo.lock` (`lifetools-desktop` girdisi). Küçük yama adımları (0.5.5 → 0.5.6).
+- **Sürüm dosyaları:** `package.json`, `package-lock.json` (2 yer), `src/manifest.json`, `desktop/package.json`, `desktop/package-lock.json` (2 yer), `desktop/src-tauri/tauri.conf.json`, `desktop/src-tauri/Cargo.toml`, `Cargo.lock` (`lifetools-desktop` girdisi). Küçük yama adımları (0.5.6 → 0.5.7); kullanıcı büyük atlama istemiyor.
 
 ## 4. Bilinmesi gerekenler (tuzaklar)
 
@@ -55,6 +64,9 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 - **Arka plan sunucuları `dist/` içinde çalışmasın:** `npm run build` `dist/`'i silerken EBUSY verir. Demo/test sunucularını kopya klasörden aç.
 - **Delegeler:** `cargo` çalıştıramaz; doğrulayıcı `~/.cargo/bin`'i PATH'e eklemeli; komutlarda `!` yerine bash betiği; Windows Python'u `/c/...` yollarını açamaz (`cygpath -w` kullan). Terra bazen işi yarım bırakır → bağlantı kontrolleri koy. Türkçe karakter bozulması taraması: `grep -E "[a-zA-Zçğışöü]\?[a-zA-Zçğışöü]"` (`\x3f` ile yazılmış `?` normaldir).
 - **Masaüstünde yazarken genişletme bilerek yok** (küresel klavye kancası riski).
+- **Elle kurulumda exe kilitli kalır:** Chrome eklentisi native host üzerinden `lifetools-desktop.exe`'yi hemen yeniden başlatır; NSIS `/S` «başarılı» deyip eski exe'yi bırakır. Çalışan exe'yi önce yeniden adlandır (`lifetools-desktop.old.exe`), sonra yükleyiciyi çalıştır, eski işlemi kapat ve dosyayı sil.
+- **Veri kurtarma (WAL):** `%APPDATA%\LifeTools\lifetools.db` WAL kipinde; ana dosya yalnız checkpoint'te yazılır. Silinen veri, ana dosyanın **kopyası** WAL'sız açılarak (son checkpoint hali) ya da WAL'ı commit commit kopyada yeniden oynatarak bulunabilir. Asıl dosyalara dokunma.
+- **Tauri eklentileri sabit sürüm:** `tauri-plugin-notification = "=2.4.0"` (Tauri 2.11 ile uyumlu).
 
 ## 5. Kısayollar (varsayılan)
 
@@ -67,7 +79,7 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 | Shift+< / Shift+> (Instagram, fare videodayken) | Reels hızı |
 | Ctrl+Alt+V (masaüstü) | Pano geçmişi seçici |
 | Ctrl+Shift+Space (masaüstü) | Şablon seçici |
-| Ctrl+Alt+T (masaüstü) | Etkin pencereyi üstte tut |
+| Ctrl+Alt+N (masaüstü) | Hızlı not |
 
 ## 6. Commit geçmişi (özet)
 
@@ -83,3 +95,4 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 | `b4bd989` … `0f1d85e` | Oynatma listesi indirme, Döviz Çevirici, seçerek indirme, 0.5.3–0.5.4 |
 | `86feee6` … `48d3635` | Performans düzeltmeleri, otomatik güncelleme, yayım iş akışı, 0.5.5 |
 | `885947d` … `115216a` | Fable incelemesi (17 düzeltme), atomik geri yükleme, taslak release akışı, 0.5.6 |
+| 0.5.7 | Sekme yöneticisi eklemeleri, masaüstü Notlar + `note_meta`, hızlı not, kapatılabilir kısayollar, üstte tutma kaldırıldı |
