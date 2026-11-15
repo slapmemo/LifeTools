@@ -12,6 +12,9 @@ use tauri_plugin_updater::UpdaterExt;
 const FIRST_CHECK_DELAY: Duration = Duration::from_secs(30);
 const CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
 const POSTPONE_INTERVAL: Duration = Duration::from_secs(10 * 60);
+/// Aynı sürümün kurulumu denendikten sonra hâlâ eski sürümdeysek, otomatik deneme bu süre bekler.
+const RETRY_SAME_VERSION_SECS: i64 = 12 * 60 * 60;
+const ATTEMPT_KEY: &str = "update_attempt";
 
 static BUSY: AtomicBool = AtomicBool::new(false);
 
@@ -28,7 +31,8 @@ pub struct CheckResult {
 pub enum Outcome {
     UpToDate,
     Postponed,
-    Installed,
+    /// Bu sürüm kısa süre önce denendi ve kurulamadı; döngüye girmemek için atlandı.
+    Skipped,
 }
 
 struct BusyGuard;
@@ -40,6 +44,27 @@ impl BusyGuard {
 impl Drop for BusyGuard {
     fn drop(&mut self) {
         BUSY.store(false, Ordering::SeqCst);
+    }
+}
+
+/// Son otomatik kurulum denemesi: aynı sürüm `RETRY_SAME_VERSION_SECS` içinde tekrar denenmez.
+/// (Kurulum başarılı olsaydı uygulama zaten yeni sürümle açılırdı.)
+pub fn should_skip(last_attempt: Option<&str>, version: &str, now_secs: i64) -> bool {
+    let Some((v, at)) = last_attempt.and_then(|s| s.split_once('|')) else { return false };
+    let Ok(at) = at.parse::<i64>() else { return false };
+    v == version && now_secs >= at && now_secs - at < RETRY_SAME_VERSION_SECS
+}
+
+/// Yükleyicinin kenara aldığı kilitli eski exe kopyalarını siler (windows/hooks.nsh).
+/// Hâlâ çalışan bir kopya (ör. Chrome'un native host'u) silinemez; bir sonraki açılışta denenir.
+pub fn cleanup_old_binaries() {
+    let Some(dir) = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf())) else { return };
+    let Ok(entries) = std::fs::read_dir(&dir) else { return };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+        if name.starts_with("lifetools-desktop.old") && name.ends_with(".exe") {
+            let _ = std::fs::remove_file(entry.path());
+        }
     }
 }
 
@@ -85,6 +110,13 @@ pub async fn check_and_install(app: &AppHandle, manual: bool) -> Result<Outcome,
     if !manual && crate::video_dl::any_running() {
         return Ok(Outcome::Postponed);
     }
+    let state = app.state::<Arc<AppState>>();
+    if !manual {
+        let last = db::get_setting(&state.db(), ATTEMPT_KEY).ok().flatten();
+        if should_skip(last.as_deref(), &update.version, db::now_secs()) {
+            return Ok(Outcome::Skipped);
+        }
+    }
     crate::toast(app, &format!("LifeTools {} indiriliyor…", update.version));
     let bytes = update.download(|_, _| {}, || {}).await.map_err(|e| {
         let msg = e.to_string();
@@ -94,6 +126,7 @@ pub async fn check_and_install(app: &AppHandle, manual: bool) -> Result<Outcome,
     if !manual && crate::video_dl::any_running() {
         return Ok(Outcome::Postponed);
     }
+    let _ = db::set_setting(&state.db(), ATTEMPT_KEY, &format!("{}|{}", update.version, db::now_secs()));
     update.install(&bytes).map_err(|e| {
         let msg = e.to_string();
         crate::toast(app, &format!("Güncelleme başarısız: {msg}"));
@@ -138,6 +171,18 @@ mod tests {
         assert_eq!(next_wait(&Ok(Outcome::Postponed)), Duration::from_secs(600));
         assert_eq!(next_wait(&Ok(Outcome::UpToDate)), Duration::from_secs(6 * 3600));
         assert_eq!(next_wait(&Err("x".into())), Duration::from_secs(6 * 3600));
+    }
+
+    #[test]
+    fn same_version_is_not_retried_for_12_hours() {
+        let now = 1_000_000;
+        assert!(!should_skip(None, "0.5.9", now));
+        assert!(should_skip(Some("0.5.9|999000"), "0.5.9", now));
+        assert!(!should_skip(Some("0.5.9|900000"), "0.5.9", now), "12 saat geçti");
+        assert!(!should_skip(Some("0.5.8|999000"), "0.5.9", now), "daha yeni sürüm hemen denenir");
+        assert!(!should_skip(Some("bozuk"), "0.5.9", now));
+        assert!(!should_skip(Some("0.5.9|2000000"), "0.5.9", now), "gelecekteki zaman yok sayılır");
+        assert_eq!(next_wait(&Ok(Outcome::Skipped)), Duration::from_secs(6 * 3600));
     }
 
     #[test]

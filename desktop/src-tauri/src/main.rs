@@ -453,6 +453,12 @@ fn main() {
 
             clipboard::spawn_listener(app.handle().clone(), state.clone());
             extension_dir::spawn_sync(app.handle().clone());
+            // Kurulumdan hemen sonra eski native host işlemi birkaç saniye daha açık kalabilir; sonra tekrar dene.
+            std::thread::spawn(|| {
+                updater::cleanup_old_binaries();
+                std::thread::sleep(Duration::from_secs(120));
+                updater::cleanup_old_binaries();
+            });
             updater::spawn_auto(app.handle().clone());
 
             let handle = app.handle().clone();

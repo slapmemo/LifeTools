@@ -1,6 +1,6 @@
 # LifeTools — Kaldığımız Yer
 
-> Son güncelleme: 15 Kasım 2026 · sürüm 0.5.8 · dal master (push edildi; `v0.5.8` Releases'te)
+> Son güncelleme: 16 Kasım 2026 · sürüm 0.5.9 · dal master (push edildi; `v0.5.9` Releases'te)
 > Yeni bir sohbete/oturuma başlarken önce bu dosyayı oku. Eski planlar: `../LifeTools_Plan_v3_2026-11-06.md`, `../LifeTools_Arayuz_Plani_2026-11-06.md`, `../LifeTools_Ozellik_Rehberi_2026-11-08.md`.
 
 ## 1. Durum özeti
@@ -9,11 +9,17 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 
 | Alan | Durum |
 |---|---|
-| Sürüm | 0.5.8. `v0.5.5`–`v0.5.8` GitHub Actions ile yayımlandı (yükleyici, `.sig`, `latest.json`, eklenti ZIP'i). |
+| Sürüm | 0.5.9. `v0.5.5`–`v0.5.9` GitHub Actions ile yayımlandı (yükleyici, `.sig`, `latest.json`, eklenti ZIP'i). |
 | Otomatik güncelleme | Yeni. Masaüstü imzalı güncellemeyi kendisi kurar; eklentiyi `%LOCALAPPDATA%\LifeTools\extension` klasöründe güncel tutar; eklenti oradan yüklendiyse kendini yeniden yükler. 0.5.5 → 0.5.6 otomatik güncellemesi henüz bir bilgisayarda doğrulanmadı (0.5.4 ve öncesinde güncelleyici yok, onlar elle kurmalı). |
-| Testler | Eklenti 294 test (`npx vitest run`), masaüstü 86 test + 1 elle donanım testi (`cargo test`; `cargo test live_wireless -- --ignored --nocapture`). |
+| Testler | Eklenti 294 test (`npx vitest run`), masaüstü 87 test + 1 elle donanım testi (`cargo test`; `cargo test live_wireless -- --ignored --nocapture`). |
 | İlk kurulum | Yeni kurulumda karşılama sayfası (`welcome.html`) açılır; önerilen modüller açık gelir (`src/core/onboarding.ts` `RECOMMENDED_MODULES`). Panel › Ayarlar'dan yeniden açılır. Güncellemede açılmaz. |
 | Arayüz | Panel, sekme değiştirici ve popup «yeni» tasarımda (yazılı kenar menüsü, mor vurgu #A69CFF, gerçek LT logosu satır içi SVG). Tasarım tuvali: claude.ai artifact «LifeTools Yeni Arayüz». |
+
+### 0.5.9 (16 Kasım) — otomatik güncelleme döngüsü düzeltmesi
+- **Sorun:** 0.5.7 → 0.5.8 otomatik güncellemesi «Error opening file for writing: lifetools-desktop.exe» verip döngüye girdi. Chrome'un native host işlemi (aynı exe) dosyayı kilitli tutuyor; yükleyici yazamıyor, uygulama eski sürümle açılıp aynı sürümü yeniden indiriyordu.
+- **Düzeltme:** `desktop/src-tauri/windows/hooks.nsh` (`nsis.installerHooks`): kurulum ve kaldırma öncesi çalışan exe `lifetools-desktop.old*.exe` olarak yeniden adlandırılır (Windows buna izin verir). Uygulama açılışta ve 2 dk sonra bu kopyaları siler (`updater::cleanup_old_binaries`). Otomatik güncelleme aynı sürümü 12 saat içinde tekrar denemez (`update_attempt` ayarı, `updater::should_skip`); elle denetleme her zaman çalışır.
+- Bu PC'de kilitli exe ile iki kez denendi: yükleyici elle müdahale olmadan başarılı.
+- 0.5.7/0.5.8 kurulu makineler 0.5.9'u eski güncelleyicileriyle indirir ama kurulumu yeni yükleyici yapar, kanca orada çalışır.
 
 ### 0.5.8 (15 Kasım)
 - **Masaüstü İzleme listesi:** `watch_items` üzerinde ekleme, sayılı durum sekmeleri, tür süzgeci, arama, satırda durum değiştirme, düzenleme, geri alınabilen silme (`desktop/src/views/izleme.ts`, `db/watch.rs`).
@@ -51,7 +57,7 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 - **Eklenti:** `npm install` → `npm run build` → `chrome://extensions` → Geliştirici modu → Paketlenmemiş öğe yükle → `dist/`. Değişiklikten sonra `npm run build` + eklentide ↻.
 - **Masaüstü:** `cd desktop` → `npm install` → `npm run tauri dev`. Testler: `cd desktop/src-tauri && cargo test`. Yükleyici: `npm run tauri build` (önce kökte `npm run build`, çünkü `dist/` yükleyiciye `extension/` olarak gömülür).
 - **Yayın:** tüm sürüm dosyalarını yükselt (aşağıda), commit, `git tag vX.Y.Z` + `git push origin vX.Y.Z`. `.github/workflows/release.yml` sürüm uyuşmazsa durur; derler, imzalar, `latest.json` ve `LifeTools-extension-X.Y.Z.zip` yükler. README'de «Sürüm yayınlama ve otomatik güncelleme» bölümü var.
-- **Sürüm dosyaları:** `package.json`, `package-lock.json` (2 yer), `src/manifest.json`, `desktop/package.json`, `desktop/package-lock.json` (2 yer), `desktop/src-tauri/tauri.conf.json`, `desktop/src-tauri/Cargo.toml`, `Cargo.lock` (`lifetools-desktop` girdisi). Küçük yama adımları (0.5.7 → 0.5.8); kullanıcı büyük atlama istemiyor.
+- **Sürüm dosyaları:** `package.json`, `package-lock.json` (2 yer), `src/manifest.json`, `desktop/package.json`, `desktop/package-lock.json` (2 yer), `desktop/src-tauri/tauri.conf.json`, `desktop/src-tauri/Cargo.toml`, `Cargo.lock` (`lifetools-desktop` girdisi). Küçük yama adımları (0.5.8 → 0.5.9); kullanıcı büyük atlama istemiyor.
 
 ## 4. Bilinmesi gerekenler (tuzaklar)
 
@@ -70,7 +76,7 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 - **Arka plan sunucuları `dist/` içinde çalışmasın:** `npm run build` `dist/`'i silerken EBUSY verir. Demo/test sunucularını kopya klasörden aç.
 - **Delegeler:** `cargo` çalıştıramaz; doğrulayıcı `~/.cargo/bin`'i PATH'e eklemeli; komutlarda `!` yerine bash betiği; Windows Python'u `/c/...` yollarını açamaz (`cygpath -w` kullan). Terra bazen işi yarım bırakır → bağlantı kontrolleri koy. Türkçe karakter bozulması taraması: `grep -E "[a-zA-Zçğışöü]\?[a-zA-Zçğışöü]"` (`\x3f` ile yazılmış `?` normaldir).
 - **Masaüstünde yazarken genişletme bilerek yok** (küresel klavye kancası riski).
-- **Elle kurulumda exe kilitli kalır:** Chrome eklentisi native host üzerinden `lifetools-desktop.exe`'yi hemen yeniden başlatır; NSIS `/S` «başarılı» deyip eski exe'yi bırakır. Çalışan exe'yi önce yeniden adlandır (`lifetools-desktop.old.exe`), sonra yükleyiciyi çalıştır, eski işlemi kapat ve dosyayı sil.
+- **Kilitli exe:** Chrome eklentisi native host üzerinden `lifetools-desktop.exe`'yi açık tutar. 0.5.9'dan beri yükleyici kancası (`windows/hooks.nsh`) çalışan exe'yi kenara alır; elle kurulumda ek adım gerekmez. 0.5.8 ve öncesinin yükleyicileri bunu yapmaz.
 - **Veri kurtarma (WAL):** `%APPDATA%\LifeTools\lifetools.db` WAL kipinde; ana dosya yalnız checkpoint'te yazılır. Silinen veri, ana dosyanın **kopyası** WAL'sız açılarak (son checkpoint hali) ya da WAL'ı commit commit kopyada yeniden oynatarak bulunabilir. Asıl dosyalara dokunma.
 - **Tauri eklentileri sabit sürüm:** `tauri-plugin-notification = "=2.4.0"` (Tauri 2.11 ile uyumlu).
 
@@ -101,5 +107,6 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 | `b4bd989` … `0f1d85e` | Oynatma listesi indirme, Döviz Çevirici, seçerek indirme, 0.5.3–0.5.4 |
 | `86feee6` … `48d3635` | Performans düzeltmeleri, otomatik güncelleme, yayım iş akışı, 0.5.5 |
 | `885947d` … `115216a` | Fable incelemesi (17 düzeltme), atomik geri yükleme, taslak release akışı, 0.5.6 |
+| 0.5.9 | Yükleyici kilitli exe'yi kenara alır, otomatik güncelleme döngü koruması |
 | 0.5.8 | Masaüstü İzleme listesi, ATK fare pili, ortam sesi düzeltmesi; Elektrik ve Görevler kaldırıldı |
 | 0.5.7 | Sekme yöneticisi eklemeleri, masaüstü Notlar + `note_meta`, hızlı not, kapatılabilir kısayollar, üstte tutma kaldırıldı |
