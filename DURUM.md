@@ -11,7 +11,7 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 |---|---|
 | Sürüm | 0.5.7. `v0.5.5`–`v0.5.7` GitHub Actions ile yayımlandı (yükleyici, `.sig`, `latest.json`, eklenti ZIP'i). |
 | Otomatik güncelleme | Yeni. Masaüstü imzalı güncellemeyi kendisi kurar; eklentiyi `%LOCALAPPDATA%\LifeTools\extension` klasöründe güncel tutar; eklenti oradan yüklendiyse kendini yeniden yükler. 0.5.5 → 0.5.6 otomatik güncellemesi henüz bir bilgisayarda doğrulanmadı (0.5.4 ve öncesinde güncelleyici yok, onlar elle kurmalı). |
-| Testler | Eklenti 303 test (`npm test`), masaüstü 87 test (`cargo test`). Çıplak `npx vitest run` `legacy-x-prototype/tests/rules.test.mjs`'yi de toplar ve «test yok» der; `npm test` (`--dir tests`) kullan. |
+| Testler | Eklenti 303 test (`npm test`), masaüstü 87 test (`cargo test`). |
 | İlk kurulum | Yeni kurulumda karşılama sayfası (`welcome.html`) açılır; önerilen modüller açık gelir (`src/core/onboarding.ts` `RECOMMENDED_MODULES`). Panel › Ayarlar'dan yeniden açılır. Güncellemede açılmaz. |
 | Arayüz | Panel, sekme değiştirici ve popup «yeni» tasarımda (yazılı kenar menüsü, mor vurgu #A69CFF, gerçek LT logosu satır içi SVG). Tasarım tuvali: claude.ai artifact «LifeTools Yeni Arayüz». |
 

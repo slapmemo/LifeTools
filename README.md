@@ -12,7 +12,6 @@ Yerel çalışan Chrome eklentisi ve masaüstü verimlilik araçları.
 | `dist/` | Derlenmiş, Chrome'a yüklenen eklenti |
 | `desktop/` | Windows için Tauri 2 masaüstü uygulaması |
 | `design/` | Ortak tasarım değişkenleri, bileşenler ve ikonlar |
-| `legacy-x-prototype/` | Eski prototip |
 | `tests/` | Eklenti testleri |
 
 ## Özellikler
