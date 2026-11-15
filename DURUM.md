@@ -1,6 +1,6 @@
 # LifeTools — Kaldığımız Yer
 
-> Son güncelleme: 15 Kasım 2026 · sürüm 0.5.7 · dal master (push edildi; `v0.5.7` Releases'te)
+> Son güncelleme: 15 Kasım 2026 · sürüm 0.5.8 · dal master (push edildi; `v0.5.8` Releases'te)
 > Yeni bir sohbete/oturuma başlarken önce bu dosyayı oku. Eski planlar: `../LifeTools_Plan_v3_2026-11-06.md`, `../LifeTools_Arayuz_Plani_2026-11-06.md`, `../LifeTools_Ozellik_Rehberi_2026-11-08.md`.
 
 ## 1. Durum özeti
@@ -9,11 +9,17 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 
 | Alan | Durum |
 |---|---|
-| Sürüm | 0.5.7. `v0.5.5`–`v0.5.7` GitHub Actions ile yayımlandı (yükleyici, `.sig`, `latest.json`, eklenti ZIP'i). |
+| Sürüm | 0.5.8. `v0.5.5`–`v0.5.8` GitHub Actions ile yayımlandı (yükleyici, `.sig`, `latest.json`, eklenti ZIP'i). |
 | Otomatik güncelleme | Yeni. Masaüstü imzalı güncellemeyi kendisi kurar; eklentiyi `%LOCALAPPDATA%\LifeTools\extension` klasöründe güncel tutar; eklenti oradan yüklendiyse kendini yeniden yükler. 0.5.5 → 0.5.6 otomatik güncellemesi henüz bir bilgisayarda doğrulanmadı (0.5.4 ve öncesinde güncelleyici yok, onlar elle kurmalı). |
-| Testler | Eklenti 303 test (`npm test`), masaüstü 87 test (`cargo test`). |
+| Testler | Eklenti 294 test (`npx vitest run`), masaüstü 86 test + 1 elle donanım testi (`cargo test`; `cargo test live_wireless -- --ignored --nocapture`). |
 | İlk kurulum | Yeni kurulumda karşılama sayfası (`welcome.html`) açılır; önerilen modüller açık gelir (`src/core/onboarding.ts` `RECOMMENDED_MODULES`). Panel › Ayarlar'dan yeniden açılır. Güncellemede açılmaz. |
 | Arayüz | Panel, sekme değiştirici ve popup «yeni» tasarımda (yazılı kenar menüsü, mor vurgu #A69CFF, gerçek LT logosu satır içi SVG). Tasarım tuvali: claude.ai artifact «LifeTools Yeni Arayüz». |
+
+### 0.5.8 (15 Kasım)
+- **Masaüstü İzleme listesi:** `watch_items` üzerinde ekleme, sayılı durum sekmeleri, tür süzgeci, arama, satırda durum değiştirme, düzenleme, geri alınabilen silme (`desktop/src/views/izleme.ts`, `db/watch.rs`).
+- **ATK fare pili:** USB alıcılı ATK/Compx (VID 373B) fareler, üretici arayüzü (usage page 0xFF02, 17 baytlık rapor 0x08) üzerinden komut 0x04 ile okunur; sağlama = 0x55 − ilk 16 baytın toplamı; cevapta 5. bayt veri uzunluğu, 6. yüzde, 7. şarj. Yalnız okuma, zaman aşımlı (`battery.rs`, `battery_win.rs::read_wireless`). Kaynak: libatk-rs (GPL; kod kopyalanmadı). Razer/Logitech alıcıları desteklenmiyor.
+- **Ortam sesi düzeltmesi:** `.switch` içinde `.switch-track` yoksa düğme sıfır boyutta kalır; kanal seçilemiyordu.
+- **Kaldırılanlar:** masaüstünde Elektrik ve Görevler yer tutucusu, ana sayfa görev kartı; eklentide `quick-tasks` modülü (panel, popup, Komut Merkezi, baloncuk, sağ tık, araç çubuğu, kısayol). `tasks` tablosu ve yedeği duruyor; eski `task-due:` alarmları açılışta temizlenir. Kurulum dosyası LT ikonu, `legacy-x-prototype` silindi.
 
 ### 0.5.7 (15 Kasım)
 - **Masaüstü Notlar (U4'ün ilk parçası):** eklentiyle ortak not ekranı. Sayılı sekmeler + Arşiv, sıralama, tamamlananları gizle, `#etiket` çubuğu ve aramada `#etiket`, Markdown (başlık, liste, tıklanabilir `- [ ]`, kalın/eğik/kod, bağlantı; `desktop/src/markdown.ts`, innerHTML yok), sabitleme, tamamlandı, arşiv, hatırlatma (Windows bildirimi, 20 sn'de bir `take_due_reminders`), eklentinin kaydettiği görsel ve sayfa metni, satırda kategori değiştirme ve kopyala, 6 sn geri alınabilen silme, büyüyen ve boyutu hatırlanan ekleme kutusu.
@@ -37,7 +43,7 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 2. 0.5.6 değişikliklerini dene: Panel'den yedek al ve geri yükle (masaüstü arka ucu ile), YouTube'da indirme sırasında Görev Yöneticisi'nde `lifetools-desktop.exe` sayısı artmamalı.
 3. Kullanıcı testleri: YouTube liste seçerek indirme, Steam ana sayfa TL, Instagram ana sayfa/Keşfet, popup ses kartı.
 4. 0.5.7'yi gerçek kullanımda dene: hatırlatma bildirimi geliyor mu, `Ctrl+Alt+N`, eklentide arşivlenen notun gizlenmesi (eklentide ↻ sonrası migrasyon 11).
-5. U4'ün kalanı (masaüstünde Görevler, İzleme listesi) ve U5 (CC0 ortam sesleri; önce aday listesi, kullanıcı onayı) bekliyor.
+5. U4 tamam (Görevler kullanıcı isteğiyle kaldırıldı). U5 (CC0 ortam sesleri; önce aday listesi, kullanıcı onayı) bekliyor.
 6. İsteğe bağlı: hafif takip engelleme modülü (önerildi, kullanıcı «her neyse» dedi), SmartScreen için kod imzalama.
 
 ## 3. Nasıl çalıştırılır
@@ -45,7 +51,7 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 - **Eklenti:** `npm install` → `npm run build` → `chrome://extensions` → Geliştirici modu → Paketlenmemiş öğe yükle → `dist/`. Değişiklikten sonra `npm run build` + eklentide ↻.
 - **Masaüstü:** `cd desktop` → `npm install` → `npm run tauri dev`. Testler: `cd desktop/src-tauri && cargo test`. Yükleyici: `npm run tauri build` (önce kökte `npm run build`, çünkü `dist/` yükleyiciye `extension/` olarak gömülür).
 - **Yayın:** tüm sürüm dosyalarını yükselt (aşağıda), commit, `git tag vX.Y.Z` + `git push origin vX.Y.Z`. `.github/workflows/release.yml` sürüm uyuşmazsa durur; derler, imzalar, `latest.json` ve `LifeTools-extension-X.Y.Z.zip` yükler. README'de «Sürüm yayınlama ve otomatik güncelleme» bölümü var.
-- **Sürüm dosyaları:** `package.json`, `package-lock.json` (2 yer), `src/manifest.json`, `desktop/package.json`, `desktop/package-lock.json` (2 yer), `desktop/src-tauri/tauri.conf.json`, `desktop/src-tauri/Cargo.toml`, `Cargo.lock` (`lifetools-desktop` girdisi). Küçük yama adımları (0.5.6 → 0.5.7); kullanıcı büyük atlama istemiyor.
+- **Sürüm dosyaları:** `package.json`, `package-lock.json` (2 yer), `src/manifest.json`, `desktop/package.json`, `desktop/package-lock.json` (2 yer), `desktop/src-tauri/tauri.conf.json`, `desktop/src-tauri/Cargo.toml`, `Cargo.lock` (`lifetools-desktop` girdisi). Küçük yama adımları (0.5.7 → 0.5.8); kullanıcı büyük atlama istemiyor.
 
 ## 4. Bilinmesi gerekenler (tuzaklar)
 
@@ -95,4 +101,5 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 | `b4bd989` … `0f1d85e` | Oynatma listesi indirme, Döviz Çevirici, seçerek indirme, 0.5.3–0.5.4 |
 | `86feee6` … `48d3635` | Performans düzeltmeleri, otomatik güncelleme, yayım iş akışı, 0.5.5 |
 | `885947d` … `115216a` | Fable incelemesi (17 düzeltme), atomik geri yükleme, taslak release akışı, 0.5.6 |
+| 0.5.8 | Masaüstü İzleme listesi, ATK fare pili, ortam sesi düzeltmesi; Elektrik ve Görevler kaldırıldı |
 | 0.5.7 | Sekme yöneticisi eklemeleri, masaüstü Notlar + `note_meta`, hızlı not, kapatılabilir kısayollar, üstte tutma kaldırıldı |
