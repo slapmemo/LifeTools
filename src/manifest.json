@@ -55,9 +55,6 @@
     "action-link-copy": {
       "description": "Sayfanın temiz linkini kopyala"
     },
-    "action-task-page": {
-      "description": "Bu sayfayı göreve ekle"
-    },
     "action-session-save": {
       "description": "Oturumu kaydet"
     },

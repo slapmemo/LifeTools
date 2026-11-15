@@ -9,7 +9,6 @@ import { tabNotesModule } from './tab-notes';
 import { tabSwitcherModule } from './tab-switcher';
 import { titleCleanerModule } from './title-cleaner';
 import { timeTrackerModule } from './time-tracker';
-import { quickTasksModule } from './quick-tasks';
 import { smartRepliesModule } from './smart-replies';
 import { linkCleanerModule } from './link-cleaner';
 import type { LifeModule } from '../core/module';
@@ -26,4 +25,4 @@ import { videoDownloaderModule } from './video-downloader';
 import { currencyModule } from './currency';
 
 /** Tüm araçların kaydı. Yeni araç buraya eklenir. */
-export const modules: readonly LifeModule[] = [currencyModule, videoDownloaderModule, volumeBoosterModule, xVideoModule, instagramModule, watchlistModule, pipModule, clipSlotsModule, timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, quickTasksModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule, tabLabelsModule, tabNotesModule, tabSwitcherModule, tabManagerModule, titleCleanerModule, commandCenterModule, shortcutsModule, siteToolbarModule];
+export const modules: readonly LifeModule[] = [currencyModule, videoDownloaderModule, volumeBoosterModule, xVideoModule, instagramModule, watchlistModule, pipModule, clipSlotsModule, timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, lifeBrowserModule, zombieTabsModule, pinnedGuardModule, tabLabelsModule, tabNotesModule, tabSwitcherModule, tabManagerModule, titleCleanerModule, commandCenterModule, shortcutsModule, siteToolbarModule];

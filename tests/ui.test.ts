@@ -22,7 +22,6 @@ import {
 import { modules } from '../src/modules';
 import { clipSlotsMenuContributions } from '../src/modules/clip-slots/background';
 import { linkCleanerMenuContributions } from '../src/modules/link-cleaner/background';
-import { quickTasksMenuContributions } from '../src/modules/quick-tasks/background';
 import { slapMemoMenuContributions } from '../src/modules/slapmemo/background';
 import { smartRepliesMenuContributions } from '../src/modules/smart-replies/background';
 import { validateTrigger } from '../src/modules/smart-replies/repo';
@@ -30,8 +29,8 @@ import { findTriggerAtCaret } from '../src/modules/smart-replies/trigger';
 import { tabLabelsMenuContributions } from '../src/modules/tab-labels/background';
 import { mergeTabItems } from '../src/modules/tab-notes/panel';
 import { watchlistMenuContributions } from '../src/modules/watchlist/background';
-import { extractDomain, formatRelativeDate, groupTasksByDate } from '../src/panel/ui';
-import { formatSites, formatTasks } from '../src/popup/summary';
+import { extractDomain, formatRelativeDate } from '../src/panel/ui';
+import { formatSites } from '../src/popup/summary';
 
 function luminance(hex: string): number {
   const parts = hex.match(/[0-9a-f]{2}/gi)!;
@@ -69,17 +68,15 @@ describe('arayüz', () => {
   });
 
   it('yönlendirme ve gizli kategoriler', () => {
-    const visible = categories({ 'quick-tasks': false });
-    expect(visible.some(c => c.id === 'gorevler')).toBe(false);
+    const visible = categories({});
+    expect(visible.some(c => (c.id as string) === 'gorevler')).toBe(false);
     expect(routeCategory('#gorevler', visible)).toBe('notlar');
     expect(routeCategory('#odak', visible)).toBe('odak');
     expect(routeCategory('#unknown', visible)).toBe('notlar');
   });
 
   it('popup görünürlüğü ve özet', () => {
-    expect(popupVisibility({ 'quick-tasks': false }).tasks).toBe(false);
     expect(popupVisibility({ 'smart-replies': false }).snippets).toBe(false);
-    expect(formatTasks(3, 1)).toBe('3 açık görev (1 gecikmiş)');
     expect(formatSites([{ domain: 'x.com', seconds: 120 }])).toBe('x.com 2 dk');
   });
 
@@ -91,22 +88,6 @@ describe('arayüz', () => {
     expect(formatRelativeDate(new Date(2026, 10, 5, 11, 0, 0).getTime(), now)).toBe('dün');
     const older = formatRelativeDate(new Date(2026, 10, 1, 10, 0, 0).getTime(), now);
     expect(older).toMatch(/1/);
-  });
-
-  it('görevleri enjekte edilen "today" tarihine göre gruplar', () => {
-    const today = '2026-11-06';
-    const tasks = [
-      { id: 1, title: 'Gecikmiş görev', due_date: '2026-11-05', done_at: null },
-      { id: 2, title: 'Bugünkü görev', due_date: '2026-11-06', done_at: null },
-      { id: 3, title: 'Yarınki görev', due_date: '2026-11-07', done_at: null },
-      { id: 4, title: 'Tarihsiz görev', due_date: null, done_at: null },
-      { id: 5, title: 'Bitmiş görev', due_date: '2026-11-05', done_at: 1000 }
-    ];
-    const grouped = groupTasksByDate(tasks, today);
-    expect(grouped.overdue.map(t => t.id)).toEqual([1]);
-    expect(grouped.today.map(t => t.id)).toEqual([2]);
-    expect(grouped.upcoming.map(t => t.id)).toEqual([3]);
-    expect(grouped.undated.map(t => t.id)).toEqual([4]);
   });
 
   it('alan adını ve düz toLowerCase tetikleyici küçültmesini doğrular', () => {
@@ -124,7 +105,6 @@ describe('arayüz', () => {
       ...slapMemoMenuContributions(),
       ...linkCleanerMenuContributions(),
       ...smartRepliesMenuContributions([{ id: 1, trigger: '/iade', title: 'İade' }]),
-      ...quickTasksMenuContributions(),
       ...tabLabelsMenuContributions()
     ];
 
@@ -137,7 +117,6 @@ describe('arayüz', () => {
 
     expect(visibleTopItemsForContext(tree, 'selection').map(i => i.title)).toEqual([
       'Not olarak kaydet',
-      'Görev olarak ekle',
       'Yuvaya kaydet'
     ]);
     expect(visibleTopItemsForContext(tree, 'editable').map(i => i.title)).toEqual([
@@ -151,7 +130,6 @@ describe('arayüz', () => {
     ]);
     expect(visibleTopItemsForContext(tree, 'page').map(i => i.title)).toEqual([
       'Not olarak kaydet',
-      'Görev olarak ekle',
       'Bu sayfanın temiz linki',
       'İzleme listesine ekle',
       'Ekran görüntüsünü not olarak kaydet',
@@ -174,12 +152,11 @@ describe('arayüz', () => {
     expect(ids.has('clip:save:0')).toBe(false);
     expect(ids.has('clip:paste')).toBe(false);
     expect(ids.has('tab-labels-menu')).toBe(false);
-    expect(ids.has('quick-tasks:add')).toBe(true);
+    expect(ids.has('watchlist:add')).toBe(true);
 
     // Tüm modüller kapalıysa kök menü de oluşturulmaz
     const allOff = buildContextMenuTree(allContributions, {
       slapmemo: false,
-      'quick-tasks': false,
       'clip-slots': false,
       'smart-replies': false,
       'link-cleaner': false,
@@ -208,19 +185,18 @@ describe('arayüz', () => {
 
     const toolbarActions = [
       { id: 'link.copyPage', moduleId: 'link-cleaner', toolbar: true },
-      { id: 'task.addPage', moduleId: 'quick-tasks', toolbar: true },
+      { id: 'watch.addPage', moduleId: 'watchlist', toolbar: true },
       { id: 'note.add', moduleId: 'slapmemo', toolbar: false }
     ];
     expect(
-      filterToolbarActions(toolbarActions, { 'link-cleaner': false }, ['link.copyPage', 'task.addPage']).map(
+      filterToolbarActions(toolbarActions, { 'link-cleaner': false }, ['link.copyPage', 'watch.addPage']).map(
         a => a.id
       )
-    ).toEqual(['task.addPage']);
+    ).toEqual(['watch.addPage']);
 
     const grouped = groupModulesByCategory(modules);
     expect(grouped.map(g => g.label)).toEqual([
       'Notlar',
-      'Görevler',
       'Metin',
       'Sekmeler',
       'Odak',

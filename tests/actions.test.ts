@@ -54,9 +54,9 @@ describe('command center ranking', () => {
     expect(rankActions(actions, 'qqqq')).toEqual([]);
     expect(rankActions(actions, '  ')).toHaveLength(3);
   });
-  it('parses note/task prefixes in Turkish and ASCII spellings', () => {
+  it('parses note prefixes; görev is no longer a command', () => {
     expect(parsePrefix('not alışveriş listesi')).toEqual({ id: 'note.add', arg: 'alışveriş listesi' });
-    expect(parsePrefix('Gorev süt al')).toEqual({ id: 'task.add', arg: 'süt al' });
+    expect(parsePrefix('Gorev süt al')).toBeNull();
     expect(parsePrefix('görev')).toBeNull();
     expect(parsePrefix('notlar var')).toBeNull();
   });
@@ -75,7 +75,7 @@ describe('shortcuts', () => {
   });
   it('maps manifest commands to action ids', () => {
     expect(COMMAND_ACTIONS['action-link-copy']).toBe('link.copyPage');
-    expect(Object.keys(COMMAND_ACTIONS)).toHaveLength(5);
+    expect(Object.keys(COMMAND_ACTIONS)).toHaveLength(4);
   });
 });
 

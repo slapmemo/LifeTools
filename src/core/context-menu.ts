@@ -32,7 +32,6 @@ const CANONICAL_CONTEXT_ORDER: readonly MenuContext[] = ['selection', 'editable'
 
 const CANONICAL_TOP_ORDER: readonly string[] = [
   'slapmemo',
-  'quick-tasks:add',
   'clip:save',
   'smart-replies-root',
   'clip:paste',
@@ -45,7 +44,6 @@ const CANONICAL_TOP_ORDER: readonly string[] = [
 export function inferModuleId(id: string, parent?: string): string | undefined {
   const key = parent ?? id;
   if (key === 'slapmemo' || key.startsWith('slapmemo:')) return 'slapmemo';
-  if (key.startsWith('quick-tasks:')) return 'quick-tasks';
   if (key.startsWith('clip:')) return 'clip-slots';
   if (key === 'smart-replies-root' || key.startsWith('smart-replies:')) return 'smart-replies';
   if (key.startsWith('link-cleaner:')) return 'link-cleaner';

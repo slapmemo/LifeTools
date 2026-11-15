@@ -7,8 +7,6 @@ import { LINK_CLEANER_ID } from '../modules/link-cleaner/background';
 import { initLinkCleanerPanel } from '../modules/link-cleaner/panel';
 import { PINNED_GUARD_ID } from '../modules/pinned-guard/background';
 import { initPinnedGuardPanel } from '../modules/pinned-guard/panel';
-import { QUICK_TASKS_ID } from '../modules/quick-tasks/background';
-import { initQuickTasksPanel } from '../modules/quick-tasks/panel';
 import { SHORTCUTS_ID } from '../modules/shortcuts/background';
 import { initShortcutsPanel } from '../modules/shortcuts/panel';
 import { SITE_BLOCKER_ID } from '../modules/site-blocker/background';
@@ -57,8 +55,6 @@ const zombies = initZombieTabsPanel();
 const pinned = initPinnedGuardPanel();
 
 const timeTracker = initTimeTrackerPanel();
-const tasksSection = document.querySelector('#quick-tasks-panel') as HTMLElement;
-const tasks = initQuickTasksPanel();
 
 const renderModules = initModulesToggle(refresh);
 
@@ -83,8 +79,6 @@ async function refresh(): Promise<void> {
   await refreshPip(flags);
   await tabTools.render();
   if (resolveEnabled(flags, TIME_TRACKER_ID)) await timeTracker.render();
-  tasksSection.hidden = !resolveEnabled(flags, QUICK_TASKS_ID);
-  if (!tasksSection.hidden) await tasks.render();
   if (resolveEnabled(flags, SMART_REPLIES_ID)) await smart.render();
   if (resolveEnabled(flags, SITE_BLOCKER_ID)) await blocker.render();
   if (resolveEnabled(flags, SLAPMEMO_ID)) await memo.render();

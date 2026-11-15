@@ -27,14 +27,13 @@
     <div id="results"></div>
   </div>
   <section id="quick-card" class="card">
-    <label for="text" class="card-label">Hızlı not veya görev</label>
+    <label for="text" class="card-label">Hızlı not</label>
     <textarea id="text" rows="2" maxlength="5000" placeholder="Aklındakini yaz…"></textarea>
-    <div class="actions"><button id="note" class="primary">Not olarak kaydet</button><select id="category" aria-label="Not kategorisi"><option value="note">Notlar</option><option value="read">Okunacaklar</option><option value="watch">İzlenecekler</option><option value="idea">Fikirler</option></select><button id="task">Görev yap</button><label><input id="attach" type="checkbox"> Bu sayfa</label></div>
+    <div class="actions"><button id="note" class="primary">Not olarak kaydet</button><select id="category" aria-label="Not kategorisi"><option value="note">Notlar</option><option value="read">Okunacaklar</option><option value="watch">İzlenecekler</option><option value="idea">Fikirler</option></select><label><input id="attach" type="checkbox"> Bu sayfa</label></div>
   </section>
   <p id="feedback" role="status"></p>
-  <section class="today"><h2>Bugün</h2><button id="today-tasks" class="summary"></button></section>
+  <section id="today" class="today" hidden><h2>Bugün</h2><button id="today-sites" class="summary"></button></section>
   <button id="tab-manager">Sekme yöneticisi</button>
-  <button id="today-sites" class="summary" hidden></button>
   <div id="desktop-banner" class="banner" hidden>Masaüstü uygulamasına ulaşılamıyor. <button id="desktop-banner-switch">Depolama ayarları</button></div>
 </main>
 <script src="popup.js" type="module"></script>

@@ -128,7 +128,7 @@ input, textarea, select { max-width: 100%; }
 [hidden] { display: none !important; }
 .sr-only { position: absolute; clip: rect(0, 0, 0, 0); }
 
-/* ★ Notlar, Görevler, Metin kategori düzeni */
+/* ★ Notlar, Metin kategori düzeni */
 .category-view {
   display: flex;
   flex-direction: column;
@@ -255,102 +255,6 @@ input, textarea, select { max-width: 100%; }
 .watch-note {
   margin: var(--space-4) 0 0;
   font-size: var(--font-size-12);
-}
-
-/* Görevler */
-.task-add-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-12);
-  padding: var(--space-12);
-}
-.task-add-bar #task-title {
-  flex: 1 1 240px;
-}
-
-.task-groups {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-12);
-}
-.task-group {
-  padding: 0;
-}
-.task-group-danger {
-  border-color: var(--danger);
-}
-.task-group-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-12) var(--space-16);
-  border-bottom: 1px solid var(--border);
-}
-.task-group-danger .task-group-header h3 {
-  color: var(--danger);
-}
-.task-group-header h3 {
-  margin: 0;
-  font-size: var(--font-size-13);
-  font-weight: 600;
-}
-
-.round-checkbox {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--border);
-  border-radius: 50%;
-  background: var(--surface);
-  cursor: pointer;
-  display: inline-grid;
-  place-content: center;
-  margin: 0;
-}
-.round-checkbox:hover {
-  border-color: var(--accent);
-}
-.round-checkbox:checked {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-.round-checkbox:checked::after {
-  content: "";
-  width: 5px;
-  height: 9px;
-  border: solid var(--on-accent);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg) translate(-1px, -1px);
-}
-
-.task-title.done {
-  text-decoration: line-through;
-  color: var(--muted);
-}
-.task-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-}
-
-.task-done-card {
-  margin-top: var(--space-12);
-  padding: 0;
-}
-.task-done-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-12) var(--space-16);
-  cursor: pointer;
-  font-weight: 600;
-  user-select: none;
-}
-.task-done-card[open] .task-done-summary {
-  border-bottom: 1px solid var(--border);
 }
 
 /* Metin: Şablonlar, Pano yuvaları, Link temizle */

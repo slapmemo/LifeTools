@@ -4,7 +4,7 @@ import { duplicateBindings } from '../src/modules/shortcuts/duplicates';
 import { normalizeToolbarSettings } from '../src/modules/site-toolbar/settings';
 describe('command center', () => {
   it('parses Turkish prefixes without altering arguments', () => {
-    expect(parsePrefix(' GÖREV  Çalışma ')).toEqual({ id: 'task.add', arg: 'Çalışma' });
+    expect(parsePrefix(' GÖREV  Çalışma ')).toBeNull();
     expect(parsePrefix('not ')).toBeNull();
   });
   it('ranks prefixes ahead of substring and folds Turkish', () => {

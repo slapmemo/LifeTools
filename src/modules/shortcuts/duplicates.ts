@@ -1,7 +1,6 @@
 /** Manifest komut adı -> eylem kimliği (önerilen tuşu olmayan, kullanıcının atayabileceği komutlar). */
 export const COMMAND_ACTIONS: Readonly<Record<string, string>> = {
   'action-link-copy': 'link.copyPage',
-  'action-task-page': 'task.addPage',
   'action-session-save': 'session.save',
   'action-blocker-toggle': 'blocker.toggle',
   'action-group-site': 'group.bySite'

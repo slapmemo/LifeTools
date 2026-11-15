@@ -26,7 +26,7 @@ export function parsePrefix(input: string): { id: string; arg: string } | null {
   const words = trimmed.split(/\s+/);
   const first = foldSearch(words[0] || '');
   const second = foldSearch(words[1] || '');
-  const args: Record<string, string> = { not: 'note.add', gorev: 'task.add', izle: 'watch.add' };
+  const args: Record<string, string> = { not: 'note.add', izle: 'watch.add' };
   if (args[first]) return words.length > 1 ? { id: args[first], arg: trimmed.slice(words[0].length).trim() } : null;
   if (first === 'oturum' && second === 'kaydet') return { id: 'session.save', arg: words.slice(2).join(' ') };
   if (first === 'temiz' && second === 'link' && words.length === 2) return { id: 'link.copyPage', arg: '' };

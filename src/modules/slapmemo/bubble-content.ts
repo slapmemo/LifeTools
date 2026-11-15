@@ -3,7 +3,7 @@ import { pageToast } from '../../core/page-toast';
 import { PAGE_THEME } from '../../core/page-theme';
 import { cleanUrl } from '../link-cleaner/clean';
 import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, bubbleButtons, bubblePosition, selectionUrl, shouldShowBubble, languageName, translationText } from './bubble-logic';
-import { datedTask, looksLikeAddress } from './bubble-logic';
+import { looksLikeAddress } from './bubble-logic';
 import { convert, findPriceAt, formatTry, parsePrice, type Rates } from '../currency/rates';
 
 let enabled = false;
@@ -97,20 +97,11 @@ function show(): void {
   save.replaceChildren(document.createTextNode('📝'), Object.assign(document.createElement('span'), { className: 'label', textContent: ' Not' })); save.title = 'Not'; save.setAttribute('aria-label', 'Not');
   if (visible.includes('slapmemo')) pill.append(save);
   for (const [id, icon, label, success] of [
-    ['quick-tasks', '✅', 'Görev', 'Görev eklendi ✓'], ['watchlist', '🎬', 'İzle', 'İzleme listesine eklendi ✓']
+    ['watchlist', '🎬', 'İzle', 'İzleme listesine eklendi ✓']
   ]) if (visible.includes(id)) pill.append(button(icon, label, () => {
     hide();
     void chrome.runtime.sendMessage({ type: `${id}:add`, title: text.slice(0, 300), url: location.href })
       .then(result => pageToast(result?.ok ? { ...result, title: success, undoType: `${id}:undo` } : { ok: false })).catch(() => pageToast({ ok: false }));
-  }));
-  const dueTask = visible.includes('quick-tasks') ? datedTask(text, new Date()) : null;
-  if (dueTask) pill.append(button('📅', 'Görev (tarihli)', () => {
-    hide();
-    const [date, time] = dueTask.due.split(' ');
-    const [year, month, day] = date.split('-').map(Number);
-    const label = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long' }).format(new Date(year, month - 1, day)) + (time ? ` ${time}` : '');
-    void chrome.runtime.sendMessage({ type: 'quick-tasks:add', title: dueTask.title, due_date: dueTask.due, url: location.href })
-      .then(result => pageToast(result?.ok ? { ...result, title: `Görev eklendi: ${label} ✓`, undoType: 'quick-tasks:undo' } : { ok: false })).catch(() => pageToast({ ok: false }));
   }));
   const openSearch = (kind: 'search' | 'maps') => {
     hide();

@@ -7,8 +7,6 @@ import { registerAction } from './actions';
 import { backgroundDb, copyOffscreen } from '../db/host';
 import { SLAPMEMO_ID, saveScreenshot, capturePage } from '../modules/slapmemo/background';
 import { createNotesRepo } from '../modules/slapmemo/repo';
-import { QUICK_TASKS_ID, rescheduleTaskReminders } from '../modules/quick-tasks/background';
-import { createTasksRepo } from '../modules/quick-tasks/repo';
 import { LINK_CLEANER_ID } from '../modules/link-cleaner/background';
 import { cleanUrl } from '../modules/link-cleaner/clean';
 import { SITE_BLOCKER_ID } from '../modules/site-blocker/background';
@@ -18,7 +16,6 @@ import { describeTabs, groupWindowBySite } from '../modules/life-browser/browser
 import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
 import { TAB_SWITCHER_ID } from '../modules/tab-switcher/background';
 import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
-import { parseTurkishDue } from '../modules/command-center/search';
 import { openTabManager } from '../modules/tab-manager/open';
 import { downloadBackup } from './auto-backup-background';
 import { startDownload } from '../modules/video-downloader/background';
@@ -27,7 +24,6 @@ import { VIDEO_ID } from '../modules/video-downloader/logic';
 registerAction({ id: 'video.download', title: 'Video indir', keywords: ['video indir', 'indir', 'download'], moduleId: VIDEO_ID, async run({ tab }) { return startDownload(tab?.url ?? ''); } });
 
 const notes = createNotesRepo(backgroundDb);
-const tasks = createTasksRepo(backgroundDb, Date.now, rescheduleTaskReminders);
 const sessions = createSessionsRepo(backgroundDb);
 
 registerAction({ id: 'note.screenshot', title: 'Ekran görüntüsünü not olarak kaydet', keywords: ['ekran', 'görüntü', 'not'], moduleId: SLAPMEMO_ID, async run({ tab }) { await saveScreenshot(needTab(tab)); return 'Ekran görüntüsü kaydedildi.'; } });
@@ -63,20 +59,6 @@ registerAction({
   }
 });
 
-registerAction({
-  id: 'task.add', title: 'Görev ekle: <metin>', keywords: ['görev', 'gorev', 'yapılacak', 'todo'], moduleId: QUICK_TASKS_ID, takesArg: true, argPrefix: 'görev ',
-  async run({ arg }) { const parsed = parseTurkishDue(arg ?? '', new Date()); await tasks.add({ title: parsed.title.slice(0, 300), due_date: parsed.due?.slice(0, 10), note: parsed.due?.slice(11) ? `Saat: ${parsed.due.slice(11)}` : null }); return `Görev eklendi: ${parsed.title}${parsed.due ? ` — ${parsed.due}` : ''}`; }
-});
-
-registerAction({
-  id: 'task.addPage', title: 'Görev ekle (bu sayfa)', keywords: ['görev', 'sayfa', 'sonra bak'], moduleId: QUICK_TASKS_ID, toolbar: true,
-  async run({ tab }) {
-    const active = needTab(tab);
-    const url = active.url ?? null;
-    await tasks.add({ title: (active.title || url || 'Sayfa').slice(0, 300), url });
-    return 'Görev eklendi.';
-  }
-});
 
 registerAction({
   id: 'link.copyPage', title: 'Sayfanın temiz linkini kopyala', keywords: ['link', 'temiz', 'kopyala', 'url'], moduleId: LINK_CLEANER_ID, toolbar: true,

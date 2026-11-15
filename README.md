@@ -26,7 +26,6 @@ Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını aç
 - **Akıllı Yanıtlar:** Panel'de metin şablonları oluştur; düzenlenebilir alanda sağ tıkla ekle veya izin verdiğin sitelerde tetikleyiciyi Boşluk ya da Tab ile genişlet.
 - **Pano Yuvaları:** Beş metin yuvasını Panel'de düzenle; seçimi sağ tıkla kaydet veya bir alana sağ tıkla yuvadan yapıştır.
 - **Link Temizleyici:** Takip parametrelerini kaldırıp temiz bağlantıyı kopyala; sağ tık menüsünü veya Panel'i kullan. Otomatik temizlik ve kısa bağlantı çözümleme site izni gerektirir.
-- **Hızlı Görevler:** Panel'den veya sağ tıkla görev ekle, tamamla ve tarihlerini takip et. Komut Merkezi'nde `görev` yazarak da ekleyebilirsin.
 - **İzleme Listesi:** Film, dizi ve videoları durumlarıyla takip et; Panel'den veya sağ tıkla ekle. İzin verirsen YouTube ve IMDb'deki düğmeyi de kullanabilirsin.
 - **Web Süre Takibi:** Etkin olduğunda sitelerde geçirilen süreyi ölçer; Panel'de bugün ve son yedi günü, hariç tutulan siteleri ve limitleri yönet.
 - **Görsel Sekme Değiştirici:** `Alt+Q` ile sekmeleri ara, seç ve kapat; penceredeki araçlarla etiket, not ve diğer sekme işlemlerine eriş.
@@ -41,18 +40,17 @@ Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını aç
 - **Resim içinde resim:** Etkin sayfadaki videoyu küçük pencerede açıp kapat; `Alt+P`, Panel veya Komut Merkezi'ni kullan.
 - **X Video İndirici:** Tek tıkla en yüksek kalitede indir; ok düğmesinden kalite, GIF ve toplu indirme seçeneklerine ulaş. Panel'den kalite sorulmasını ve indirme alt klasörünü ayarla.
 - **Instagram:** Video üzerindeki indirme düğmesiyle tek veya birden çok video indir; X Video İndirici'deki ortak indirme klasörü ayarını kullan. İlerleme çubuğuna tıkla veya sürükle, fare video üzerindeyken oklarla beş saniye sar.
-- **Komut Merkezi:** `Alt+K` ile eylem, sekme, not, görev ve şablon ara; `not`, `görev` veya `izle` gibi komutlarla hızlı işlem yap.
+- **Komut Merkezi:** `Alt+K` ile eylem, sekme, not ve şablon ara; `not` veya `izle` gibi komutlarla hızlı işlem yap.
 - **Site Araç Çubuğu:** Panel'de site ve eylemleri seçip izin ver; sitedeki sürüklenebilir **LT** düğmesinden eylemleri aç.
 - **Kısayol Oluşturucu:** Panel'de komutları ve atamalarını gör; Chrome'un kısayol sayfasında tuşları düzenle.
 
-Metin seçimi baloncuğu not, görev, izleme, link ve pano işlemlerinin yanında çeviri ve arama sunar. Panel'deki **Yedek** ile verileri dışa aktarabilir veya geri yükleyebilirsin; otomatik yedek ayarı da bulunur.
+Metin seçimi baloncuğu not, izleme, link ve pano işlemlerinin yanında çeviri ve arama sunar. Panel'deki **Yedek** ile verileri dışa aktarabilir veya geri yükleyebilirsin; otomatik yedek ayarı da bulunur.
 
 ### Masaüstü
 
 - **Ana sayfa:** Özet kartlarını ve hızlı erişimleri gösterir; uygulamayı açınca buradan ilgili bölüme geç.
 - **Pano geçmişi:** Kopyalanan metinleri ara, sabitle veya sil; `Ctrl+Alt+V` seçiciden panoya geri kopyalar.
 - **Şablonlar:** Bölümde şablon oluştur; `Ctrl+Shift+Space` ile seçip etkin uygulamaya yapıştır.
-- **Elektrik tahmini:** Bileşen gücü, kullanım süresi ve birim fiyat girerek tüketim ve maliyet tahmini gör.
 - **Piller:** Piller bölümünde Windows'un bildirdiği sistem ve Bluetooth pil düzeylerini gör ve yenile.
 - **Ortam sesi:** Ses kanallarını, seviyeleri ve zamanlayıcıyı seç; ön ayarları kaydet veya tepsiden oynatmayı kontrol et.
 - **Ayarlar:** Başlangıç, pano saklama ve gizlilik seçeneklerini, temayı, yedeği ve Chrome bağlantısını yönet.

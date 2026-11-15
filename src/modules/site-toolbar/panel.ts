@@ -8,7 +8,7 @@ import {
 } from '../../panel/ui';
 import { normalizeToolbarSettings, TOOLBAR_SITES_KEY, type ToolbarSite } from './settings';
 
-const DEFAULT_ACTIONS = ['link.copyPage', 'task.addPage'];
+const DEFAULT_ACTIONS = ['link.copyPage', 'watch.addPage'];
 function $<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
 }

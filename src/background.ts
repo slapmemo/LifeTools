@@ -15,3 +15,11 @@ registerDbBridge();
 registerActionBridge();
 initAutoBackup();
 initSelfUpdate();
+
+// Görevler modülü 0.5.8'de kaldırıldı: eski hatırlatma alarmlarını ve ayarını temizle.
+// (Görev verileri veritabanında ve yedekte kalır.)
+void (async () => {
+  const alarms = (await chrome.alarms.getAll()).filter(a => a.name.startsWith('task-due:'));
+  await Promise.all(alarms.map(a => chrome.alarms.clear(a.name)));
+  await chrome.storage.local.remove('taskDueReminders');
+})().catch(() => {});

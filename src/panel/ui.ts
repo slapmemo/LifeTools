@@ -58,27 +58,6 @@ export function formatRelativeDate(ms: number, nowMs: number = Date.now()): stri
   });
 }
 
-/** Açık görevleri bugünün tarihine (YYYY-MM-DD) göre Gecikmiş / Bugün / Yaklaşan / Tarihsiz olarak gruplar. */
-export function groupTasksByDate<T extends { due_date: string | null; done_at?: number | null }>(
-  tasks: readonly T[],
-  today: string
-): TaskGroups<T> {
-  const groups: TaskGroups<T> = { overdue: [], today: [], upcoming: [], undated: [] };
-  for (const task of tasks) {
-    if (task.done_at !== undefined && task.done_at !== null) continue;
-    if (!task.due_date) {
-      groups.undated.push(task);
-    } else if (task.due_date < today) {
-      groups.overdue.push(task);
-    } else if (task.due_date === today) {
-      groups.today.push(task);
-    } else {
-      groups.upcoming.push(task);
-    }
-  }
-  return groups;
-}
-
 /** Geçerli HTTP/HTTPS bağlantısından www. hariç alan adını döndürür. */
 export function extractDomain(rawUrl: string | null | undefined): string | null {
   if (!rawUrl) return null;

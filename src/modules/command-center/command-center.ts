@@ -10,8 +10,6 @@ import { filterTabs, type SearchTab } from '../tab-switcher/filter';
 import { TAB_SWITCHER_ID } from '../tab-switcher/background';
 import { SLAPMEMO_ID } from '../slapmemo/background';
 import { createNotesRepo } from '../slapmemo/repo';
-import { QUICK_TASKS_ID } from '../quick-tasks/background';
-import { createTasksRepo } from '../quick-tasks/repo';
 import { SMART_REPLIES_ID } from '../smart-replies/background';
 import { createSnippetsRepo } from '../smart-replies/repo';
 import { COMMAND_CENTER_TARGET_KEY } from './background';
@@ -28,7 +26,7 @@ type TabItem = SearchTab & { tab: chrome.tabs.Tab };
 const input = document.querySelector('#query') as HTMLInputElement;
 const results = document.querySelector('#results') as HTMLElement;
 const status = document.querySelector('#status') as HTMLElement;
-const notesRepo = createNotesRepo(popupDb), tasksRepo = createTasksRepo(popupDb, Date.now, () => { void chrome.runtime.sendMessage({ type: 'quick-tasks:reschedule' }).catch(() => {}); }), snippetsRepo = createSnippetsRepo(popupDb);
+const notesRepo = createNotesRepo(popupDb), snippetsRepo = createSnippetsRepo(popupDb);
 
 let actions: ActionInfo[] = [];
 let tabItems: TabItem[] = [];
@@ -118,16 +116,12 @@ async function build(query: string): Promise<Row[]> {
       await chrome.tabs.update(item.tab.id, { active: true }); await chrome.windows.update(item.tab.windowId, { focused: true }); window.close();
     } });
   }
-  const [noteRows, taskRows, snippetRows] = await Promise.all([
+  const [noteRows, snippetRows] = await Promise.all([
     isModuleEnabled(SLAPMEMO_ID).then(async on => on ? (await notesRepo.searchNotes(q)).slice(0, 5) : []).catch(() => []),
-    isModuleEnabled(QUICK_TASKS_ID).then(async on => on ? (await tasksRepo.listOpen()).filter(t => foldSearch(`${t.title} ${t.note ?? ''}`).includes(foldSearch(q))).slice(0, 5) : []).catch(() => []),
     isModuleEnabled(SMART_REPLIES_ID).then(async on => on ? (await snippetsRepo.list(q)).slice(0, 5) : []).catch(() => [])
   ]);
   for (const note of noteRows) out.push({ group: 'Notlar', title: note.text.slice(0, 120), sub: note.url ?? undefined, run: async () => {
     if (note.url) { await chrome.tabs.create({ url: note.url }); window.close(); } else await copy(note.text, 'Not kopyalandı.');
-  } });
-  for (const task of taskRows) out.push({ group: 'Görevler', title: task.title, sub: task.due_date ?? task.url ?? undefined, run: async () => {
-    if (task.url) { await chrome.tabs.create({ url: task.url }); window.close(); } else await copy(task.title, 'Görev başlığı kopyalandı.');
   } });
   for (const snippet of snippetRows) out.push({ group: 'Şablonlar', title: `${snippet.trigger} — ${snippet.title}`, sub: snippet.body.slice(0, 100), run: () => copy(snippet.body, 'Şablon kopyalandı.') });
   return out;

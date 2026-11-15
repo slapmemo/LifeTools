@@ -38,7 +38,6 @@ export function scrollToInitialHash(): void {
 
 const pageHeadingIcons: Record<string, IconName> = {
   'notlar-heading': 'notebook-pen',
-  'gorevler-heading': 'list-checks',
   'metin-heading': 'text-cursor-input',
   'sekmeler-heading': 'layout-grid',
   'odak-heading': 'timer',
@@ -46,7 +45,7 @@ const pageHeadingIcons: Record<string, IconName> = {
   'ayarlar-heading': 'settings'
 };
 
-const ALL_CATEGORIES = ['notlar', 'gorevler', 'metin', 'sekmeler', 'odak', 'medya', 'ayarlar'] as const;
+const ALL_CATEGORIES = ['notlar', 'metin', 'sekmeler', 'odak', 'medya', 'ayarlar'] as const;
 
 /** Başlık ikonları, kategori yönlendirme, "/" kısayolu ve hash dinleyicilerini bağlar. */
 export function initNavigation(memoSection: HTMLElement, smartSection: HTMLElement): void {

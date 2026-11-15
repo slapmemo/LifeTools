@@ -3,7 +3,6 @@ import { resolveEnabled } from './module-state';
 
 export const groups = [
   { id: 'notlar', label: 'Notlar', icon: 'notebook-pen', star: true, modules: ['slapmemo', 'watchlist'] },
-  { id: 'gorevler', label: 'Görevler', icon: 'list-checks', star: true, modules: ['quick-tasks'] },
   { id: 'metin', label: 'Metin', icon: 'text-cursor-input', star: true, modules: ['smart-replies', 'clip-slots', 'link-cleaner'] },
   {
     id: 'sekmeler',
@@ -34,7 +33,6 @@ export function routeCategory(hash: string, visible: readonly { id: string }[]):
 export function popupVisibility(flags: unknown) {
   return {
     notes: resolveEnabled(flags, 'slapmemo'),
-    tasks: resolveEnabled(flags, 'quick-tasks'),
     sites: resolveEnabled(flags, 'time-tracker'),
     search: resolveEnabled(flags, 'command-center'),
     snippets: resolveEnabled(flags, 'smart-replies')
