@@ -104,3 +104,10 @@ jobs:
         run: |
           gh release upload "$GITHUB_REF_NAME" release/LifeTools-extension-*.zip --repo "$GITHUB_REPOSITORY" --clobber
           gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          # Sürüm notu varsa sayfadaki metni onunla değiştir (latest.json'daki kısa not aynı kalır; uygulama onu tek satırda gösterir).
+          notes="release-notes/${GITHUB_REF_NAME}.md"
+          if [ -f "$notes" ]; then
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --notes-file "$notes"
+          else
+            echo "::warning::$notes bulunamadı; sürüm sayfasında yalnızca varsayılan metin var."
+          fi
