@@ -283,13 +283,14 @@ fn taskbar_is_light() -> bool {
 /// 0 = koyu ikon, 1 = açık ikon, 2 = henüz ayarlanmadı.
 static TRAY_LIGHT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(2);
 
-/// Tepsi ikonunu görev çubuğu temasına göre seçer (koyu çubukta beyaz, açık çubukta koyu monogram). Değişmediyse dokunmaz.
+/// Tepsi ikonu: yapraklı LifeTools logosu. Koyu görev çubuğunda açık lila, açık görev çubuğunda koyu mor sürümü
+/// (design/logo/*_512.png'den 32 px'e küçültüldü). Değişmediyse dokunmaz.
 fn sync_tray_icon(app: &AppHandle) {
     let light = taskbar_is_light();
     if TRAY_LIGHT.swap(light as u8, Ordering::SeqCst) == light as u8 {
         return;
     }
-    let bytes: &[u8] = if light { include_bytes!("../icons/tray-on-light-32.png") } else { include_bytes!("../icons/tray-on-dark-32.png") };
+    let bytes: &[u8] = if light { include_bytes!("../icons/tray-logo-light-32.png") } else { include_bytes!("../icons/tray-logo-dark-32.png") };
     match (app.tray_by_id("main"), tauri::image::Image::from_bytes(bytes)) {
         (Some(tray), Ok(image)) => { let _ = tray.set_icon(Some(image)); }
         (_, Err(e)) => eprintln!("Tepsi ikonu okunamadı: {e}"),
