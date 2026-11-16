@@ -263,6 +263,40 @@ fn fire_reminders(app: &AppHandle) {
     let _ = app.emit_to("main", "notes-changed", ());
 }
 
+/// Görev çubuğu açık temada mı (HKCU ...\Themes\Personalize\SystemUsesLightTheme = 1)?
+fn taskbar_is_light() -> bool {
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::ERROR_SUCCESS;
+    use windows::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+    let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+    let sub = wide(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+    let name = wide("SystemUsesLightTheme");
+    let mut value: u32 = 0;
+    let mut size = std::mem::size_of::<u32>() as u32;
+    let r = unsafe {
+        RegGetValueW(HKEY_CURRENT_USER, PCWSTR(sub.as_ptr()), PCWSTR(name.as_ptr()), RRF_RT_REG_DWORD, None,
+            Some(&mut value as *mut u32 as *mut std::ffi::c_void), Some(&mut size))
+    };
+    r == ERROR_SUCCESS && value == 1
+}
+
+/// 0 = koyu ikon, 1 = açık ikon, 2 = henüz ayarlanmadı.
+static TRAY_LIGHT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(2);
+
+/// Tepsi ikonunu görev çubuğu temasına göre seçer (koyu çubukta beyaz, açık çubukta koyu monogram). Değişmediyse dokunmaz.
+fn sync_tray_icon(app: &AppHandle) {
+    let light = taskbar_is_light();
+    if TRAY_LIGHT.swap(light as u8, Ordering::SeqCst) == light as u8 {
+        return;
+    }
+    let bytes: &[u8] = if light { include_bytes!("../icons/tray-on-light-32.png") } else { include_bytes!("../icons/tray-on-dark-32.png") };
+    match (app.tray_by_id("main"), tauri::image::Image::from_bytes(bytes)) {
+        (Some(tray), Ok(image)) => { let _ = tray.set_icon(Some(image)); }
+        (_, Err(e)) => eprintln!("Tepsi ikonu okunamadı: {e}"),
+        _ => {}
+    }
+}
+
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "LifeTools'u aç", true, None::<&str>)?;
     let clip = MenuItem::with_id(app, "clipboard", "Pano geçmişi", true, None::<&str>)?;
@@ -299,6 +333,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
         builder = builder.icon(icon.clone());
     }
     builder.build(app)?;
+    sync_tray_icon(app.handle());
     Ok(())
 }
 
@@ -308,6 +343,13 @@ fn run_maintenance(state: &AppState) {
         let _ = db::expire_older_than_days(&db, db::now_secs(), s.expire_days);
         let _ = db::enforce_limit(&db, s.max_items);
     }
+}
+
+fn init_state() -> Result<Arc<AppState>, Box<dyn std::error::Error>> {
+    let path = db::default_path()?;
+    let mut conn = db::open(&path)?;
+    db::migrate(&mut conn)?;
+    Ok(Arc::new(AppState::new(conn)))
 }
 
 fn main() {
@@ -320,6 +362,14 @@ fn main() {
     if args.iter().any(|a| a.starts_with("chrome-extension://")) {
         std::process::exit(native_host::run(&args));
     }
+
+    let app_state = match init_state() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Veritabanı açılamadı: {e}");
+            std::process::exit(1);
+        }
+    };
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -423,12 +473,11 @@ fn main() {
             commands::extension_info,
             commands::extension_open_folder,
         ])
+        // Durum, config pencereleri oluşturulmadan önce kaydedilmeli; yoksa ilk invoke "state not managed" hatası verir.
+        .manage(app_state)
+        .manage(ActiveShortcuts(Mutex::new([None; 3])))
         .setup(|app| {
-            let path = db::default_path()?;
-            let mut conn = db::open(&path)?;
-            db::migrate(&mut conn)?;
-            let state = Arc::new(AppState::new(conn));
-            app.manage(state.clone());
+            let state = app.state::<Arc<AppState>>().inner().clone();
 
             build_tray(app)?;
 
@@ -441,15 +490,18 @@ fn main() {
                 let _ = db::save_prefs(&state.db(), &prefs);
                 parse_shortcuts(&prefs.picker_shortcut, &prefs.snippets_shortcut, &prefs.quicknote_shortcut).unwrap()
             });
-            let mut registered = [None; 3];
-            for (i, sc) in shortcuts.into_iter().enumerate() {
-                let Some(sc) = sc else { continue };
-                match app.global_shortcut().register(sc) {
-                    Ok(()) => registered[i] = Some(sc),
-                    Err(e) => eprintln!("Kısayol kaydedilemedi ({sc:?}): {e}"),
+            {
+                // Kilit kayıt boyunca tutulur: işleyici, tablo dolmadan gelen basışı yok saymaz, bekler.
+                let active = app.state::<ActiveShortcuts>();
+                let mut registered = active.0.lock().unwrap_or_else(|e| e.into_inner());
+                for (i, sc) in shortcuts.into_iter().enumerate() {
+                    let Some(sc) = sc else { continue };
+                    match app.global_shortcut().register(sc) {
+                        Ok(()) => registered[i] = Some(sc),
+                        Err(e) => eprintln!("Kısayol kaydedilemedi ({sc:?}): {e}"),
+                    }
                 }
             }
-            app.manage(ActiveShortcuts(Mutex::new(registered)));
 
             clipboard::spawn_listener(app.handle().clone(), state.clone());
             extension_dir::spawn_sync(app.handle().clone());
@@ -470,6 +522,8 @@ fn main() {
             let handle = app.handle().clone();
             std::thread::spawn(move || loop {
                 fire_reminders(&handle);
+                // Kullanıcı Windows temasını değiştirirse tepsi ikonu ~20 sn içinde uyar (kayıt okuması ucuz).
+                sync_tray_icon(&handle);
                 std::thread::sleep(Duration::from_secs(20));
             });
 

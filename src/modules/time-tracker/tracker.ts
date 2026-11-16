@@ -6,6 +6,12 @@ export function siteKey(url: string | null): string | null {
   if (!url) return null;
   try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:' ? u.hostname.toLowerCase().replace(/^www\./, '') || null : null; } catch { return null; }
 }
+/** Görsel baytlarını data: URL'ye çevirir (servis çalışanında FileReader yok). */
+export function bytesToDataUrl(bytes: Uint8Array, mime: string): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return `data:${mime};base64,${btoa(binary)}`;
+}
 export function localDay(ms: number): string { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 // Calendar construction, rather than adding 24 hours, respects daylight-saving changes.
 export function splitByDay(domain: string, startMs: number, endMs: number, day: (ms: number) => string = localDay): Chunk[] {

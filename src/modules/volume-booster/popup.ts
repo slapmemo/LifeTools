@@ -7,7 +7,13 @@ export async function initVolumePopup(): Promise<void> {
   if (tab?.id === undefined) { root.hidden = true; return; }
   const tabId = tab.id;
   const send = (action: string, percent?: number) => chrome.runtime.sendMessage({ channel: 'lifetools:volume', action, tabId, percent });
-  const show = (percent: number) => { slider.value = String(percent); value.textContent = `${percent}%`; };
+  const presets = [...root.querySelectorAll<HTMLButtonElement>('[data-volume]')];
+  const show = (percent: number) => {
+    slider.value = String(percent);
+    value.textContent = `${percent}%`;
+    for (const b of presets) { const on = Number(b.dataset.volume) === percent; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); }
+  };
+  show(Number(slider.value));
   try { const current = await send('get'); if (current?.ok) show(current.percent); } catch { error.textContent = 'Ses düzeyi alınamadı.'; }
   let pending = Promise.resolve();
   const update = (action: string, percent?: number) => {

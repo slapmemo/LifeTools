@@ -57,6 +57,20 @@
     }
 
     #[test]
+    fn dashboard_site_icons_are_optional_and_filtered() {
+        let d = db();
+        d.execute_batch("CREATE TABLE site_time(day TEXT,domain TEXT,seconds INTEGER); INSERT INTO site_time VALUES('2026-11-08','x.com',600),('2026-11-08','a.com',300),('2026-11-08','b.com',100);").unwrap();
+        let s = dashboard_summary(&d, "2026-11-08").unwrap();
+        assert!(s.sites.iter().all(|site| site.icon.is_none()));
+        assert_eq!(s.sites_total_seconds, 1000);
+        d.execute_batch("CREATE TABLE site_icons(domain TEXT PRIMARY KEY,data_url TEXT NOT NULL,updated_at INTEGER NOT NULL); INSERT INTO site_icons VALUES('x.com','data:image/png;base64,AA==',1),('a.com','javascript:alert(1)',1);").unwrap();
+        let s = dashboard_summary(&d, "2026-11-08").unwrap();
+        assert_eq!(s.sites[0].icon.as_deref(), Some("data:image/png;base64,AA=="));
+        assert_eq!((s.sites[1].domain.as_str(), s.sites[1].icon.as_deref()), ("a.com", None));
+        assert!(s.sites[2].icon.is_none());
+    }
+
+    #[test]
     fn snippets_crud_validation_and_search() {
         let d = db();
         assert_eq!(normalize_trigger("/İ").unwrap(), "/i\u{307}");

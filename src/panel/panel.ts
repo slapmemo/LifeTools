@@ -108,5 +108,7 @@ void initStoragePanel().render();
 
 initBackup();
 initNavigation(memoSection, smartSection);
+// Marka altındaki sürüm HTML'de sabit "v0.1" idi; gerçek eklenti sürümünü göster.
+document.querySelectorAll('.brand-text span, .topbar .version').forEach(el => { el.textContent = `Sürüm ${chrome.runtime.getManifest().version}`; });
 initTheme();
 void isModuleEnabled;

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { initialState, onEvent, siteKey, splitByDay } from '../src/modules/time-tracker/tracker';
+import { bytesToDataUrl, initialState, onEvent, siteKey, splitByDay } from '../src/modules/time-tracker/tracker';
 import { createTimeTrackerRepo } from '../src/modules/time-tracker/repo';
 import { createMemoryExecutor } from './sqlite-memory';
 import { runMigrations } from '../src/db/migrations';
@@ -51,4 +51,19 @@ it('upserts, orders, sums and deletes', async () => {
   expect(await repo.getRange('2024-01-01','2024-01-02')).toEqual([{domain:'a',seconds:45},{domain:'b',seconds:20}]);
   await repo.deleteDomain('a'); expect(await repo.getDay('2024-01-02')).toEqual([]);
   await repo.deleteAll(); expect(await repo.getDay('2024-01-01')).toEqual([]);
+});
+it('converts icon bytes to a data URL', () => {
+  expect(bytesToDataUrl(new Uint8Array([137, 80, 78, 71]), 'image/png')).toBe('data:image/png;base64,iVBORw==');
+  const big = new Uint8Array(70000).fill(65);
+  expect(bytesToDataUrl(big, 'image/png')).toBe(`data:image/png;base64,${btoa('A'.repeat(70000))}`);
+});
+it('stores, refreshes and deletes site icons', async () => {
+  const ex = await createMemoryExecutor(); await runMigrations(ex); const repo = createTimeTrackerRepo(ex);
+  expect(await repo.iconUpdatedAt('x.com')).toBeNull();
+  await repo.saveIcon('x.com', 'data:image/png;base64,AA==', 1000);
+  await repo.saveIcon('x.com', 'data:image/png;base64,AQ==', 2000);
+  expect(await repo.iconUpdatedAt('x.com')).toBe(2000);
+  expect(await ex.query('SELECT data_url FROM site_icons')).toEqual([{ data_url: 'data:image/png;base64,AQ==' }]);
+  await repo.deleteDomain('x.com');
+  expect(await repo.iconUpdatedAt('x.com')).toBeNull();
 });

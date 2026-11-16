@@ -1,14 +1,16 @@
 import { listen } from '@tauri-apps/api/event';
+import { icon } from '../../../design/icons';
 import { api, errText, type Snippet } from '../api';
 import { debounce, h, type View } from '../dom';
-import { emptyState, rowMenu } from '../view-components';
+import { emptyState, miniFooter, miniHeader, rowMenu } from '../view-components';
 
 // ---------- Ana pencere: Şablonlar bölümü ----------
 
 export function snippetsView(): View {
-  const search = h('input', { type: 'search', class: 'grow', placeholder: 'Şablonlarda ara…' });
-  const addBtn = h('button', {}, '+ Yeni şablon');
-  const list = h('div', { class: 'card list-card' });
+  const search = h('input', { type: 'search', placeholder: 'Şablonlarda ara…', 'aria-label': 'Şablonlarda ara' });
+  const searchBox = h('label', { class: 'search-field' }, icon('search', 16), search);
+  const addBtn = h('button', { type: 'button', class: 'primary' }, icon('plus', 16), 'Yeni şablon');
+  const list = h('div', { class: 'note-list' });
   const status = h('div', { class: 'muted status' });
 
   const fTrigger = h('input', { type: 'text', placeholder: '/merhaba veya ;merhaba', maxLength: 32, size: 20 });
@@ -18,8 +20,8 @@ export function snippetsView(): View {
   const cancelBtn = h('button', {}, 'Vazgeç');
   const form = h(
     'div',
-    { class: 'card snippet-form' },
-    h('div', { class: 'toolbar' }, fTrigger, fTitle),
+    { class: 'card note-add snippet-form' },
+    h('div', { class: 'note-add-input watch-add-input' }, icon('pencil', 18), fTrigger, fTitle),
     fBody,
     h('div', { class: 'toolbar' }, saveBtn, cancelBtn)
   );
@@ -28,13 +30,12 @@ export function snippetsView(): View {
   const el = h(
     'section',
     {},
-    h('h2', {}, 'Şablonlar'),
-    h(
-      'p',
-      { class: 'muted' },
-      'Ctrl+Shift+Space ile her uygulamada seçici açılır; Enter ile şablon yapıştırılır. Yazarken otomatik genişletme yoktur (klavye dinlenmez).'
-    ),
-    h('div', { class: 'toolbar' }, search, addBtn),
+    h('header', { class: 'page-header page-header-row' },
+      h('div', {},
+        h('h2', { class: 'page-title page-title-icon' }, icon('message-square-text', 26), 'Şablonlar'),
+        h('p', { class: 'page-subtitle', title: 'Seçici her uygulamada açılır; Enter ile şablon yapıştırılır. Yazarken otomatik genişletme yoktur (klavye dinlenmez).' },
+          'Hazır metinler: her uygulamada Ctrl+Shift+Space ile seç, Enter ile yapıştır.')),
+      h('div', { class: 'page-actions' }, searchBox, addBtn)),
     form,
     status,
     list
@@ -52,7 +53,7 @@ export function snippetsView(): View {
     fTrigger.value = s?.trigger ?? '/';
     fTitle.value = s?.title ?? '';
     fBody.value = s?.body ?? '';
-    form.style.display = 'block';
+    form.style.display = '';
     fTrigger.focus();
   }
 
@@ -74,11 +75,18 @@ export function snippetsView(): View {
         { label: 'Kopyala', run: async () => { try { await navigator.clipboard.writeText(s.body); flash('Panoya kopyalandı.'); } catch (e) { flash(errText(e)); } } },
         { label: 'Sil', danger: true, run: async () => { await api.snippetDelete(s.id); await refresh(); } }
       ]);
+      const copyBtn = h('button', { type: 'button', class: 'icon-button', title: 'Metni kopyala', 'aria-label': 'Metni kopyala' }, icon('copy', 16));
+      copyBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try { await navigator.clipboard.writeText(s.body); flash('Panoya kopyalandı.'); } catch (err) { flash(errText(err)); }
+      });
       list.append(h('div', { class: 'list-row clickable', title: 'Tıkla: düzenle', onClick: () => openForm(s) },
-        h('div', { class: 'list-row-content' }, h('strong', {}, s.trigger), ' ' + s.title,
-          h('div', { class: 'muted clamp-2' }, s.body)),
-        h('div', { class: 'list-row-meta muted' }, `${s.use_count}×`),
-        h('div', { class: 'list-row-actions' }, menu)));
+        h('span', { class: 'panel-row-icon' }, icon('message-square-text', 16)),
+        h('div', { class: 'list-row-content' },
+          h('div', { class: 'note-head' }, h('span', { class: 'chip chip-mono' }, s.trigger), h('strong', { class: 'clamp-1' }, s.title)),
+          h('div', { class: 'muted clamp-2 snippet-body' }, s.body)),
+        h('div', { class: 'list-row-meta muted', title: 'Kullanım sayısı' }, `${s.use_count} kez`),
+        h('div', { class: 'list-row-actions' }, copyBtn, menu)));
     }
   }
 
@@ -123,9 +131,13 @@ export function refresh(): Promise<void> | void {
 // ---------- Küçük seçici penceresi (Ctrl+Shift+Space) ----------
 
 export function mountSnippetPicker(root: HTMLElement): void {
-  const search = h('input', { type: 'search', placeholder: 'Şablon ara… (Enter: ekle, Esc: kapat)' });
-  const list = h('div', { class: 'card list-card picker-list' });
-  root.append(h('div', { class: 'picker' }, search, list));
+  const search = h('input', { type: 'search', placeholder: 'Şablon ara…', 'aria-label': 'Şablon ara' });
+  const list = h('div', { class: 'picker-list', role: 'listbox', 'aria-label': 'Şablonlar' });
+  root.append(h('div', { class: 'picker' },
+    miniHeader('message-square-text', 'Şablonlar'),
+    h('label', { class: 'search-field' }, icon('search', 16), search),
+    list,
+    miniFooter([['↑↓', 'seç'], ['Enter', 'ekle'], ['Esc', 'kapat']])));
 
   let items: Snippet[] = [];
   let sel = 0;
@@ -147,21 +159,18 @@ export function mountSnippetPicker(root: HTMLElement): void {
   function render(): void {
     list.replaceChildren();
     if (items.length === 0) {
-      list.append(h('div', { class: 'empty' }, 'Şablon yok.'));
+      list.append(h('div', { class: 'empty' }, search.value ? 'Sonuç yok.' : 'Şablon yok.'));
       return;
     }
     items.forEach((it, i) => {
       list.append(
         h(
           'div',
-          { class: 'list-row clickable picker-row' + (i === sel ? ' selected' : ''), onClick: () => void choose(i) },
-          h(
-            'div',
-            { class: 'list-row-content' },
-            h('strong', {}, it.trigger),
-            ' ' + it.title,
-            h('div', { class: 'muted clamp-2' }, it.body.length > 80 ? it.body.slice(0, 80) + '…' : it.body)
-          )
+          { class: 'picker-row' + (i === sel ? ' selected' : ''), role: 'option', 'aria-selected': String(i === sel), onClick: () => void choose(i) },
+          h('span', { class: 'chip chip-mono' }, it.trigger),
+          h('div', { class: 'picker-row-main' },
+            h('div', { class: 'picker-row-title clamp-1' }, it.title || it.trigger),
+            h('div', { class: 'picker-row-meta clamp-1' }, it.body.replace(/\s+/g, ' ')))
         )
       );
     });

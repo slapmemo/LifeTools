@@ -7,15 +7,21 @@ use tauri_plugin_autostart::ManagerExt;
 
 type St<'a> = State<'a, Arc<AppState>>;
 
+/// Pil okuma ~1 sn sürebilir; eşzamanlı komutlar ana iş parçacığında çalıştığı için arka planda yapılır.
 #[tauri::command]
-pub fn dashboard_summary(app: AppHandle, state: St) -> Result<db::DashboardSummary, String> {
-    let mut summary = {
-        let db = state.db();
-        let today: String = db.query_row("SELECT date('now','localtime')", [], |r| r.get(0)).map_err(err)?;
-        db::dashboard_summary(&db, &today).map_err(err)?
-    };
-    summary.batteries = crate::refresh_batteries(&app);
-    Ok(summary)
+pub async fn dashboard_summary(app: AppHandle) -> Result<db::DashboardSummary, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut summary = {
+            let state = app.state::<Arc<AppState>>();
+            let db = state.db();
+            let today: String = db.query_row("SELECT date('now','localtime')", [], |r| r.get(0)).map_err(err)?;
+            db::dashboard_summary(&db, &today).map_err(err)?
+        };
+        summary.batteries = crate::refresh_batteries(&app);
+        Ok(summary)
+    })
+    .await
+    .map_err(err)?
 }
 
 fn err<E: ToString>(e: E) -> String {
@@ -286,8 +292,8 @@ pub fn prefs_set(state: St, prefs: db::Prefs) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn battery_list(app: AppHandle) -> Vec<crate::battery::DeviceBattery> {
-    crate::refresh_batteries(&app)
+pub async fn battery_list(app: AppHandle) -> Result<Vec<crate::battery::DeviceBattery>, String> {
+    tauri::async_runtime::spawn_blocking(move || crate::refresh_batteries(&app)).await.map_err(err)
 }
 
 #[tauri::command]

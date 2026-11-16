@@ -2,8 +2,21 @@ import { emit, listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getVersion } from '@tauri-apps/api/app';
+import { icon, type IconName } from '../../../design/icons';
 import { api, errText, type NativeStatus } from '../api';
 import { h, parseNum, type View } from '../dom';
+
+/** Ayar kartı: ikonlu başlık + içerik. */
+function section(iconName: IconName, title: string, ...children: (Node | null)[]): HTMLElement {
+  return h('div', { class: 'card settings-card' }, h('h3', { class: 'panel-title' }, icon(iconName, 18), title), ...children);
+}
+
+/** Metin + açıklama + sağda anahtar (checkbox'ı switch görünümüne sarar). */
+function toggleRow(label: string, input: HTMLInputElement, hint?: string): HTMLElement {
+  return h('label', { class: 'settings-row' },
+    h('span', { class: 'settings-label' }, label, hint ? h('span', { class: 'hint' }, hint) : null),
+    h('span', { class: 'switch' }, input, h('span', { class: 'switch-track' })));
+}
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -39,7 +52,7 @@ export function applyTheme(mode: ThemeMode): void {
   const isDark = mode === 'dark' || (mode === 'system' && prefersDark);
   try {
     const win = getCurrentWindow();
-    void win.setBackgroundColor(isDark ? '#171d19' : '#f6f8f5').catch(() => undefined);
+    void win.setBackgroundColor(isDark ? '#10111a' : '#f6f5fb').catch(() => undefined);
     void win.setTheme(mode === 'system' ? null : mode).catch(() => undefined);
   } catch {
     /* Tauri penceresi dışında */
@@ -159,7 +172,8 @@ export function settingsView(): View {
   const disableAllShortcuts = h('button', { type: 'button' }, 'Tümünü kapat');
   disableAllShortcuts.addEventListener('click', () => { if (!saving) { recording = null; void saveShortcuts(['', '', '']); } });
   const shortcutRow = (label: string, index: number) =>
-    h('div', { class: 'settings-row' }, label, h('div', { class: 'toolbar' }, shortcutButtons[index], shortcutToggles[index]));
+    h('div', { class: 'settings-row' }, h('span', { class: 'settings-label' }, label),
+      h('div', { class: 'settings-controls' }, shortcutButtons[index], h('label', { class: 'switch' }, shortcutToggles[index], h('span', { class: 'switch-track' }))));
   const autostart = h('input', { type: 'checkbox' });
   const copyOnly = h('input', { type: 'checkbox' });
   const battNotify = h('input', { type: 'checkbox' });
@@ -167,7 +181,7 @@ export function settingsView(): View {
   const max = h('input', { type: 'number', min: '10', max: '5000' });
   const excl = h('textarea', { rows: 6, class: 'grow' });
   const msg = h('div', { class: 'muted' });
-  const version = h('p', { class: 'muted' });
+  const version = h('p', { class: 'page-subtitle' }, 'LifeTools masaüstü');
   void getVersion().then(value => { version.textContent = `LifeTools masaüstü · Sürüm ${value}`; }).catch(() => undefined);
   const autoUpdate = h('input', { type: 'checkbox' });
   const updateCheckBtn = h('button', { type: 'button' }, 'Güncellemeleri denetle');
@@ -223,15 +237,15 @@ export function settingsView(): View {
     }
   });
   const extPath = h('p', { class: 'muted', style: 'user-select: text; overflow-wrap: anywhere' }, 'Eklenti klasörü: …');
-  const extOpen = h('button', { type: 'button' }, 'Klasörü aç');
+  const extOpen = h('button', { type: 'button' }, icon('external-link', 16), 'Klasörü aç');
   extOpen.addEventListener('click', async () => {
     try { await api.extensionOpenFolder(); } catch (e) { nativeStatus.textContent = `Hata: ${errText(e)}`; }
   });
-  const saveBtn = h('button', {}, 'Kaydet');
+  const saveBtn = h('button', { type: 'button', class: 'primary' }, 'Kaydet');
   const nativeStatus = h('div', { class: 'muted' });
-  const nativeConnect = h('button', {}, 'Bağla');
-  const nativeRemove = h('button', { class: 'danger' }, 'Bağlantıyı kaldır');
-  const backupBtn = h('button', { type: 'button' }, 'Yedeği indir');
+  const nativeConnect = h('button', { type: 'button', class: 'primary' }, 'Bağla');
+  const nativeRemove = h('button', { type: 'button', class: 'danger-button' }, 'Bağlantıyı kaldır');
+  const backupBtn = h('button', { type: 'button' }, icon('download', 16), 'Yedeği indir');
   const backupStatus = h('p', { class: 'muted', role: 'status', style: 'user-select: text; overflow-wrap: anywhere' });
   const videoStatus = h('p', { class: 'muted', role: 'status' });
   const videoFolder = h('p', { class: 'muted', style: 'user-select: text; overflow-wrap: anywhere' });
@@ -244,7 +258,7 @@ export function settingsView(): View {
   videoOpen.addEventListener('click', async () => { try { await api.videoOpenFolder(); } catch (e) { videoStatus.textContent = `Hata: ${errText(e)}`; } });
 
   const themeBtns = new Map<ThemeMode, HTMLButtonElement>();
-  const themeGroup = h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'Görünüm' });
+  const themeGroup = h('div', { class: 'chip-tabs', role: 'radiogroup', 'aria-label': 'Görünüm' });
 
   function syncThemeUi(active: ThemeMode): void {
     for (const [mode, btn] of themeBtns) {
@@ -281,35 +295,41 @@ export function settingsView(): View {
   const el = h(
     'section',
     { class: 'settings-view' },
-    h('h2', {}, 'Ayarlar'),
-    h('div', { class: 'card settings-card' }, h('h3', {}, 'İndirme araçları'), videoStatus, videoFolder, h('div', { class: 'toolbar' }, videoInstall, videoUpdate, videoOpen)),
-    h('div', { class: 'card settings-card' }, h('h3', {}, 'Başlangıç'),
-      h('label', { class: 'settings-row' }, 'Windows açılışında başlat', autostart),
-      h('label', { class: 'settings-row' }, 'Pil %20 altına düşünce bildir', battNotify)),
-    h('div', { class: 'card settings-card' }, h('h3', {}, 'Kısayollar'),
+    h('header', { class: 'page-header' },
+      h('h2', { class: 'page-title page-title-icon' }, icon('settings', 26), 'Ayarlar'),
+      version),
+    msg,
+    section('app-window', 'Görünüm',
+      h('div', { class: 'settings-row' }, h('span', { class: 'settings-label' }, 'Tema'), themeGroup)),
+    section('zap', 'Başlangıç ve bildirimler',
+      toggleRow('Windows açılışında başlat', autostart),
+      toggleRow('Pil %20 altına düşünce bildir', battNotify)),
+    section('keyboard', 'Kısayollar',
       shortcutRow('Pano seçici', 0),
       shortcutRow('Şablon seçici', 1),
       shortcutRow('Hızlı not', 2),
-      h('label', { class: 'settings-row' }, 'Şablonu yalnızca panoya kopyala (otomatik yapıştırma yok)', copyOnly),
-      h('div', { class: 'toolbar' }, resetShortcuts, disableAllShortcuts), shortcutError),
-    h('div', { class: 'card settings-card' }, h('h3', {}, 'Chrome bağlantısı'),
-      h('p', { class: 'muted' }, 'Eklentinin verileri bu uygulamanın veritabanında (%APPDATA%\\LifeTools\\lifetools.db) saklanabilir. Önce burada bağla, sonra eklentide "Verileri masaüstüne taşı" düğmesine bas. Bağlantıdan sonra Chrome\'u yeniden başlatmak gerekmez.'),
-      h('div', { class: 'toolbar' }, nativeConnect, nativeRemove), nativeStatus,
-      extPath, h('div', { class: 'toolbar' }, extOpen),
-      h('p', { class: 'muted' }, 'Chrome\'da chrome://extensions → Geliştirici modu → Paketlenmemiş öğe yükle → bu klasörü seç. Sonraki sürümler otomatik gelir.')),
-    h('div', { class: 'card settings-card' }, h('h3', {}, 'Güncellemeler'),
+      toggleRow('Şablonu yalnızca panoya kopyala', copyOnly, 'Otomatik yapıştırma yapılmaz.'),
+      h('div', { class: 'toolbar settings-actions' }, resetShortcuts, disableAllShortcuts), shortcutError),
+    section('clipboard', 'Pano gizliliği',
+      h('label', { class: 'settings-row' }, h('span', { class: 'settings-label' }, 'Sabitlenmemiş kayıtlar şu kadar gün sonra silinir'), expire),
+      h('label', { class: 'settings-row' }, h('span', { class: 'settings-label' }, 'En fazla kayıt sayısı', h('span', { class: 'hint' }, 'Sabitlenenler sayılmaz.')), max),
+      h('label', { class: 'field' }, h('span', { class: 'settings-label' }, 'Kaydedilmeyecek uygulamalar', h('span', { class: 'hint' }, 'Her satıra bir exe adı.')), excl),
+      h('div', { class: 'toolbar settings-actions' }, saveBtn)),
+    section('link', 'Chrome bağlantısı',
+      h('p', { class: 'hint' }, 'Eklentinin verileri bu uygulamanın veritabanında (%APPDATA%\\LifeTools\\lifetools.db) saklanabilir. Önce burada bağla, sonra eklentide "Verileri masaüstüne taşı" düğmesine bas. Bağlantıdan sonra Chrome\'u yeniden başlatmak gerekmez.'),
+      h('div', { class: 'toolbar settings-actions' }, nativeConnect, nativeRemove), nativeStatus,
+      h('div', { class: 'settings-subbox' },
+        extPath,
+        h('p', { class: 'hint' }, 'Chrome\'da chrome://extensions → Geliştirici modu → Paketlenmemiş öğe yükle → bu klasörü seç. Sonraki sürümler otomatik gelir.'),
+        h('div', { class: 'toolbar settings-actions' }, extOpen))),
+    section('refresh-cw', 'Güncellemeler',
       updateVersion,
-      h('label', { class: 'settings-row' }, 'Otomatik güncelle', autoUpdate),
-      h('div', { class: 'toolbar' }, updateCheckBtn, updateInstallBtn), updateStatus),
-    h('div', { class: 'card settings-card' }, h('h3', {}, 'Görünüm'),
-      h('div', { class: 'settings-row' }, 'Tema', themeGroup)),
-    h('div', { class: 'card settings-card' }, h('h3', {}, 'Yedek'), backupBtn, backupStatus),
-    h('div', { class: 'card settings-card' }, h('h3', {}, 'Pano gizliliği'),
-      h('label', { class: 'settings-row' }, 'Sabitlenmemiş kayıtlar şu kadar gün sonra silinir', expire),
-      h('label', { class: 'settings-row' }, 'En fazla kayıt sayısı (sabitlenenler hariç)', max),
-      h('label', { class: 'field' }, 'Kaydedilmeyecek uygulamalar (her satıra bir exe adı)', excl),
-      h('div', { class: 'toolbar settings-save' }, saveBtn)),
-    msg, version
+      toggleRow('Otomatik güncelle', autoUpdate),
+      h('div', { class: 'toolbar settings-actions' }, updateCheckBtn, updateInstallBtn), updateStatus),
+    section('archive', 'Yedek',
+      h('p', { class: 'hint' }, 'Notlar, şablonlar, izleme listesi ve diğer veriler İndirilenler\\LifeTools\\Yedekler klasörüne JSON olarak kaydedilir.'),
+      h('div', { class: 'toolbar settings-actions' }, backupBtn), backupStatus),
+    section('download', 'İndirme araçları', videoStatus, videoFolder, h('div', { class: 'toolbar settings-actions' }, videoInstall, videoUpdate, videoOpen))
   );
 
   const savePrefs = async () => {

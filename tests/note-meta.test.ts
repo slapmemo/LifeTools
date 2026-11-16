@@ -16,7 +16,7 @@ test('masaüstü note_meta tablosunu önce oluşturduysa migrasyon 11 yine başa
   const ex = await createMemoryExecutor();
   await runMigrations(ex, MIGRATIONS.filter(m => m.version <= 10));
   for (const statement of migration11.statements) await ex.exec(statement);
-  expect(await runMigrations(ex)).toEqual({ from: 10, to: 11, applied: [11] });
+  expect(await runMigrations(ex)).toEqual({ from: 10, to: 12, applied: [11, 12] });
 });
 
 test('arşivlenen not listede ve aramada görünmez, sabitlenen önce gelir, silmede meta temizlenir', async () => {

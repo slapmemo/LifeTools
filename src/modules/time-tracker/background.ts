@@ -2,7 +2,7 @@ import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { backgroundDb } from '../../db/host';
 import { createTimeTrackerRepo } from './repo';
 import { initialState, onEvent, siteKey, type Event, type TrackerState } from './tracker';
-import { localDay } from './tracker';
+import { bytesToDataUrl, localDay } from './tracker';
 import { crossedThresholds, LIMITS_KEY, LIMITS_ENABLED_KEY, NOTIFIED_KEY, type DailyLimits } from './limits';
 export const TIME_TRACKER_ID = 'time-tracker';
 export const EXCLUDED_KEY = 'timeTrackerExcluded';
@@ -40,18 +40,45 @@ async function apply(events: Event[]): Promise<void> {
   }
   await chrome.storage.session.set({ [SESSION_KEY]: state });
 }
+const ICON_MAX_AGE_MS = 7 * 86400e3, ICON_RETRY_MS = 3600e3, ICON_MAX_BYTES = 16384;
+const iconTried = new Map<string, number>();
+/** Etkin sekmenin sitesine ait ikonu Chrome'un favicon önbelleğinden alıp saklar (ağ isteği yok). Haftada bir yenilenir. */
+async function captureIcon(tab: chrome.tabs.Tab | undefined, force = false): Promise<void> {
+  const domain = siteKey(tab?.url ?? null);
+  if (!tab?.url || !tab.favIconUrl || !domain) return; // favIconUrl yoksa Chrome henüz ikonu bilmiyor; varsayılan küreyi kaydetme
+  if (!(await isModuleEnabled(TIME_TRACKER_ID))) return;
+  const excluded = (await chrome.storage.local.get({ [EXCLUDED_KEY]: [] }))[EXCLUDED_KEY] as string[];
+  if (excluded.includes(domain)) return;
+  const now = Date.now();
+  if (!force && now - (iconTried.get(domain) ?? 0) < ICON_RETRY_MS) return;
+  iconTried.set(domain, now);
+  const savedAt = await repo.iconUpdatedAt(domain);
+  if (!force && savedAt !== null && now - savedAt < ICON_MAX_AGE_MS) return;
+  const res = await fetch(`${chrome.runtime.getURL('_favicon/')}?pageUrl=${encodeURIComponent(tab.url)}&size=32`);
+  if (!res.ok) return;
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (!bytes.length || bytes.length > ICON_MAX_BYTES) return;
+  const mime = (res.headers.get('content-type') ?? 'image/png').split(';')[0].trim();
+  if (!mime.startsWith('image/')) return;
+  await repo.saveIcon(domain, bytesToDataUrl(bytes, mime), now);
+}
 async function sync(): Promise<void> {
   if (!(await isModuleEnabled(TIME_TRACKER_ID))) { await apply([{ type: 'windowFocus', focused: false }]); await chrome.alarms.clear(ALARM); return; }
   await chrome.alarms.create(ALARM, { periodInMinutes: 1 });
   const [win, idle] = await Promise.all([chrome.windows.getLastFocused(), chrome.idle.queryState(60)]);
   const focused = !!win.focused; const tabs = focused && win.id !== undefined ? await chrome.tabs.query({ active: true, windowId: win.id }) : [];
   await apply([{ type: 'windowFocus', focused: false }, { type: 'activeUrl', url: tabs[0]?.url ?? null }, { type: 'idle', idle }, { type: 'windowFocus', focused }]);
+  await captureIcon(tabs[0]);
 }
 export function initTimeTrackerBackground(): void {
   chrome.notifications.onButtonClicked.addListener((id, index) => { if (id.startsWith('time-limit:') && index === 0) void chrome.notifications.clear(id); });
   chrome.idle.setDetectionInterval(60);
   chrome.tabs.onActivated.addListener(() => schedule(sync));
-  chrome.tabs.onUpdated.addListener((_id, change, tab) => { if (change.url !== undefined && tab.active) schedule(sync); });
+  chrome.tabs.onUpdated.addListener((_id, change, tab) => {
+    if (change.url !== undefined && tab.active) schedule(sync);
+    // Sayfa yüklenince ikon sonradan gelir: o an yakala (kayıt bir haftadan yeniyse yine atlanır).
+    else if (change.favIconUrl && tab.active) schedule(() => captureIcon(tab));
+  });
   chrome.windows.onFocusChanged.addListener(() => schedule(sync));
   chrome.idle.onStateChanged.addListener(idle => schedule(async () => { if (await isModuleEnabled(TIME_TRACKER_ID)) await apply([{ type: 'idle', idle }]); }));
   chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === ALARM) schedule(async () => { if (await isModuleEnabled(TIME_TRACKER_ID)) await apply([{ type: 'flush' }]); else await sync(); }); });

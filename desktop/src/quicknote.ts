@@ -2,6 +2,7 @@
 import { listen } from '@tauri-apps/api/event';
 import { api, errText, type NoteCategory } from './api';
 import { h } from './dom';
+import { miniFooter, miniHeader } from './view-components';
 
 const CATEGORIES: { id: NoteCategory; label: string }[] = [
   { id: 'note', label: 'Notlar' },
@@ -12,13 +13,13 @@ const CATEGORIES: { id: NoteCategory; label: string }[] = [
 const LAST_CATEGORY_KEY = 'lifetools_quicknote_category';
 
 export function mountQuickNote(root: HTMLElement): void {
-  const text = h('textarea', { rows: 5, placeholder: 'Hızlı not… (Ctrl+Enter: kaydet · Esc: kapat)', maxLength: 10000, 'aria-label': 'Not metni' });
+  const text = h('textarea', { rows: 5, placeholder: 'Aklındakini yaz…', maxLength: 10000, 'aria-label': 'Not metni' });
   const category = h('select', { 'aria-label': 'Kategori' });
   for (const c of CATEGORIES) category.append(h('option', { value: c.id }, c.label));
   try { const saved = localStorage.getItem(LAST_CATEGORY_KEY); if (saved && CATEGORIES.some((c) => c.id === saved)) category.value = saved; } catch { /* yoksay */ }
   const save = h('button', { type: 'button', class: 'primary' }, 'Kaydet');
   const error = h('div', { class: 'hint', role: 'alert' });
-  root.append(h('div', { class: 'quicknote' }, h('div', { class: 'quicknote-title' }, 'Hızlı not'), text, h('div', { class: 'toolbar' }, category, error, save)));
+  root.append(h('div', { class: 'quicknote' }, miniHeader('pencil', 'Hızlı not'), text, h('div', { class: 'toolbar' }, category, error, save), miniFooter([['Ctrl+Enter', 'kaydet'], ['Esc', 'kapat']])));
 
   let busy = false;
   async function submit(): Promise<void> {

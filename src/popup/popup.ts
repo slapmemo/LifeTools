@@ -3,7 +3,7 @@ import { popupDb, pingDesktop } from '../db/client';
 import { getBackend } from '../db/backend';
 import { createNotesRepo } from '../modules/slapmemo/repo';
 import { type NoteCategory } from '../modules/slapmemo/categories';
-import { createTimeTrackerRepo } from '../modules/time-tracker/repo';
+import { createTimeTrackerRepo, type SiteTotal } from '../modules/time-tracker/repo';
 import { localDay } from '../modules/time-tracker/tracker';
 import { createSnippetsRepo } from '../modules/smart-replies/repo';
 import { parsePrefix, rankActions } from '../modules/command-center/search';
@@ -14,6 +14,13 @@ import { applyTheme } from '../core/theme';
 import { todayTimeLine } from './summary';
 import { openTabManager } from '../modules/tab-manager/open';
 import { showVersions } from '../core/desktop-version';
+import { formatDuration } from '../modules/time-tracker/panel';
+import { icon, type IconName } from '../../design/icons';
+
+// HTML'deki data-icon yer tutucularını ortak Lucide ikonlarıyla doldur.
+document.querySelectorAll<HTMLElement>('[data-icon]').forEach(slot => {
+  slot.replaceChildren(icon(slot.dataset.icon as IconName, slot.classList.contains('card-icon') ? 18 : slot.closest('.tile') ? 20 : 16));
+});
 
 const versionFooter = document.createElement('footer');
 versionFooter.className = 'version-footer';
@@ -53,6 +60,9 @@ el('tab-manager').onclick = () => { void openTabManager(); };
 el('settings').onclick = () => openPanel('#ayarlar');
 el('desktop-banner-switch').onclick = () => openPanel('#ayarlar');
 el('today-sites').onclick = () => openPanel('#odak');
+el('open-notes').onclick = () => openPanel('#notlar');
+el('open-notes-tile').onclick = () => openPanel('#notlar');
+el('open-tabs-tile').onclick = () => openPanel('#sekmeler');
 
 async function save(): Promise<void> {
   try {
@@ -92,10 +102,40 @@ async function summary(): Promise<void> {
   const actionsWrap = el('note').parentElement;
   if (actionsWrap) actionsWrap.hidden = !hasQuickInput;
 
+  el('open-notes-tile').hidden = !visible.notes;
   const today = localDay(Date.now());
-  if (visible.sites) {
-    el('today-sites').textContent = todayTimeLine(await createTimeTrackerRepo(popupDb).getDay(today));
+  if (visible.sites) renderToday(await createTimeTrackerRepo(popupDb).getDay(today));
+}
+
+/** Bugün kartı: toplam süre + en çok vakit geçirilen 3 site (ikonlar Chrome'un favicon önbelleğinden). */
+function renderToday(sites: SiteTotal[]): void {
+  const total = sites.reduce((sum, site) => sum + site.seconds, 0);
+  el('today-total').textContent = sites.length ? formatDuration(total) : '';
+  el('today-sites').title = todayTimeLine(sites);
+  const list = el('today-list');
+  if (!sites.length) {
+    const empty = document.createElement('p');
+    empty.className = 'today-empty';
+    empty.textContent = 'Bugün henüz süre kaydı yok';
+    list.replaceChildren(empty);
+    return;
   }
+  list.replaceChildren(...sites.slice(0, 3).map(site => {
+    const row = document.createElement('div');
+    row.className = 'today-row';
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = `${chrome.runtime.getURL('_favicon/')}?pageUrl=${encodeURIComponent(`https://${site.domain}/`)}&size=32`;
+    img.addEventListener('error', () => { const fallback = icon('monitor', 18); fallback.classList.add('fallback'); img.replaceWith(fallback); });
+    const domain = document.createElement('span');
+    domain.className = 'domain';
+    domain.textContent = site.domain;
+    const time = document.createElement('span');
+    time.className = 'time';
+    time.textContent = formatDuration(site.seconds);
+    row.append(img, domain, time);
+    return row;
+  }));
 }
 
 let sequence = 0;

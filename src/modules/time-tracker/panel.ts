@@ -82,7 +82,14 @@ export function initTimeTrackerPanel(db: Executor = popupDb): { render(): Promis
         durEl.className = 'time-duration muted';
         durEl.textContent = formatDuration(row.seconds);
 
-        header.append(domainEl, durEl);
+        // Site ikonu Chrome'un favicon önbelleğinden (ağ isteği yok); yoksa yer tutucu görünmez.
+        const favicon = document.createElement('img');
+        favicon.className = 'time-favicon';
+        favicon.alt = '';
+        favicon.src = `${chrome.runtime.getURL('_favicon/')}?pageUrl=${encodeURIComponent(`https://${row.domain}/`)}&size=32`;
+        favicon.addEventListener('error', () => { favicon.style.visibility = 'hidden'; });
+
+        header.append(favicon, domainEl, durEl);
 
         const bar = document.createElement('div');
         bar.className = 'time-bar';

@@ -8,23 +8,23 @@ const REFRESH_MS = 5 * 60 * 1000;
 export function batteriesView(): View {
   const list = h('div', { class: 'battery-grid' });
   const status = h('div', { class: 'muted status' });
+  const refreshBtn = h('button', { type: 'button', onClick: () => void refresh() }, icon('refresh-cw', 16), 'Yenile');
   const el = h(
     'section',
     {},
-    h('h2', {}, 'Cihaz pilleri'),
-    h(
-      'p',
-      { class: 'muted' },
-      "Yalnızca Windows'un bildirdiği değerler gösterilir; tahmin yapılmaz. 5 dakikada bir yenilenir. Pil %20 altına düşünce bildirim Ayarlar'dan kapatılabilir."
-    ),
-    h(
-      'p',
-      { class: 'hint' },
-      "USB alıcılı (2.4 GHz) aygıtlar pil düzeyini Windows'a bildirmez. ATK/Compx yongalı fareler (ör. ATK A9) üreticinin protokolüyle okunur; diğer markalar (Razer, Logitech alıcıları vb.) şimdilik görünmez."
-    ),
-    h('div', { class: 'toolbar' }, h('button', { onClick: () => void refresh() }, 'Yenile')),
+    h('header', { class: 'page-header page-header-row' },
+      h('div', {},
+        h('h2', { class: 'page-title page-title-icon' }, icon('battery-medium', 26), 'Cihaz pilleri'),
+        h('p', { class: 'page-subtitle', title: "Pil %20 altına düşünce bildirim gelir; Ayarlar'dan kapatılabilir." },
+          "Windows'un bildirdiği değerler; tahmin yok, 5 dakikada bir yenilenir.")),
+      h('div', { class: 'page-actions' }, refreshBtn)),
     status,
-    list
+    list,
+    h(
+      'p',
+      { class: 'hint battery-hint' },
+      "USB alıcılı (2.4 GHz) aygıtlar pil düzeyini Windows'a bildirmez. ATK/Compx yongalı fareler (ör. ATK A9) üreticinin protokolüyle okunur; diğer markalar (Razer, Logitech alıcıları vb.) şimdilik görünmez."
+    )
   );
 
   function render(items: DeviceBattery[]): void {
@@ -40,10 +40,10 @@ export function batteriesView(): View {
       list.append(
         h(
           'div',
-          { class: 'card battery-card' },
-          h('div', { class: 'battery-heading' }, icon('battery-medium', 22),
-            h('div', { class: 'grow' }, h('strong', {}, d.name), h('div', { class: 'muted' }, d.kind === 'system' ? 'Sistem' : d.kind === 'wireless' ? 'USB alıcı' : 'Bluetooth')),
-            h('strong', {}, `%${d.percent}`)),
+          { class: 'card battery-card' + (low ? ' low' : '') },
+          h('div', { class: 'battery-heading' }, h('span', { class: 'panel-row-icon' }, icon('battery-medium', 18)),
+            h('div', { class: 'grow' }, h('strong', { class: 'clamp-1' }, d.name), h('div', { class: 'muted battery-kind' }, d.kind === 'system' ? 'Sistem' : d.kind === 'wireless' ? 'USB alıcı' : 'Bluetooth')),
+            h('span', { class: 'battery-percent' }, `%${d.percent}`)),
           h('div', { class: 'bar battery-bar', role: 'progressbar', 'aria-label': `${d.name} pil düzeyi`, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(d.percent) }, fill),
           d.charging === true ? h('div', { class: 'battery-charging' }, icon('zap', 14), 'Şarj oluyor') : null
         )
@@ -52,11 +52,14 @@ export function batteriesView(): View {
   }
 
   async function refresh(): Promise<void> {
+    refreshBtn.disabled = true;
     try {
       render(await api.batteryList());
       status.textContent = '';
     } catch (e) {
       status.textContent = errText(e);
+    } finally {
+      refreshBtn.disabled = false;
     }
   }
 

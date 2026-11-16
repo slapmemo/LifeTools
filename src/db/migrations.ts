@@ -100,6 +100,10 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 11, statements: [
     'CREATE TABLE IF NOT EXISTS note_meta (note_id INTEGER PRIMARY KEY REFERENCES notes(id) ON DELETE CASCADE, pinned INTEGER NOT NULL DEFAULT 0, done_at INTEGER, archived_at INTEGER, remind_at INTEGER, reminded_at INTEGER)',
     'CREATE INDEX IF NOT EXISTS idx_note_meta_remind ON note_meta(remind_at)'
+  ] },
+  // Web süre takibindeki sitelerin küçük ikonu (Chrome'un kendi favicon önbelleğinden, data: URL). Masaüstü ana sayfası okur.
+  { version: 12, statements: [
+    'CREATE TABLE IF NOT EXISTS site_icons (domain TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at INTEGER NOT NULL)'
   ] }
 ];
 

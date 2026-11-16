@@ -2,6 +2,8 @@ import '../../design/tokens.css';
 import '../../design/components.css';
 import { listen } from '@tauri-apps/api/event';
 import { icon, type IconName } from '../../design/icons';
+import logoDark from '../../design/logo/LifeTools_koyu_tema.svg?url';
+import logoLight from '../../design/logo/LifeTools_acik_tema.svg?url';
 import { h } from './dom';
 import * as ayarlar from './views/ayarlar';
 import * as anasayfa from './views/anasayfa';
@@ -70,7 +72,11 @@ export function mountMain(root: HTMLElement): void {
 
   const isSidebarCollapsed = (): boolean => manualSidebarCollapsed !== null ? manualSidebarCollapsed : isNarrow();
   const toggleBtn = h('button', { type: 'button', class: 'icon-button sidebar-toggle', title: 'Kenar çubuğunu daralt veya genişlet', 'aria-label': 'Kenar çubuğunu daralt veya genişlet', onClick: () => { manualSidebarCollapsed = !isSidebarCollapsed(); syncSidebar(); } }, icon('panel-left', 18));
-  const header = h('div', { class: 'sidebar-header' }, h('div', { class: 'brand' }, 'LifeTools'), toggleBtn);
+  const brand = h('div', { class: 'brand' },
+    h('img', { class: 'brand-mark brand-mark-light', src: logoLight, alt: '' }),
+    h('img', { class: 'brand-mark brand-mark-dark', src: logoDark, alt: '' }),
+    h('span', { class: 'brand-label' }, 'LifeTools'));
+  const header = h('div', { class: 'sidebar-header' }, brand, toggleBtn);
   const topGroup = h('div', { class: 'nav-top' }, ...TOP_ITEMS.map(makeNavBtn));
   const otherItemsBox = h('div', { class: 'nav-group-items' }, ...OTHER_ITEMS.map(makeNavBtn));
   const otherToggleBtn = h('button', { type: 'button', class: 'navbtn nav-group-toggle', title: 'Diğer', 'aria-expanded': String(!otherCollapsed), onClick: () => { otherCollapsed = !otherCollapsed; writeOtherCollapsed(otherCollapsed); syncOtherGroup(); } }, icon('ellipsis', 18), h('span', { class: 'nav-label' }, 'Diğer'), h('span', { class: 'nav-chevron' }, icon('chevron-down', 14)));

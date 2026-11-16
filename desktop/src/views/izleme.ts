@@ -50,11 +50,11 @@ export function watchView(): View {
   const addKind = select(KINDS, 'film', 'Tür');
   const addUrl = h('input', { type: 'url', class: 'grow', placeholder: 'Bağlantı (isteğe bağlı)' });
   const addBtn = h('button', { type: 'button', class: 'primary' }, 'Ekle');
-  const addForm = h('div', { class: 'card note-add' }, h('div', { class: 'toolbar' }, addTitle, addKind), h('div', { class: 'toolbar' }, addUrl, addBtn));
+  const addForm = h('div', { class: 'card note-add' }, h('div', { class: 'note-add-input watch-add-input' }, icon('plus', 18), addTitle, addKind), h('div', { class: 'toolbar' }, addUrl, addBtn));
   addUrl.addEventListener('change', () => { const k = guessKind(addUrl.value.trim()); if (k) addKind.value = k; });
 
   // ---------- Süzgeçler ----------
-  const tabs = h('div', { class: 'segmented', role: 'tablist', 'aria-label': 'Durum' });
+  const tabs = h('div', { class: 'chip-tabs', role: 'tablist', 'aria-label': 'Durum' });
   const tabButtons = [{ id: '' as const, label: 'Tümü' }, ...STATUSES].map((s) => {
     const count = h('span', { class: 'tab-count' });
     const b = h('button', { type: 'button', role: 'tab', 'aria-selected': String(s.id === status) }, s.label, count);
@@ -64,8 +64,11 @@ export function watchView(): View {
   });
   const kindFilter = h('select', { 'aria-label': 'Tür süzgeci' }, h('option', { value: '' }, 'Tüm türler'), ...KINDS.map((k) => h('option', { value: k.id }, k.label)));
   kindFilter.addEventListener('change', () => { kind = kindFilter.value as '' | WatchKind; void refresh(); });
-  const search = h('input', { type: 'search', class: 'grow', placeholder: 'Başlık, not veya adreste ara…' });
-  const filters = h('div', { class: 'toolbar' }, tabs, kindFilter, search);
+  const search = h('input', { type: 'search', placeholder: 'Başlık, not veya adreste ara…', 'aria-label': 'İzleme listesinde ara' });
+  const searchBox = h('label', { class: 'search-field' }, icon('search', 16), search);
+  const filters = h('div', { class: 'toolbar notes-tabs' }, tabs, kindFilter);
+  const newBtn = h('button', { type: 'button', class: 'primary' }, icon('plus', 16), 'Ekle');
+  newBtn.addEventListener('click', () => { addForm.scrollIntoView({ block: 'nearest' }); addTitle.focus(); });
 
   // ---------- Silmeyi geri al ----------
   const undoBtn = h('button', { type: 'button', class: 'primary' }, 'Geri al');
@@ -98,11 +101,14 @@ export function watchView(): View {
   });
   function flushDeletes(): void { for (const id of [...pendingDeletes.keys()]) void commitDelete(id); }
 
-  const list = h('div', { class: 'card list-card' });
+  const list = h('div', { class: 'note-list' });
   const el = h('section', { class: 'watch-view' },
-    h('h2', {}, 'İzleme listesi'),
-    h('p', { class: 'muted' }, 'Eklentiyle aynı veritabanı: tarayıcıda "＋ İzle" ile eklediklerin burada, burada eklediklerin tarayıcıda görünür.'),
-    addForm, filters, status$, list, undoBar);
+    h('header', { class: 'page-header page-header-row' },
+      h('div', {},
+        h('h2', { class: 'page-title page-title-icon' }, icon('clapperboard', 26), 'İzleme listesi'),
+        h('p', { class: 'page-subtitle', title: 'Eklentiyle aynı veritabanı: tarayıcıda "＋ İzle" ile eklediklerin burada, burada eklediklerin tarayıcıda görünür.' }, 'Film, dizi ve videoları tek yerde takip et.')),
+      h('div', { class: 'page-actions' }, searchBox, newBtn)),
+    filters, addForm, status$, list, undoBar);
 
   async function act(run: () => Promise<unknown>, done?: string): Promise<void> {
     try { await run(); if (done) flash(done); } catch (e) { flash(errText(e)); }
@@ -178,6 +184,7 @@ export function watchView(): View {
       { label: 'Sil', danger: true, run: () => scheduleDelete(item.id) }
     ]);
     return h('div', { class: 'list-row clickable', title: 'Tıkla: düzenle', onClick: () => { if (!window.getSelection()?.toString()) { editing = item.id; render(); } } },
+      h('span', { class: 'panel-row-icon watch-kind-icon' }, icon(item.kind === 'video' ? 'play' : 'clapperboard', 16)),
       content,
       h('div', { class: 'list-row-meta muted' }, fmtMs(item.updated_at)),
       h('div', { class: 'list-row-actions' }, nextBtn, menu));
@@ -193,7 +200,7 @@ export function watchView(): View {
     if (!visible.length) {
       list.append(search.value || status || kind
         ? emptyState('Sonuç yok', 'Başka bir durum, tür ya da arama deneyin.')
-        : emptyState('Liste boş', 'Yukarıdan ekle ya da tarayıcıda bir film/dizi/video sayfasındaki "＋ İzle" düğmesini kullan.'));
+        : emptyState('Liste boş', 'Yukarıdan ekle ya da tarayıcıda bir film/dizi/video sayfasındaki "＋ İzle" düğmesini kullan.', 'watchlist'));
       return;
     }
     for (const it of visible) list.append(row(it));
@@ -205,6 +212,8 @@ export function watchView(): View {
       const page = await api.watchList(status, kind, search.value);
       addForm.hidden = !page.available;
       filters.hidden = !page.available;
+      searchBox.hidden = !page.available;
+      newBtn.hidden = !page.available;
       if (!page.available) {
         items = [];
         list.replaceChildren(emptyState('İzleme listesi henüz tarayıcıda', 'Eklentide Ayarlar → Depolama → "Verileri masaüstüne taşı" de. Sonra listeyi burada da görüp düzenleyebilirsin.'));

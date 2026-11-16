@@ -94,8 +94,9 @@ export interface DashboardSummary {
   open_count: number; overdue_count: number;
   today_tasks: { id: number; title: string; due: string }[];
   notes: { id: number; title: string; updated_at: number }[];
-  sites: { domain: string; seconds: number }[];
-  clipboard: { id: number; preview: string }[];
+  sites: { domain: string; seconds: number; icon: string | null }[];
+  sites_total_seconds: number;
+  clipboard: { id: number; preview: string; created_at: number }[];
   batteries: DeviceBattery[]; ambient_playing: boolean; ambient_active_count: number;
 }
 

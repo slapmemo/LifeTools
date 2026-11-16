@@ -4,7 +4,8 @@ import { debounce, h, type View } from '../dom';
 import { icon, type IconName } from '../../../design/icons';
 import { rowMenu } from '../view-components';
 
-const SOUNDS: { id: (typeof CHANNEL_IDS)[number]; icon: IconName }[] = CHANNEL_IDS.map((id) => ({ id, icon: 'headphones' }));
+const CHANNEL_ICONS: Record<(typeof CHANNEL_IDS)[number], IconName> = { white: 'audio-lines', pink: 'audio-lines', brown: 'audio-lines', rain: 'cloud-rain', fan: 'fan', wave: 'waves' };
+const SOUNDS: { id: (typeof CHANNEL_IDS)[number]; icon: IconName }[] = CHANNEL_IDS.map((id) => ({ id, icon: CHANNEL_ICONS[id] }));
 
 const TIMERS: [string, number | null][] = [
   ['Zamanlayıcı yok', null],
@@ -38,8 +39,10 @@ export async function toggleFromTray(): Promise<void> {
 }
 
 export function ambientView(): View {
-  const playBtn = h('button', {}, 'Çal');
-  const master = h('input', { type: 'range', min: '0', max: '100', class: 'grow' });
+  const playBtn = h('button', { type: 'button', class: 'primary round-play', 'aria-label': 'Çal' });
+  const playLabel = h('strong', { class: 'player-state' });
+  const master = h('input', { type: 'range', min: '0', max: '100', class: 'grow', 'aria-label': 'Ana ses' });
+  const masterValue = h('span', { class: 'muted range-value' });
   const timer = h('select', {}, ...TIMERS.map(([label, v]) => h('option', { value: v === null ? '' : String(v) }, label)));
   const remain = h('span', { class: 'muted' });
   const msg = h('div', { class: 'muted status' });
@@ -54,7 +57,7 @@ export function ambientView(): View {
     const on = h('input', { type: 'checkbox', 'aria-label': `${CHANNEL_LABELS[id]} aç veya kapat` });
     const vol = h('input', { type: 'range', min: '0', max: '100', 'aria-label': `${CHANNEL_LABELS[id]} ses düzeyi` });
     const card = h('div', { class: 'card sound-card' },
-      h('div', { class: 'sound-card-header' }, h('span', { class: 'sound-icon' }, icon(sound.icon, 22)),
+      h('div', { class: 'sound-card-header' }, h('span', { class: 'panel-row-icon sound-icon' }, icon(sound.icon, 18)),
         h('strong', { class: 'grow' }, CHANNEL_LABELS[id]), h('label', { class: 'switch', title: 'Aç / kapat' }, on, h('span', { class: 'switch-track' }))),
       h('label', { class: 'sound-volume' }, h('span', { class: 'muted' }, 'Ses düzeyi'), vol));
     chRows.set(id, { on, vol, card });
@@ -62,6 +65,7 @@ export function ambientView(): View {
       ambient.config.channels[id] = { on: on.checked, vol: Number(vol.value) / 100 };
       ambient.apply();
       card.classList.toggle('active', on.checked);
+      syncUi();
       saveLast();
     };
     on.addEventListener('change', changed);
@@ -72,15 +76,21 @@ export function ambientView(): View {
   const el = h(
     'section',
     {},
-    h('h2', {}, 'Ortam sesi'),
-    h('p', { class: 'muted' }, 'Tüm sesler cihazında sentezlenir; dosya veya ağ kullanılmaz. Pencere tepsiye gizlense de çalmaya devam eder.'),
-    h('div', { class: 'card ambient-controls' },
-      h('div', { class: 'toolbar' }, playBtn, h('label', { class: 'ambient-master' }, 'Ana ses', master)),
-      h('div', { class: 'toolbar' }, h('label', {}, 'Uyku zamanlayıcısı ', timer), remain),
-      h('h3', {}, 'Ön ayarlar'),
-      h('div', { class: 'toolbar' }, presetSel, h('button', { onClick: () => loadPreset() }, 'Yükle'), presetMenu),
-      h('div', { class: 'toolbar' }, nameInput, h('button', { onClick: () => void savePreset() }, 'Kaydet')),
-      msg),
+    h('header', { class: 'page-header' },
+      h('h2', { class: 'page-title page-title-icon' }, icon('headphones', 26), 'Ortam sesi'),
+      h('p', { class: 'page-subtitle', title: 'Tüm sesler cihazında sentezlenir; dosya veya ağ kullanılmaz.' }, 'Sesler cihazında üretilir; pencere tepsiye gizlense de çalmaya devam eder.')),
+    h('div', { class: 'ambient-top' },
+      h('div', { class: 'card ambient-player' },
+        h('div', { class: 'player-row' }, playBtn,
+          h('div', { class: 'player-info' }, playLabel, remain)),
+        h('label', { class: 'ambient-master' }, h('span', { class: 'muted' }, 'Ana ses'), master, masterValue),
+        h('label', { class: 'ambient-timer' }, h('span', { class: 'muted' }, 'Uyku zamanlayıcısı'), timer)),
+      h('div', { class: 'card ambient-presets' },
+        h('h3', { class: 'panel-title' }, 'Ön ayarlar'),
+        h('div', { class: 'toolbar' }, presetSel, h('button', { type: 'button', onClick: () => loadPreset() }, 'Yükle'), presetMenu),
+        h('div', { class: 'toolbar' }, nameInput, h('button', { type: 'button', onClick: () => void savePreset() }, 'Kaydet')),
+        msg)),
+    h('h3', { class: 'section-title' }, 'Sesler'),
     channelsBox
   );
 
@@ -92,13 +102,18 @@ export function ambientView(): View {
   function syncUi(): void {
     const c = ambient.config;
     master.value = String(Math.round(c.master * 100));
+    masterValue.textContent = `%${master.value}`;
     for (const [id, r] of chRows) {
       r.on.checked = c.channels[id].on;
       r.vol.value = String(Math.round(c.channels[id].vol * 100));
       r.card.classList.toggle('active', r.on.checked);
     }
     timer.value = ambient.timerMin === null ? '' : String(ambient.timerMin);
-    playBtn.textContent = ambient.playing ? 'Durdur' : 'Çal';
+    playBtn.replaceChildren(icon(ambient.playing ? 'pause' : 'play', 20));
+    playBtn.setAttribute('aria-label', ambient.playing ? 'Durdur' : 'Çal');
+    playBtn.title = ambient.playing ? 'Durdur' : 'Çal';
+    const active = Object.values(c.channels).filter((ch) => ch.on).length;
+    playLabel.textContent = ambient.playing ? `Çalıyor · ${active} etkin ses` : active ? `Çalmıyor · ${active} ses hazır` : 'Çalmıyor · etkin ses yok';
     const r = ambient.remaining();
     remain.textContent = r === null ? '' : `Kalan: ${Math.floor(r / 60)}:${String(r % 60).padStart(2, '0')}`;
   }
@@ -163,6 +178,7 @@ export function ambientView(): View {
   });
   master.addEventListener('input', () => {
     ambient.config.master = Number(master.value) / 100;
+    masterValue.textContent = `%${master.value}`;
     ambient.apply();
     saveLast();
   });

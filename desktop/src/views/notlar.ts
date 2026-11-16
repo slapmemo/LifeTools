@@ -66,7 +66,7 @@ export function notesView(): View {
   const flash = (text: string): void => { status.textContent = text; window.setTimeout(() => { if (status.textContent === text) status.textContent = ''; }, 3000); };
 
   // ---------- Sekmeler (sayılı) ----------
-  const tabs = h('div', { class: 'segmented', role: 'tablist', 'aria-label': 'Kategori' });
+  const tabs = h('div', { class: 'chip-tabs', role: 'tablist', 'aria-label': 'Kategori' });
   const tabDefs: { id: Tab; label: string }[] = [{ id: '', label: 'Tümü' }, ...CATEGORIES, { id: 'archive', label: 'Arşiv' }];
   const tabButtons = tabDefs.map((c) => {
     const count = h('span', { class: 'tab-count' });
@@ -88,7 +88,9 @@ export function notesView(): View {
     }
   }
 
-  const search = h('input', { type: 'search', class: 'grow', placeholder: 'Notlarda ara… (#etiket de olur)' });
+  const search = h('input', { type: 'search', placeholder: 'Notlarda ara… (Ctrl+K)', 'aria-label': 'Notlarda ara (#etiket de olur)' });
+  const searchBox = h('label', { class: 'search-field' }, icon('search', 16), search);
+  const countLabel = h('span', { class: 'muted notes-count' });
 
   // ---------- Sıralama, tamamlananlar, etiketler ----------
   const sortSelect = h('select', { 'aria-label': 'Sıralama' });
@@ -99,14 +101,14 @@ export function notesView(): View {
   showDoneBox.addEventListener('change', () => { showDone = showDoneBox.checked; writePref('lifetools_notes_show_done', showDone ? '1' : '0'); void refresh(); });
   const showDoneLabel = h('label', { class: 'notes-check' }, showDoneBox, 'Tamamlananları göster');
   const tagBar = h('div', { class: 'tag-bar' });
-  const filterBar = h('div', { class: 'toolbar notes-filters' }, sortSelect, showDoneLabel, tagBar);
+  const filterBar = h('div', { class: 'toolbar notes-filters' }, showDoneLabel, tagBar, countLabel);
 
   // ---------- Hızlı ekleme ----------
   const addText = h('textarea', { rows: 4, class: 'grow note-add-text', placeholder: 'Yeni not… (Ctrl+Enter: ekle · Markdown: **kalın**, - [ ] yapılacak, #etiket)', maxLength: 10000 });
   const addCategory = categorySelect('note');
   const addUrl = h('input', { type: 'url', class: 'grow', placeholder: 'Bağlantı (isteğe bağlı)' });
   const addBtn = h('button', { type: 'button', class: 'primary' }, 'Ekle');
-  const addForm = h('div', { class: 'card note-add' }, addText, h('div', { class: 'toolbar' }, addCategory, addUrl, addBtn));
+  const addForm = h('div', { class: 'card note-add' }, h('div', { class: 'note-add-input' }, icon('pencil', 18), addText), h('div', { class: 'toolbar' }, addCategory, addUrl, addBtn));
 
   // Ekleme kutusu: köşeden elle büyütülebilir (boyut hatırlanır), yazdıkça da kendiliğinden uzar.
   const ADD_HEIGHT_KEY = 'lifetools_notes_add_height';
@@ -162,12 +164,17 @@ export function notesView(): View {
   /** Bekleyen silmeleri hemen uygular (görünümden çıkarken). */
   function flushDeletes(): void { for (const id of [...pendingDeletes.keys()]) void commitDelete(id); }
 
-  const list = h('div', { class: 'card list-card' });
+  const list = h('div', { class: 'note-list' });
+  const newBtn = h('button', { type: 'button', class: 'primary' }, icon('plus', 16), 'Yeni not');
+  newBtn.addEventListener('click', () => { addForm.scrollIntoView({ block: 'nearest' }); addText.focus(); });
   const el = h('section', { class: 'notes-view' },
-    h('h2', {}, 'Notlar'),
-    h('p', { class: 'muted' }, 'Eklentiyle aynı veritabanı: burada eklediğin not tarayıcıda, tarayıcıda eklediğin not burada görünür.'),
+    h('header', { class: 'page-header page-header-row' },
+      h('div', {},
+        h('h2', { class: 'page-title page-title-icon' }, icon('notebook-pen', 26), 'Notlar'),
+        h('p', { class: 'page-subtitle', title: 'Eklentiyle aynı veritabanı: burada eklediğin not tarayıcıda, tarayıcıda eklediğin not burada görünür.' }, 'Hızlı notlar al, etiketle ve her yerden ulaş.')),
+      h('div', { class: 'page-actions' }, searchBox, newBtn)),
+    h('div', { class: 'toolbar notes-tabs' }, tabs, sortSelect),
     addForm,
-    h('div', { class: 'toolbar' }, tabs, search),
     filterBar,
     status,
     list,
@@ -402,12 +409,13 @@ export function notesView(): View {
     showDoneLabel.hidden = tab === 'archive';
     list.replaceChildren();
     const visible = notes.filter((n) => !pendingDeletes.has(n.id));
+    countLabel.textContent = visible.length ? `${visible.length} not` : '';
     if (!visible.length) {
       list.append(tab === 'archive'
         ? emptyState('Arşiv boş', 'Bir notu menüsünden "Arşivle" diyerek buraya taşıyabilirsin.')
         : search.value || tab
           ? emptyState('Sonuç yok', 'Başka bir arama ya da kategori deneyin.')
-          : emptyState('Henüz not yok', 'Yukarıdan ilk notunu ekle ya da tarayıcıda bir metni not olarak kaydet.'));
+          : emptyState('Henüz not yok', 'Yukarıdan ilk notunu ekle ya da tarayıcıda bir metni not olarak kaydet.', 'notes'));
       return;
     }
     for (const note of visible) list.append(noteRow(note));
@@ -420,7 +428,9 @@ export function notesView(): View {
       const page = await api.noteList(archive ? '' : tab, search.value, { archived: archive, showDone: archive || showDone, sort });
       addForm.hidden = !page.available;
       tabs.hidden = !page.available;
-      search.hidden = !page.available;
+      sortSelect.hidden = !page.available;
+      searchBox.hidden = !page.available;
+      newBtn.hidden = !page.available;
       filterBar.hidden = !page.available;
       if (!page.available) {
         notes = [];
@@ -439,6 +449,9 @@ export function notesView(): View {
   // Tarayıcıdan eklenenleri yakalamak için pencereye dönünce yenile.
   window.addEventListener('focus', () => { if (el.isConnected) void refresh(); });
   window.addEventListener('beforeunload', flushDeletes);
+  document.addEventListener('keydown', (e) => {
+    if (el.isConnected && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); search.focus(); search.select(); }
+  });
 
   return { el, refresh, flushDeletes } as View & { flushDeletes: () => void };
 }

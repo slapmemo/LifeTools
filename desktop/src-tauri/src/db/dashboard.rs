@@ -6,14 +6,14 @@ pub struct DashboardTask { pub id: i64, pub title: String, pub due: String }
 #[derive(Serialize, Debug)]
 pub struct DashboardNote { pub id: i64, pub title: String, pub updated_at: i64 }
 #[derive(Serialize, Debug)]
-pub struct DashboardSite { pub domain: String, pub seconds: i64 }
+pub struct DashboardSite { pub domain: String, pub seconds: i64, pub icon: Option<String> }
 #[derive(Serialize, Debug)]
-pub struct DashboardClip { pub id: i64, pub preview: String }
+pub struct DashboardClip { pub id: i64, pub preview: String, pub created_at: i64 }
 #[derive(Serialize, Debug)]
 pub struct DashboardSummary {
     pub tasks_available: bool, pub notes_available: bool, pub sites_available: bool,
     pub open_count: i64, pub overdue_count: i64, pub today_tasks: Vec<DashboardTask>,
-    pub notes: Vec<DashboardNote>, pub sites: Vec<DashboardSite>, pub clipboard: Vec<DashboardClip>,
+    pub notes: Vec<DashboardNote>, pub sites: Vec<DashboardSite>, pub sites_total_seconds: i64, pub clipboard: Vec<DashboardClip>,
     pub batteries: Vec<crate::battery::DeviceBattery>, pub ambient_playing: bool, pub ambient_active_count: usize,
 }
 
@@ -62,7 +62,7 @@ pub fn dashboard_summary(db: &Connection, today: &str) -> Result<DashboardSummar
     let mut out = DashboardSummary {
         tasks_available: table_exists(db, "tasks")?, notes_available: table_exists(db, "notes")?,
         sites_available: table_exists(db, "site_time")?, open_count: 0, overdue_count: 0,
-        today_tasks: vec![], notes: vec![], sites: vec![], clipboard: vec![], batteries: vec![],
+        today_tasks: vec![], notes: vec![], sites: vec![], sites_total_seconds: 0, clipboard: vec![], batteries: vec![],
         ambient_playing: false, ambient_active_count: 0,
     };
     if out.tasks_available {
@@ -76,11 +76,21 @@ pub fn dashboard_summary(db: &Connection, today: &str) -> Result<DashboardSummar
         out.notes = st.query_map([], |r| { let text: String = r.get(1)?; Ok(DashboardNote { id:r.get(0)?, title:text.lines().next().unwrap_or("").chars().take(100).collect(), updated_at:r.get(2)? }) })?.collect::<Result<_>>()?;
     }
     if out.sites_available {
-        let mut st = db.prepare("SELECT domain,seconds FROM site_time WHERE day=?1 ORDER BY seconds DESC,domain LIMIT 5")?;
-        out.sites = st.query_map([today], |r| Ok(DashboardSite { domain:r.get(0)?, seconds:r.get(1)? }))?.collect::<Result<_>>()?;
+        // site_icons eklentinin 12. migrasyonuyla gelir; eski eklentide yoksa ikonsuz devam.
+        let sql = if table_exists(db, "site_icons")? {
+            "SELECT t.domain,t.seconds,i.data_url FROM site_time t LEFT JOIN site_icons i ON i.domain=t.domain WHERE t.day=?1 ORDER BY t.seconds DESC,t.domain LIMIT 5"
+        } else {
+            "SELECT domain,seconds,NULL FROM site_time WHERE day=?1 ORDER BY seconds DESC,domain LIMIT 5"
+        };
+        let mut st = db.prepare(sql)?;
+        out.sites = st.query_map([today], |r| {
+            let icon: Option<String> = r.get(2)?;
+            Ok(DashboardSite { domain:r.get(0)?, seconds:r.get(1)?, icon: icon.filter(|u| u.starts_with("data:image/")) })
+        })?.collect::<Result<_>>()?;
+        out.sites_total_seconds = db.query_row("SELECT coalesce(sum(seconds),0) FROM site_time WHERE day=?1", [today], |r| r.get(0))?;
     }
-    let mut st = db.prepare("SELECT id,text FROM clipboard_items ORDER BY id DESC LIMIT 3")?;
-    out.clipboard = st.query_map([], |r| { let text: String = r.get(1)?; Ok(DashboardClip { id:r.get(0)?, preview:text.chars().take(100).collect() }) })?.collect::<Result<_>>()?;
+    let mut st = db.prepare("SELECT id,text,created_at FROM clipboard_items ORDER BY id DESC LIMIT 3")?;
+    out.clipboard = st.query_map([], |r| { let text: String = r.get(1)?; Ok(DashboardClip { id:r.get(0)?, preview:text.chars().take(100).collect(), created_at:r.get(2)? }) })?.collect::<Result<_>>()?;
     Ok(out)
 }
 

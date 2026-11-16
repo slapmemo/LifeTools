@@ -76,6 +76,7 @@ copyFileSync('src/db/offscreen.html', join(dist, 'offscreen.html'));
 copyFileSync('src/modules/site-blocker/blocked.html', join(dist, 'blocked.html'));
 copyFileSync('src/modules/site-blocker/blocked.css', join(dist, 'blocked.css'));
 cpSync('src/icons', join(dist, 'icons'), { recursive: true });
+cpSync('design/assets/backgrounds', join(dist, 'assets', 'backgrounds'), { recursive: true });
 
 function findFile(dir, name) {
   for (const entry of readdirSync(dir)) {

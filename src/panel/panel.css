@@ -716,3 +716,38 @@ h2 { font-size: 24px; font-weight: 700; }
 
 .brand h1 { background: none; padding: 0; }
 .brand h1 .lt-logo { width: 32px; height: 32px; display: block; }
+
+/* ---------- Yeni tasarım (2026-11): masaüstüyle aynı kabuk ---------- */
+:root { --wave-header: url("assets/backgrounds/wave-header-light.svg"); --wave-sidebar: url("assets/backgrounds/wave-sidebar-light.svg"); }
+:root[data-theme="dark"] { --wave-header: url("assets/backgrounds/wave-header-dark.svg"); --wave-sidebar: url("assets/backgrounds/wave-sidebar-dark.svg"); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --wave-header: url("assets/backgrounds/wave-header-dark.svg"); --wave-sidebar: url("assets/backgrounds/wave-sidebar-dark.svg"); }
+}
+aside { width: 216px; padding: 20px 12px; background: var(--wave-sidebar) left bottom / 100% auto no-repeat, var(--sidebar); }
+.brand { padding: 0 4px 20px; }
+.brand-text strong { font-size: 16px; font-weight: 650; }
+#navigation { gap: 4px; }
+#navigation a { height: 40px; border-radius: var(--radius-8); border: 1px solid transparent; }
+#navigation a:hover:not(.active) { background: color-mix(in srgb, var(--accent-soft) 60%, transparent); color: var(--text); }
+#navigation a.active { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+#navigation .nav-settings { margin-top: auto; }
+.app { width: calc(100% - 216px); padding: 28px 32px 32px; background: var(--wave-header) right top / min(1100px, 90%) auto no-repeat; }
+.topbar { display: none; }
+h2 { font-weight: 650; display: flex; align-items: center; gap: 10px; }
+h2 svg { width: 26px; height: 26px; vertical-align: 0; }
+.app input:not([type=checkbox]):focus-visible, .app select:focus-visible, .app textarea:focus-visible { box-shadow: 0 0 0 2px var(--accent-soft); }
+.app .list-row:hover, .app .list-row.clickable:hover { background: color-mix(in srgb, var(--surface) 94%, var(--accent) 6%); }
+.app button.primary { font-weight: 600; }
+@media (max-width: 719px) {
+  aside { width: 52px; padding: 12px 0; }
+  .app { width: calc(100% - 52px); padding: 20px 16px 16px; }
+}
+.time-row-header { display: flex; align-items: center; gap: var(--space-8); }
+.time-row-header .time-domain { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.time-favicon { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; }
+.app .time-bar { height: 6px; background: var(--sub); border: 0; border-radius: 999px; }
+.app .time-bar-fill { background: var(--accent); border: 0; border-radius: 999px; }
+/* Arama kutularına ikon (tasarımdaki gibi); renk temadan bağımsız soluk mor-gri. */
+.app input[type=search] { padding-left: 36px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239993b1' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 12px center; }
+/* Sütun düzenli kartlarda tek başına duran düğmeler tüm genişliğe yayılmasın. */
+.app .stack-card > button { align-self: flex-start; }
