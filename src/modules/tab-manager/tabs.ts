@@ -5,7 +5,7 @@ import { closeWindowSafely, describeTabs, groupWindowBySite, moveTabsToSession, 
 import { createSessionsRepo, type Session, type SessionTab } from '../life-browser/repo';
 import { AUTO_SAVE_KEY } from '../life-browser/settings';
 import { findDuplicates } from '../life-browser/tabs';
-import { suppressAutoSaveForWindow } from '../life-browser/background';
+import { suppressAutoSaveForWindow } from '../life-browser/closed-marker';
 import { exportPlain, exportMarkdown, resolveShortcutTarget, sortSavedGroups, sortSavedTabs, clusterBySite, orderClusters, type SavedSort, buildViewModel, dropAction, dragThresholdExceeded, insertionPosition, autoScrollSpeed, type DragSource, type DropTarget, COLORS, filterSavedGroup, groupTargetLabels, HIDDEN_PREFIX, hiddenGroupCollapsed, hiddenOpenTabs, hiddenTabModel, matchesQuery, newGroupTitle, partitionSaveable, savedCardModel, savedStoredName, selectRange, type SavedCardModel } from './logic';
 import { isInternalTabUrl, extensionBaseUrl } from '../../core/internal-tab';
 import { PIN_MANAGER_KEY } from './settings';
@@ -434,15 +434,17 @@ async function saveCurrentWindow(closeAfterSave: boolean): Promise<void> {
   if (currentWindowId === undefined) throw new Error('Pencere bulunamadı.');
   const own = await chrome.tabs.getCurrent();
   const managerUrl = chrome.runtime.getURL('tabs.html');
+  // Yönetici sekmeleri (bu sayfa ve aynı penceredeki başka bir kopyası) kaydedilmez ve sayılmaz.
   const currentTabs = tabs
     .filter(t => t.windowId === currentWindowId && t.id !== own?.id && !!(t.url || t.pendingUrl) && !isBlocked(t.url || t.pendingUrl || ''))
-    .map(t => ({ ...t, url: t.url || t.pendingUrl }));
+    .map(t => ({ ...t, url: t.url || t.pendingUrl }))
+    .filter(t => (t.url || '').split(/[?#]/)[0] !== managerUrl);
   if (!currentTabs.length) throw new Error('Bu pencerede kaydedilecek sekme yok.');
   const date = new Date();
   const two = (n: number): string => String(n).padStart(2, '0');
   const fallback = `Pencere — ${two(date.getDate())}.${two(date.getMonth() + 1)} ${two(date.getHours())}:${two(date.getMinutes())}`;
   const name = windowSaveName.value.trim() || fallback;
-  await repo.save(name, await describeTabs(currentTabs.filter(t => (t.url || '').split('?')[0] !== managerUrl)));
+  await repo.save(name, await describeTabs(currentTabs));
   windowSaveName.value = '';
   message.textContent = `${currentTabs.length} sekme “${name}” grubuna kaydedildi.`;
   await refreshSaved(true);

@@ -31,13 +31,20 @@ extern "C" {
     fn lifetools_battery_poll_json() -> *const std::ffi::c_char;
 }
 
+/// C++ sürücüleri aynı anda çağrılmaya hazır değil (paylaşılan `static` haritalar, aynı aygıta
+/// karışan HID istekleri). Ana sayfa özeti, Piller sayfası ve 5 dakikalık zamanlayıcı aynı anda
+/// gelebildiği için sorgular bu kilitle sıraya girer.
+static POLL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Yerel C++ sürücü kataloğunu işçi thread'inde sorgular.
 pub fn read_supported_devices() -> Vec<DeviceBattery> {
+    let _guard = POLL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let json = unsafe {
         let ptr = lifetools_battery_poll_json();
         if ptr.is_null() { return Vec::new(); }
         CStr::from_ptr(ptr).to_string_lossy().into_owned()
     };
+    drop(_guard);
     let Ok(items) = serde_json::from_str::<Vec<PolledBattery>>(&json) else { return Vec::new() };
     items.into_iter().filter(|item| item.connected).map(|item| DeviceBattery {
         id: item.id,

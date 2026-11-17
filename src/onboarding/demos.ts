@@ -132,11 +132,19 @@ export const DEMOS: Readonly<Record<string, Demo>> = {
   },
 };
 
-export function featureDemo(moduleId: string): HTMLElement | null {
-  const demo = DEMOS[moduleId];
+/** Birden çok animasyonu olan modüller. Pencere Kaydetme 0.8.0'da Sekme Yöneticisi'ne katıldı; animasyonu da orada. */
+const MODULE_DEMOS: Readonly<Record<string, readonly string[]>> = { 'tab-manager': ['tab-manager', 'life-browser'] };
+
+/** Bir modülün rehber kartında gösterilecek animasyonlar (yoksa boş). */
+export function featureDemos(moduleId: string): HTMLElement[] {
+  return (MODULE_DEMOS[moduleId] ?? [moduleId]).map(buildDemo).filter((box): box is HTMLElement => box !== null);
+}
+
+function buildDemo(demoId: string): HTMLElement | null {
+  const demo = DEMOS[demoId];
   if (!demo) return null;
   const box = document.createElement('div');
-  box.className = `demo demo-${moduleId}`;
+  box.className = `demo demo-${demoId}`;
   box.setAttribute('role', 'img');
   box.setAttribute('aria-label', demo.label);
   box.innerHTML = demo.html;

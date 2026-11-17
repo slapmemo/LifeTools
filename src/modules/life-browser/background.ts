@@ -4,21 +4,16 @@ import { describeTabs } from './browser';
 import { AUTO_PREFIX, createSessionsRepo, oldAutoSessionIds } from './repo';
 import { AUTO_SAVE_KEY } from './settings';
 import { TAB_MANAGER_ID } from '../tab-manager/id';
+import { closedKey } from './closed-marker';
 import type { SessionTabInput } from './tabs';
 import { extensionBaseUrl, isInternalTabUrl } from '../../core/internal-tab';
 
 // Pencere kaydetme Sekme Yöneticisi'nin bir parçasıdır; ayar aynı modül bayrağını kullanır.
 const snapshotKey = (id: number): string => `lifeBrowserWindow:${id}`;
-const closedKey = (id: number): string => `lifeBrowserClosed:${id}`;
 const repo = createSessionsRepo(backgroundDb);
 const snapshotTimers = new Map<number, ReturnType<typeof setTimeout>>();
 let saveQueue = Promise.resolve();
 const closingWindows = new Set<number>();
-
-/** Elle kaydedilip kapatılan pencereyi otomatik kapanış kaydından çıkarır. */
-export async function suppressAutoSaveForWindow(windowId: number): Promise<void> {
-  await chrome.storage.session.set({ [closedKey(windowId)]: true });
-}
 
 async function enabled(key: string): Promise<boolean> {
   return await isModuleEnabled(TAB_MANAGER_ID) && (await chrome.storage.local.get({ [key]: false }))[key] !== false;

@@ -72,7 +72,10 @@ impl NotifyTracker {
     pub fn update(&mut self, list: &[DeviceBattery], threshold: u8) -> Vec<DeviceBattery> {
         let mut out = Vec::new();
         for d in list {
-            let below = d.percent.is_some_and(|percent| percent < threshold) && d.charging != Some(true);
+            // Uykudaki aygıt seviye bildirmez; durumu bilinmeyen aygıt için önceki "düşük" kaydı korunur,
+            // yoksa uyanınca aynı uyarı yeniden çıkar.
+            let Some(percent) = d.percent else { continue };
+            let below = percent < threshold && d.charging != Some(true);
             if below {
                 if self.low.insert(d.id.clone()) { out.push(d.clone()); }
             } else {
@@ -122,6 +125,16 @@ mod tests {
         assert!(tracker.update(&[dev("a", 15, None)], 20).is_empty());
         assert!(tracker.update(&[dev("a", 20, None)], 20).is_empty());
         assert_eq!(tracker.update(&[dev("a", 10, None)], 20).len(), 1);
+    }
+
+    #[test]
+    fn unknown_level_keeps_low_state() {
+        let mut tracker = NotifyTracker::default();
+        assert_eq!(tracker.update(&[dev("a", 15, None)], 20).len(), 1);
+        let mut asleep = dev("a", 15, None);
+        asleep.percent = None;
+        assert!(tracker.update(&[asleep], 20).is_empty());
+        assert!(tracker.update(&[dev("a", 14, None)], 20).is_empty());
     }
 
     #[test]
