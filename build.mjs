@@ -64,6 +64,7 @@ copyFileSync('src/panel/panel.html', join(dist, 'panel.html'));
 copyFileSync('src/panel/panel.css', join(dist, 'panel.css'));
 copyFileSync('src/onboarding/welcome.html', join(dist, 'welcome.html'));
 copyFileSync('src/onboarding/welcome.css', join(dist, 'welcome.css'));
+copyFileSync('src/onboarding/demos.css', join(dist, 'demos.css'));
 copyFileSync('src/popup/popup.html', join(dist, 'popup.html'));
 copyFileSync('src/popup/popup.css', join(dist, 'popup.css'));
 copyFileSync('src/db/offscreen.html', join(dist, 'offscreen.html'));

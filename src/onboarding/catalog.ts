@@ -11,7 +11,7 @@ export type GuideCategory = 'Notlar' | 'Metin' | 'Sekmeler' | 'Odak' | 'Medya' |
 export const GUIDE_CATEGORIES: readonly GuideCategory[] = ['Notlar', 'Metin', 'Sekmeler', 'Odak', 'Medya', 'Genel'];
 
 export const FEATURE_GUIDE: Readonly<Record<string, FeatureGuide>> = {
-  slapmemo: { category: 'Notlar', example: 'Bir sayfada metni seç, Alt+S\'ye bas ya da sağ tıklayıp "Not olarak kaydet" de. Not, sayfanın bağlantısıyla birlikte kaydedilir.', where: 'Sağ tık menüsü · açılır pencere › Hızlı not · Panel › Notlar', commands: ['save-selection'] },
+  slapmemo: { category: 'Notlar', example: 'Bir sayfada metni seç, altında çıkan baloncukta "📝 Not"a bas (ya da Alt+S). Not, sayfanın bağlantısıyla birlikte kaydedilir.', where: 'Sağ tık menüsü · açılır pencere › Hızlı not · Panel › Notlar', commands: ['save-selection'] },
   watchlist: { category: 'Notlar', example: 'Bir film ya da dizi sayfasındaki "+ İzle" düğmesine bas; listede İzlenecek / İzleniyor / Bitti diye takip et.', where: 'Film/dizi/video sayfaları · Panel › Notlar › İzleme listesi' },
   'smart-replies': { category: 'Metin', example: '"/merhaba" gibi bir kısaltmaya uzun bir metin kaydet. Seçtiğin sitelerde /merhaba yazıp Space\'e basınca metnin tamamı gelir; ya da metin kutusuna sağ tıklayıp "Şablon ekle".', where: 'Sağ tık menüsü · Panel › Metin › Şablonlar' },
   'clip-slots': { category: 'Metin', example: 'Sık yapıştırdığın 5 metni (IBAN, adres, imza…) yuvalara kaydet; metin kutusunda sağ tık › "Yuvadan yapıştır".', where: 'Sağ tık menüsü · Panel › Metin › Pano yuvaları' },
@@ -36,7 +36,7 @@ export const FEATURE_GUIDE: Readonly<Record<string, FeatureGuide>> = {
 
 /** İlk kurulum sonunda önerilen kısa denemeler. */
 export const FIRST_STEPS: readonly { title: string; text: string }[] = [
-  { title: 'İlk notunu kaydet', text: 'Herhangi bir sayfada bir cümle seç ve Alt+S\'ye bas.' },
+  { title: 'İlk notunu kaydet', text: 'Herhangi bir sayfada bir cümle seç, altında çıkan baloncukta "📝 Not"a bas.' },
   { title: 'Sekmelerini topla', text: 'Açılır pencerede "Sekme Yöneticisi"ne bas; dağınık sekmeleri gruba al ya da kaydedip kapat.' },
   { title: 'Bugününe bak', text: 'Birkaç dakika gezindikten sonra açılır penceredeki "Bugün" kartında hangi sitede ne kadar kaldığını gör.' }
 ];

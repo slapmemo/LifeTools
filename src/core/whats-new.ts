@@ -12,7 +12,7 @@ export const CHANGELOG: readonly ChangeEntry[] = [
   {
     version: '0.7.0',
     items: [
-      { kind: 'new', text: 'Bu özellik rehberi: güncellemelerden sonra neyin değiştiğini burada görürsün. Ayarlar\'dan ve açılır pencereden her zaman açabilirsin.' },
+      { kind: 'new', text: 'Bu özellik rehberi: güncellemelerden sonra neyin değiştiğini burada görürsün. Önemli özellikler kısa animasyonlarla gösteriliyor. Ayarlar\'dan ve açılır pencereden her zaman açabilirsin.' },
       { kind: 'improved', features: ['tab-manager', 'life-browser'], text: 'Kayıtlı gruplar tek yerde: Sekme Yöneticisi. Her yerde "oturum" yerine "kayıtlı grup" deniyor.' },
       { kind: 'improved', features: ['pip'], text: 'Resim içinde resim düğmesi artık küçük videolarda ve YouTube gibi üstünde kontrol katmanı olan sitelerde de çıkıyor.' },
       { kind: 'removed', text: 'Komut Merkezi sayfası, Sabit Sekme Koruyucu ve Sekme Değiştirici (Alt+Q) kaldırıldı. Arama açılır pencerede duruyor; sekmeler arasında aramak için Chrome\'un Ctrl+Shift+A kısayolunu kullanabilirsin.' },

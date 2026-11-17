@@ -6,6 +6,7 @@ import { desktopVersion } from '../core/desktop-version';
 import { getBackend } from '../db/backend';
 import { changesSince, featureBadges, type ChangeKind } from '../core/whats-new';
 import { FEATURE_GUIDE, FIRST_STEPS, GUIDE_CATEGORIES } from './catalog';
+import { featureDemo } from './demos';
 
 /**
  * Üç kip: ilk kurulum (?setup=1 ya da kurulum hiç bitirilmediyse), güncelleme sonrası (?from=0.6.0)
@@ -95,7 +96,10 @@ function renderFeatures(flags: unknown, badges: Map<string, string>, keys: Map<s
       meta.append(el('span', '', `Nerede: ${guide.where}`));
       const chips = shortcutChips(guide.commands ?? [], keys);
       if (chips) { const s = el('span', '', 'Kısayol: '); s.append(chips); meta.append(s); }
-      main.append(name, el('div', 'feature-desc', module.description), example, meta);
+      main.append(name, el('div', 'feature-desc', module.description));
+      const demo = featureDemo(module.id);
+      if (demo) main.append(demo);
+      main.append(example, meta);
 
       const toggle = el('label', 'switch');
       toggle.title = on ? 'Kapat' : 'Aç';
