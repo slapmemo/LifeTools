@@ -16,9 +16,7 @@ Yerel çalışan Chrome eklentisi ve masaüstü verimlilik araçları.
 
 ## Özellikler
 
-- **Video İndirici:** YouTube ve diğer sayfalardan video veya MP3 indir; işleri Panel'den takip et.
-
-Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını açar. Yeni kurulumda modüller varsayılan olarak açıktır. Ek site izni isteyen özellikler izin verildiğinde çalışır; otomatik sekme uyutma ve otomatik oturum kaydı başlangıçta kapalıdır. Kısayolları `chrome://extensions/shortcuts` üzerinden değiştirebilirsin.
+Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını açar. İlk kurulumda açılan özellik rehberinden kullanacağın özellikleri seçersin; kapattıkların menülerden ve Panel'den gizlenir. Ek site izni isteyen özellikler izin verildiğinde çalışır; otomatik sekme uyutma ve pencere kapanınca otomatik kaydetme başlangıçta kapalıdır. Kısayolları `chrome://extensions/shortcuts` üzerinden değiştirebilirsin.
 
 ### Kısaca nasıl kullanılır
 
@@ -52,38 +50,51 @@ Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını aç
 
 ### Chrome eklentisi
 
-- **SlapMemo:** Seçimi, bağlantıyı veya sayfayı not olarak kaydet; sağ tık menüsünü, seçim baloncuğunu veya `Alt+S` kullan. Notları Panel'de ara ve düzenle.
-- **Akıllı Yanıtlar:** Panel'de metin şablonları oluştur; düzenlenebilir alanda sağ tıkla ekle veya izin verdiğin sitelerde tetikleyiciyi Boşluk ya da Tab ile genişlet.
-- **Pano Yuvaları:** Beş metin yuvasını Panel'de düzenle; seçimi sağ tıkla kaydet veya bir alana sağ tıkla yuvadan yapıştır.
-- **Link Temizleyici:** Takip parametrelerini kaldırıp temiz bağlantıyı kopyala; sağ tık menüsünü veya Panel'i kullan. Otomatik temizlik ve kısa bağlantı çözümleme site izni gerektirir.
-- **İzleme Listesi:** Film, dizi ve videoları durumlarıyla takip et; Panel'den veya sağ tıkla ekle. İzin verirsen YouTube ve IMDb'deki düğmeyi de kullanabilirsin.
-- **Web Süre Takibi:** Etkin olduğunda sitelerde geçirilen süreyi ölçer; Panel'de bugün ve son yedi günü, hariç tutulan siteleri ve limitleri yönet.
-- **Görsel Sekme Değiştirici:** `Alt+Q` ile sekmeleri ara, seç ve kapat; penceredeki araçlarla etiket, not ve diğer sekme işlemlerine eriş.
-- **LifeBrowser:** Panel'den oturumları kaydet ve geri aç, sekmeleri siteye göre grupla veya kopyaları kapat. Otomatik gruplama ve oturum kaydı ayarları da buradadır.
-- **Sekme Yöneticisi:** Sabit yönetici sekmesinde çalışma alanlarını, sekmeleri ve grupları düzenle; grupları gizle veya kaydedip kapat.
-- **Zombi Sekme Temizleyici:** Uzun süredir kullanılmayan sekmeleri Panel'de bul; kapat, oturuma taşı veya isteğe bağlı otomatik uyutmayı aç.
-- **Sabit Sekme Koruyucu:** Kapanan sabit sekme için bildirim gösterir; bildirimden veya Panel'deki listeden geri aç.
-- **Sekme Etiketleri:** Sekmelere etiket ekle; sağ tık menüsünü, Panel'i veya sekme değiştiriciyi kullan.
-- **Sekme Notları:** Sayfalara kısa not ekle ve düzenle; Panel veya sekme değiştiriciden eriş, istersen kapanan sekmenin notunu SlapMemo'ya aktar.
-- **Sekme Başlığı Temizleyici:** Sekme görünümlerindeki başlıkları sadeleştirir; siteye özel kuralları Panel'de düzenle.
-- **Site Engelleyici:** Panel'e eklediğin X profillerini engel sayfasında açar; korumayı buradan yönet veya duraklat.
-- **Resim içinde resim:** Etkin sayfadaki videoyu küçük pencerede açıp kapat; `Alt+P`, Panel veya Komut Merkezi'ni kullan.
-- **X Video İndirici:** Tek tıkla en yüksek kalitede indir; ok düğmesinden kalite, GIF ve toplu indirme seçeneklerine ulaş. Panel'den kalite sorulmasını ve indirme alt klasörünü ayarla.
-- **Instagram:** Video üzerindeki indirme düğmesiyle tek veya birden çok video indir; X Video İndirici'deki ortak indirme klasörü ayarını kullan. İlerleme çubuğuna tıkla veya sürükle, fare video üzerindeyken oklarla beş saniye sar.
-- **Komut Merkezi:** `Alt+K` ile eylem, sekme, not ve şablon ara; `not` veya `izle` gibi komutlarla hızlı işlem yap.
-- **Site Araç Çubuğu:** Panel'de site ve eylemleri seçip izin ver; sitedeki sürüklenebilir **LT** düğmesinden eylemleri aç.
-- **Kısayol Oluşturucu:** Panel'de komutları ve atamalarını gör; Chrome'un kısayol sayfasında tuşları düzenle.
+**Notlar**
+- **SlapMemo:** Metni seç, altında çıkan baloncukta **📝 Not**'a bas; ya da sağ tık › "Not olarak kaydet" veya `Alt+S`. Not, sayfanın bağlantısıyla kaydedilir; Panel › Notlar'da ara ve düzenle.
+- **İzleme Listesi:** Film, dizi ve videoları İzlenecek / İzleniyor / Bitti diye takip et; sayfadaki "+ İzle" düğmesinden, sağ tıktan veya Panel'den ekle.
 
-Metin seçimi baloncuğu not, izleme, link ve pano işlemlerinin yanında çeviri ve arama sunar. Panel'deki **Yedek** ile verileri dışa aktarabilir veya geri yükleyebilirsin; otomatik yedek ayarı da bulunur.
+**Metin**
+- **Akıllı Yanıtlar:** "/merhaba" gibi kısaltmalara metin kaydet; seçtiğin sitelerde yazıp Boşluk'a basınca açılır, ya da metin kutusuna sağ tıklayıp ekle.
+- **Pano Yuvaları:** Sık yapıştırdığın beş metni (IBAN, adres, imza…) yuvalara kaydet; metin kutusunda sağ tık › "Yuvadan yapıştır".
+- **Link Temizleyici:** `?utm_source=…` gibi takip eklerini silip temiz bağlantıyı kopyala; seçim baloncuğundaki **🔗 Temiz link**, sağ tık veya Panel. Otomatik temizlik ve kısa bağlantı çözümleme site izni ister.
+
+**Sekmeler**
+- **Sekme Yöneticisi:** Açık sekmeleri seç, gruba al, grubun adını ve rengini değiştir; **Kaydet ve kapat** ile kayıtlı gruplara taşı, sonra tek tıkla geri aç. Kayıtlı gruplar yalnızca burada yönetilir.
+- **Pencere Kaydetme:** Penceredeki tüm sekmeleri tek seferde kayıtlı grup yap; istersen pencere kapanınca kendiliğinden kaydetsin. Sekmeleri siteye göre grupla, kopya sekmeleri kapat.
+- **Zombi Sekme Temizleyici:** Günlerdir açmadığın sekmeleri bul; kapat ya da kayıtlı gruba taşı. İsteğe bağlı otomatik uyutma ve haftalık hatırlatma var.
+- **Sekme Etiketleri** ve **Sekme Notları:** Sekmeye "Önemli" gibi bir etiket ya da "fiyatı düşerse al" gibi kısa bir not iliştir; sayfayı tekrar açınca not hatırlatılır.
+- **Sekme Başlığı Temizleyici:** Başlıklardaki "(3)" sayaçlarını ve " - YouTube" gibi ekleri gizler; siteye özel kuralları Panel'de düzenle.
+- **Site Araç Çubuğu:** Seçtiğin sitelerde kenarda küçük, sürüklenebilir bir çubuk çıkar; içine "temiz link kopyala", "not al" gibi eylemleri koy.
+
+**Odak**
+- **Site Engelleyici:** Dikkatini dağıtan X profillerini ekle; girince engel sayfası açılır. Korumayı Panel'den duraklat.
+- **Web Süre Takibi:** Hangi sitede ne kadar kaldığını sayar; açılır penceredeki **Bugün** kartında ve Panel'de gör. Günlük limit koyarsan %80'de ve dolunca uyarır.
+
+**Medya**
+- **Video İndirici:** YouTube'da videonun altındaki **↓ İndir** ile video ya da MP3 indir; oynatma listelerini de indirir. Masaüstü uygulaması gerekir.
+- **X Video İndirici:** Gönderinin altındaki simgeyle tek tıkla en yüksek kalitede indir; ▾ düğmesinden kalite, GIF ve toplu indirme.
+- **Instagram:** Videonun köşesindeki ↓ ile indir, hız düğmesiyle hızlandır; ilerleme çubuğuna tıkla veya sürükle.
+- **Resim içinde resim:** Videonun üstüne gelince çıkan ⧉ düğmesi ya da `Alt+P` ile videoyu küçük pencerede izle.
+- **Ses Yükseltici:** Açılır penceredeki "Bu sekmenin sesi" kartıyla sekmenin sesini %600'e kadar aç.
+- **Döviz Çevirici:** Steam'de fiyatları TL olarak gösterir; izin verirsen her sitede fiyatın üstüne gelince TL karşılığını gösterir.
+
+**Genel**
+- **Kısayol Oluşturucu:** Komutları ve tuş atamalarını gör; tuşları Chrome'un kısayol sayfasında değiştir.
+- **Özellik rehberi:** Her özelliğin örneği, yeri ve kısayolu tek sayfada; açılır penceredeki "Özellikler ve yenilikler"den ya da Panel › Ayarlar'dan aç. Güncellemeden sonra neyin değiştiğini de gösterir.
+
+Seçim baloncuğu notun yanında arama, çeviri, temiz link ve pano yuvası düğmelerini de sunar. Panel'deki **Yedek** ile verileri dışa aktarabilir veya geri yükleyebilirsin; otomatik yedek ayarı da bulunur.
 
 ### Masaüstü
 
-- **Ana sayfa:** Özet kartlarını ve hızlı erişimleri gösterir; uygulamayı açınca buradan ilgili bölüme geç.
+- **Ana sayfa:** Özet kartları ve hızlı erişimler.
+- **Notlar** ve **İzleme listesi:** Eklentiyle bağlıysan aynı notlar ve liste burada da görünür. `Ctrl+Alt+N` her programda hızlı not penceresi açar.
 - **Pano geçmişi:** Kopyalanan metinleri ara, sabitle veya sil; `Ctrl+Alt+V` seçiciden panoya geri kopyalar.
-- **Şablonlar:** Bölümde şablon oluştur; `Ctrl+Shift+Space` ile seçip etkin uygulamaya yapıştır.
-- **Piller:** Piller bölümünde Windows'un bildirdiği sistem ve Bluetooth pil düzeylerini gör ve yenile.
+- **Şablonlar:** Şablon oluştur; `Ctrl+Shift+Space` ile seçip etkin uygulamaya yapıştır.
+- **Piller:** Windows'un bildirdiği sistem ve Bluetooth pil düzeyleri.
 - **Ortam sesi:** Ses kanallarını, seviyeleri ve zamanlayıcıyı seç; ön ayarları kaydet veya tepsiden oynatmayı kontrol et.
-- **Ayarlar:** Başlangıç, pano saklama ve gizlilik seçeneklerini, temayı, yedeği ve Chrome bağlantısını yönet.
+- **Ayarlar:** Başlangıç, pano saklama ve gizlilik seçenekleri, tema, yedek ve Chrome bağlantısı.
+- **Otomatik güncelleme:** Uygulama yeni sürümü kendisi indirip kurar; eklentiyi masaüstünün eklenti klasöründen yüklediysen eklenti de güncellenir.
 
 ## Gizlilik
 
@@ -93,7 +104,7 @@ Veriler yerel olarak tutulur: eklenti SQLite'ı tarayıcının OPFS alanını, m
 
 ### Hazır sürümden (önerilen)
 
-Chrome 116 veya üzeri gerekir. Releases sayfasından `LifeTools-extension.zip` dosyasını indir ve bir klasöre çıkar. `chrome://extensions` sayfasında **Geliştirici modu**nu aç, **Paketlenmemiş öğe yükle** seçeneğine tıkla ve çıkarılan klasörü seç.
+Chrome 116 veya üzeri gerekir. Releases sayfasından `LifeTools-extension-<sürüm>.zip` dosyasını indir ve bir klasöre çıkar. `chrome://extensions` sayfasında **Geliştirici modu**nu aç, **Paketlenmemiş öğe yükle** seçeneğine tıkla ve çıkarılan klasörü seç.
 
 Windows masaüstü uygulaması için Releases sayfasındaki `LifeTools_<version>_x64-setup.exe` dosyasını çalıştır. İmzalanmamış yükleyici için Windows SmartScreen uyarısı çıkarsa **Daha fazla bilgi → Yine de çalıştır** seçeneğini kullan. Masaüstü uygulaması yalnızca Windows içindir.
 
@@ -122,7 +133,7 @@ Bazı özellikler ek site izni ister. İlgili seçeneği Panel'de açtığında 
 - **Link Temizleyici:** Otomatik temizlik veya kısa bağlantı çözümlemeyi aç.
 - **Resim içinde resim:** Videoların üzerindeki düğmeyi aç.
 
-X ve Instagram için gerekli site erişimi eklentinin kurulum izinleri arasındadır. Varsayılan kısayollar: `Alt+S` seçimi veya sayfayı kaydeder, `Alt+Q` sekme değiştiriciyi, `Alt+K` Komut Merkezi'ni açar, `Alt+P` resim içinde resmi açıp kapatır. Diğer komutlara da kısayol atayabilir ve bunları `chrome://extensions/shortcuts` üzerinden değiştirebilirsin.
+X ve Instagram için gerekli site erişimi eklentinin kurulum izinleri arasındadır. Varsayılan kısayollar: `Alt+S` seçimi veya sayfayı kaydeder, `Alt+P` resim içinde resmi açıp kapatır. Sekmeler arasında aramak için Chrome'un kendi `Ctrl+Shift+A` kısayolu var. Diğer komutlara da kısayol atayabilir ve bunları `chrome://extensions/shortcuts` üzerinden değiştirebilirsin.
 
 İsteğe bağlı masaüstü bağlantısı için masaüstünde **Ayarlar → Chrome bağlantısı → Bağla**, ardından eklentide **Panel → Depolama → Verileri masaüstüne taşı** seçeneğini kullan.
 
