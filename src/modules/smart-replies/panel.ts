@@ -230,7 +230,7 @@ export function initSmartRepliesPanel(): { render(): Promise<void> } {
         }
       }
     } catch {
-      message('Şablonlar yüklenemedi.', true);
+      message('Metin kısayolları yüklenemedi.', true);
     }
   }
 

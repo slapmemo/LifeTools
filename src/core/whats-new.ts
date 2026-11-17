@@ -10,10 +10,19 @@ export interface ChangeEntry { version: string; items: readonly ChangeItem[] }
  */
 export const CHANGELOG: readonly ChangeEntry[] = [
   {
+    version: '0.8.0',
+    items: [
+      { kind: 'new', text: 'Masaüstü uygulaması ilk açılışta karşılama ekranı gösteriyor; daha sonra Ayarlar’dan yeniden açabilirsin.' },
+      { kind: 'improved', features: ['tab-manager'], text: 'Pencere ve sekme grubu kaydetme Sekme Yöneticisi ile aynı ekranda birleşti.' },
+      { kind: 'new', text: 'Piller bölümü desteklenen Bluetooth ve USB alıcılı fare, kulaklık, klavye ve oyun kumandalarının pil bilgisini gösterebiliyor.' },
+      { kind: 'improved', text: 'Masaüstü menüsü Metin şablonları ile Pano geçmişini ayrı bir grupta topluyor.' }
+    ]
+  },
+  {
     version: '0.7.0',
     items: [
       { kind: 'new', text: 'Bu özellik rehberi: güncellemelerden sonra neyin değiştiğini burada görürsün. Önemli özellikler kısa animasyonlarla gösteriliyor. Ayarlar\'dan ve açılır pencereden her zaman açabilirsin.' },
-      { kind: 'improved', features: ['tab-manager', 'life-browser'], text: 'Kayıtlı gruplar tek yerde: Sekme Yöneticisi. Her yerde "oturum" yerine "kayıtlı grup" deniyor.' },
+      { kind: 'improved', features: ['tab-manager'], text: 'Kayıtlı gruplar tek yerde: Sekme Yöneticisi. Her yerde "oturum" yerine "kayıtlı grup" deniyor.' },
       { kind: 'improved', features: ['pip'], text: 'Resim içinde resim düğmesi artık küçük videolarda ve YouTube gibi üstünde kontrol katmanı olan sitelerde de çıkıyor.' },
       { kind: 'removed', text: 'Komut Merkezi sayfası, Sabit Sekme Koruyucu ve Sekme Değiştirici (Alt+Q) kaldırıldı. Arama açılır pencerede duruyor; sekmeler arasında aramak için Chrome\'un Ctrl+Shift+A kısayolunu kullanabilirsin.' },
       { kind: 'fixed', text: '"Etiket ve notlar" bölümü Sekmeler\'in diğer sekmelerinin altında da görünüyordu.' }

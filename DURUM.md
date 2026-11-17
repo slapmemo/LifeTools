@@ -5,13 +5,13 @@
 
 ## 0. Şu an neredeyiz (17 Kasım akşamı)
 
-**Özellik rehberine animasyonlar eklendi (0.7.0'a dahil):** `src/onboarding/demos.ts` + `demos.css`. 11 özellik için CSS ile döngülü mini animasyon (SlapMemo baloncuğu, link temizleme, Sekme Yöneticisi, Pencere Kaydetme, Süre takibi, Ses yükseltici, Resim içinde resim, YouTube / X / Instagram indirme, Steam döviz). Düğme adları gerçek arayüzden alındı; arayüz değişirse animasyon da güncellenmeli. İmlecin hedefleri `data-aim` ile ölçülür (`--ad-x/-y`). Hareket azaltma açıksa döngünün %75'inde durur. Kullanıcı ileride bazı özellikler için gerçek ekran kaydı (WebM) da ekleyebilir. Not: SlapMemo'yu insanlar Alt+S ile değil seçim baloncuğundaki "📝 Not" ile kullanıyor; rehber metinleri buna göre.
+**Özellik rehberine animasyonlar eklendi (0.7.0'a dahil):** `src/onboarding/demos.ts` + `demos.css`. 11 özellik için CSS ile döngülü mini animasyon (SlapMemo baloncuğu, link temizleme, Sekme Yöneticisi, tüm pencereyi kaydetme, Süre takibi, Ses yükseltici, Resim içinde resim, YouTube / X / Instagram indirme, Steam döviz). Düğme adları gerçek arayüzden alındı; arayüz değişirse animasyon da güncellenmeli. İmlecin hedefleri `data-aim` ile ölçülür (`--ad-x/-y`). Hareket azaltma açıksa döngünün %75'inde durur. Kullanıcı ileride bazı özellikler için gerçek ekran kaydı (WebM) da ekleyebilir. Not: SlapMemo'yu insanlar Alt+S ile değil seçim baloncuğundaki "📝 Not" ile kullanıyor; rehber metinleri buna göre.
 
 **Yayınlanan 0.7.0** (sürüm dosyaları 0.7.0'a yükseltildi, `release-notes/v0.7.0.md` ve `src/core/whats-new.ts` `CHANGELOG` girişi yazıldı). İçerik:
 - Kayıtlı gruplar tek yerde (Sekme Yöneticisi); paneldeki liste yerine sayı + kısayol; her yerde "oturum" → "kayıtlı grup". Düzeltme: "Etiket ve notlar" bölümü Sekmeler'in diğer sekmelerinde de görünüyordu.
 - Kaldırıldı: Komut Merkezi sayfası (açılır penceredeki arama artık hep açık; arama kodu `src/core/command-search.ts`), Sabit Sekme Koruyucu, Sekme Değiştirici (Alt+Q). "zombiler" komutu ve zombi bildirimi → `panel.html#zombiler` (Sekmeler › Temizlik); "kopyalar" → `panel.html#sekmeler`.
 - Resim içinde resim düğmesi: imleç konumuyla bulunuyor (üstte saydam katman olan sitelerde de çıkıyor), en küçük video 96×54, düğme görünen alanda kalıyor, tıklama oynatıcıyı durdurmuyor, rAF yerine 50 ms zamanlayıcı. YouTube ve küçük videoda gerçek tarayıcıda denendi.
-- Temizlik: masaüstü ana sayfa özetinden Görevler ve ortam sesi kalıntıları; LifeBrowser'ın görünen adı "Pencere Kaydetme".
+- Sekme araçları: tüm pencereyi kaydetme ve otomatik kaydetme Sekme Yöneticisi'ne taşındı; kayıtlı gruplarla aynı arayüzü ve modül ayarını kullanır.
 - **Özellik rehberi** (`src/onboarding/welcome.*`, `catalog.ts`, `src/core/whats-new.ts`): 3 kip — ilk kurulum (`?setup=1`: sabitle, masaüstünü bağla, özellikleri seç, ilk denemeler), güncelleme sonrası (`?from=0.6.0`: Yenilikler kartı + Yeni/Güncellendi rozetleri; arada `CHANGELOG` girişi varsa güncellemede kendiliğinden açılır, `whatsNewSeenVersion` anahtarı), rehber (`?guide=1`: Panel › Ayarlar › Araçlar'daki düğme ve açılır penceredeki "Özellikler ve yenilikler"). Kısayollar `chrome.commands.getAll()` ile canlı okunur.
 - Yayın: kullanıcı onay verince `git push origin master` + `git tag v0.7.0 && git push origin v0.7.0`, sonra akışı izle, dosyaları ve sürüm notunu doğrula.
 
@@ -23,11 +23,11 @@
 1. 0.7.0 yayınlandı; **otomatik güncellemenin bu PC'de gerçekten çalıştığını doğrula** (hiç doğrulanmadı; rehberin güncellemede açılması da ancak böyle görülür).
 2. Sekme Yöneticisi'ne mockup'taki site filtre hapları ("Tümü 14 · YouTube 7 · X 2 · Diğer 5") — kullanıcı en çok bu sayfayı kullanıyor.
 3. Engel sayfası (`blocked.html`) yalnızca renkleri aldı; eklentinin açık teması hiç kontrol edilmedi; masaüstü gerçek pencerede sayfa sayfa gezilmedi.
-4. Kullanımı sorulmamış modüller: Link Temizleyici, Başlık Temizleyici, Site Engelleyici, video indiricilerin üçü, Ses Yükseltici; masaüstünde Ortam sesi, Piller, seçiciler. Akıllı Yanıtlar yeni kurulumlarda zaten kapalı (önerilenlerde değil). Kullanıcının kalsın dedikleri: Pano Yuvaları, Döviz, Site Araç Çubuğu, Etiket/Not, Zombi, Notlar'ın iki ekranı (masaüstü + panel).
+4. Kullanımı sorulmamış modüller: Link Temizleyici, Başlık Temizleyici, Site Engelleyici, video indiricilerin üçü, Ses Yükseltici; masaüstünde Ortam sesi, Piller, seçiciler. Metin Kısayolları yeni kurulumlarda zaten kapalı (önerilenlerde değil). Kullanıcının kalsın dedikleri: Pano Yuvaları, Döviz, Site Araç Çubuğu, Etiket/Not, Zombi, Notlar'ın iki ekranı (masaüstü + panel).
 
 ## 1. Durum özeti
 
-LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisans eklenmedi. Eklenti (Chrome MV3) ve masaüstü (Tauri 2.11, Windows) aynı sürümü kullanır ve Native Messaging ile bağlıdır.
+LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); 0.8.0 ile GPL-3.0-or-later olarak lisanslandı; ayrıntı LICENSE ve THIRD_PARTY_NOTICES.md içinde. Eklenti (Chrome MV3) ve masaüstü (Tauri 2.11, Windows) aynı sürümü kullanır ve Native Messaging ile bağlıdır.
 
 | Alan | Durum |
 |---|---|

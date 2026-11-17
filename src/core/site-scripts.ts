@@ -1,4 +1,4 @@
-/** İsteğe bağlı site izni + kayıtlı içerik betiği mekanizması (Akıllı Yanıtlar ve Site Araç Çubuğu ortak kullanır). */
+/** İsteğe bağlı site izni + kayıtlı içerik betiği mekanizması (Metin Kısayolları ve Site Araç Çubuğu ortak kullanır). */
 
 /** Kullanıcı girdisinden ("example.com" veya tam adres) `https://host/*` kalıbı üretir; geçersizse null. */
 export function originFromInput(raw: string): string | null {

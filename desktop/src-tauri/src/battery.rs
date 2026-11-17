@@ -1,4 +1,4 @@
-//! Pil verisi: saf ayrıştırma, biçimlendirme ve eşik bildirimi kararı (Win32 erişimi `battery_win.rs`'te).
+//! Pil verisi biçimlendirme ve eşik bildirimi kararları.
 use serde::Serialize;
 use std::collections::HashSet;
 
@@ -8,95 +8,38 @@ pub const LOW_THRESHOLD: u8 = 20;
 pub struct DeviceBattery {
     pub id: String,
     pub name: String,
-    /// "system" | "bluetooth" | "wireless" (USB alıcılı)
     pub kind: String,
-    pub percent: u8,
-    /// Yalnızca Windows bildiriyorsa dolu (sistem pili).
+    pub percent: Option<u8>,
     pub charging: Option<bool>,
+    pub via: Option<String>,
+    pub detail: Option<String>,
+    pub level_text: Option<String>,
+    pub connected: bool,
+    pub asleep: bool,
+    pub millivolts: Option<i32>,
+    pub grace_sec: u32,
+}
+
+impl DeviceBattery {
+    pub fn from_percent(id: String, name: String, kind: String, percent: u8, charging: Option<bool>) -> Self {
+        Self {
+            id, name, kind, percent: Some(percent), charging, via: None, detail: None,
+            level_text: None, connected: true, asleep: false, millivolts: None, grace_sec: 0,
+        }
+    }
 }
 
 /// `SYSTEM_POWER_STATUS` alanlarından sistem pili. Pil yoksa/bilinmiyorsa None.
 pub fn parse_system_status(battery_flag: u8, percent: u8) -> Option<DeviceBattery> {
-    // 128 = pil yok, 255 = bilinmiyor
     if battery_flag == 255 || battery_flag & 128 != 0 || percent > 100 {
         return None;
     }
-    Some(DeviceBattery {
-        id: "system".into(),
-        name: "Sistem pili".into(),
-        kind: "system".into(),
-        percent,
-        charging: Some(battery_flag & 8 != 0),
-    })
+    Some(DeviceBattery::from_percent(
+        "system".into(), "Sistem pili".into(), "system".into(), percent, Some(battery_flag & 8 != 0),
+    ))
 }
 
-/// Bluetooth pil düzeyi özelliği (DEVPROP_TYPE_BYTE) ham baytları; 0–100 dışı geçersizdir.
-pub fn parse_bt_level(raw: &[u8]) -> Option<u8> {
-    match raw.first() {
-        Some(&v) if v <= 100 => Some(v),
-        _ => None,
-    }
-}
-
-/// UTF-16LE DEVPROP_TYPE_STRING baytlarını metne çevirir (sondaki NUL kırpılır).
-pub fn parse_utf16_name(raw: &[u8]) -> Option<String> {
-    let units: Vec<u16> = raw.chunks_exact(2).map(|b| u16::from_le_bytes([b[0], b[1]])).collect();
-    let s = String::from_utf16_lossy(&units);
-    let s = s.trim_end_matches('\0').trim();
-    if s.is_empty() { None } else { Some(s.to_string()) }
-}
-
-pub fn bluetooth_device(name: &str, percent: u8) -> DeviceBattery {
-    DeviceBattery {
-        id: format!("bt:{name}"),
-        name: name.to_string(),
-        kind: "bluetooth".into(),
-        percent,
-        charging: None,
-    }
-}
-
-// ---------- USB alıcılı ATK/Compx (VID 0x373B) fareler ----------
-// Üretici sürücüsünün HID protokolü (topluluk çalışması: github.com/cyberphantom52/libatk-rs).
-// Rapor 0x08, 17 bayt: [rapor, komut, durum, adres(2), veri uzunluğu, veri(10), sağlama].
-// Sağlama = 0x55 - (ilk 16 baytın toplamı). Komut 0x04 = pil düzeyini oku (yalnız okuma).
-
-pub const ATK_VENDOR_ID: u16 = 0x373B;
-pub const ATK_USAGE_PAGE: u16 = 0xFF02;
-pub const ATK_REPORT_ID: u8 = 0x08;
-pub const ATK_REPORT_LEN: usize = 17;
-const ATK_CMD_BATTERY: u8 = 0x04;
-
-fn atk_checksum(bytes: &[u8]) -> u8 {
-    0x55u8.wrapping_sub(bytes.iter().fold(0u8, |acc, b| acc.wrapping_add(*b)))
-}
-
-/// Pil sorgusu raporu.
-pub fn atk_battery_request() -> [u8; ATK_REPORT_LEN] {
-    let mut r = [0u8; ATK_REPORT_LEN];
-    r[0] = ATK_REPORT_ID;
-    r[1] = ATK_CMD_BATTERY;
-    r[ATK_REPORT_LEN - 1] = atk_checksum(&r[..ATK_REPORT_LEN - 1]);
-    r
-}
-
-/// Pil cevabını çözer: (yüzde, şarj oluyor mu). Başka bir rapor, bozuk sağlama ya da
-/// fare çevrim dışıyken (veri yok) None.
-pub fn parse_atk_battery(resp: &[u8]) -> Option<(u8, bool)> {
-    if resp.len() < ATK_REPORT_LEN || resp[0] != ATK_REPORT_ID || resp[1] != ATK_CMD_BATTERY { return None; }
-    if atk_checksum(&resp[..ATK_REPORT_LEN - 1]) != resp[ATK_REPORT_LEN - 1] { return None; }
-    if resp[5] < 1 { return None; }
-    let percent = resp[6];
-    if percent > 100 { return None; }
-    let charging = resp[5] >= 2 && resp[7] != 0;
-    Some((percent, charging))
-}
-
-pub fn wireless_device(id: &str, name: &str, percent: u8, charging: bool) -> DeviceBattery {
-    DeviceBattery { id: format!("usb:{id}"), name: name.to_string(), kind: "wireless".into(), percent, charging: Some(charging) }
-}
-
-/// Aynı aygıt birden çok düğüm olarak görünebilir; ada göre ilk kayıt tutulur.
+/// Aynı aygıt birden çok düğüm olarak görünürse kimliğe göre tek kayıt tutar.
 pub fn dedupe(list: Vec<DeviceBattery>) -> Vec<DeviceBattery> {
     let mut seen = HashSet::new();
     list.into_iter().filter(|d| seen.insert(d.id.clone())).collect()
@@ -106,7 +49,9 @@ pub fn dedupe(list: Vec<DeviceBattery>) -> Vec<DeviceBattery> {
 pub fn tooltip_text(list: &[DeviceBattery]) -> String {
     let mut s = format!("LifeTools {}", env!("CARGO_PKG_VERSION"));
     for d in list {
-        let line = format!("\n{}: %{}", d.name, d.percent);
+        let level = d.percent.map(|p| format!("%{p}"))
+            .or_else(|| d.level_text.clone()).unwrap_or_else(|| "bilinmiyor".into());
+        let line = format!("\n{}: {level}", d.name);
         if s.chars().count() + line.chars().count() > 120 {
             s.push_str("\n…");
             break;
@@ -123,15 +68,13 @@ pub struct NotifyTracker {
 }
 
 impl NotifyTracker {
-    /// Bildirilmesi gereken aygıtları döndürür. Şarj oluyorsa veya eşik üstüne çıkmışsa durum sıfırlanır.
+    /// Şarj olurken veya eşik üstünde durum sıfırlanır.
     pub fn update(&mut self, list: &[DeviceBattery], threshold: u8) -> Vec<DeviceBattery> {
         let mut out = Vec::new();
         for d in list {
-            let below = d.percent < threshold && d.charging != Some(true);
+            let below = d.percent.is_some_and(|percent| percent < threshold) && d.charging != Some(true);
             if below {
-                if self.low.insert(d.id.clone()) {
-                    out.push(d.clone());
-                }
+                if self.low.insert(d.id.clone()) { out.push(d.clone()); }
             } else {
                 self.low.remove(&d.id);
             }
@@ -145,82 +88,48 @@ mod tests {
     use super::*;
 
     fn dev(id: &str, p: u8, charging: Option<bool>) -> DeviceBattery {
-        DeviceBattery { id: id.into(), name: id.into(), kind: "bluetooth".into(), percent: p, charging }
+        DeviceBattery::from_percent(id.into(), id.into(), "bluetooth".into(), p, charging)
     }
 
     #[test]
     fn system_status_parsing() {
-        assert!(parse_system_status(128, 100).is_none()); // pil yok
-        assert!(parse_system_status(255, 50).is_none()); // bilinmiyor
-        assert!(parse_system_status(1, 255).is_none()); // yüzde bilinmiyor
+        assert!(parse_system_status(128, 100).is_none());
+        assert!(parse_system_status(255, 50).is_none());
+        assert!(parse_system_status(1, 255).is_none());
         let d = parse_system_status(1, 85).unwrap();
-        assert_eq!((d.percent, d.charging), (85, Some(false)));
+        assert_eq!((d.percent, d.charging), (Some(85), Some(false)));
         assert_eq!(parse_system_status(9, 40).unwrap().charging, Some(true));
     }
 
     #[test]
-    fn bt_level_parsing() {
-        assert_eq!(parse_bt_level(&[73]), Some(73));
-        assert_eq!(parse_bt_level(&[0]), Some(0));
-        assert_eq!(parse_bt_level(&[101]), None);
-        assert_eq!(parse_bt_level(&[]), None);
-    }
-
-    #[test]
-    fn utf16_names() {
-        let raw: Vec<u8> = "Kulaklık\0".encode_utf16().flat_map(|u| u.to_le_bytes()).collect();
-        assert_eq!(parse_utf16_name(&raw).as_deref(), Some("Kulaklık"));
-        assert_eq!(parse_utf16_name(&[0, 0]), None);
-    }
-
-    #[test]
     fn dedupes_by_id() {
-        let l = dedupe(vec![bluetooth_device("A", 50), bluetooth_device("B", 60), bluetooth_device("A", 50)]);
-        assert_eq!(l.len(), 2);
+        assert_eq!(dedupe(vec![dev("a", 50, None), dev("b", 60, None), dev("a", 50, None)]).len(), 2);
     }
 
     #[test]
     fn tooltip_format_and_limit() {
         assert_eq!(tooltip_text(&[]), format!("LifeTools {}", env!("CARGO_PKG_VERSION")));
-        let t = tooltip_text(&[dev("Fare", 85, None)]);
-        assert_eq!(t, format!("LifeTools {}\nFare: %85", env!("CARGO_PKG_VERSION")));
-        let many: Vec<_> = (0..30).map(|i| dev(&format!("Aygıt {i}"), 50, None)).collect();
+        assert_eq!(tooltip_text(&[dev("Mouse", 85, None)]), format!("LifeTools {}\nMouse: %85", env!("CARGO_PKG_VERSION")));
+        let many: Vec<_> = (0..30).map(|i| dev(&format!("Device {i}"), 50, None)).collect();
         assert!(tooltip_text(&many).chars().count() <= 124);
     }
 
     #[test]
     fn notifies_once_per_drop() {
-        let mut t = NotifyTracker::default();
-        assert!(t.update(&[dev("a", 50, None)], 20).is_empty());
-        assert_eq!(t.update(&[dev("a", 19, None)], 20).len(), 1);
-        assert!(t.update(&[dev("a", 15, None)], 20).is_empty()); // tekrar yok
-        assert!(t.update(&[dev("a", 20, None)], 20).is_empty()); // eşik dahil değil, sıfırlanır
-        assert_eq!(t.update(&[dev("a", 10, None)], 20).len(), 1); // yeni düşüş
+        let mut tracker = NotifyTracker::default();
+        assert!(tracker.update(&[dev("a", 50, None)], 20).is_empty());
+        assert_eq!(tracker.update(&[dev("a", 19, None)], 20).len(), 1);
+        assert!(tracker.update(&[dev("a", 15, None)], 20).is_empty());
+        assert!(tracker.update(&[dev("a", 20, None)], 20).is_empty());
+        assert_eq!(tracker.update(&[dev("a", 10, None)], 20).len(), 1);
     }
 
     #[test]
     fn charging_does_not_notify_and_resets() {
-        let mut t = NotifyTracker::default();
-        assert!(t.update(&[dev("a", 10, Some(true))], 20).is_empty());
-        assert_eq!(t.update(&[dev("a", 10, Some(false))], 20).len(), 1);
-        assert!(t.update(&[dev("a", 10, Some(true))], 20).is_empty());
-        assert_eq!(t.update(&[dev("a", 10, Some(false))], 20).len(), 1);
-    }
-
-    #[test]
-    fn atk_request_and_real_response() {
-        assert_eq!(atk_battery_request(), [0x08, 0x04, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x49]);
-        // ATK A9 Plus'tan gelen gerçek cevap (%90, şarj olmuyor).
-        let real = [0x08, 0x04, 0x00, 0x00, 0x00, 0x02, 0x5a, 0x00, 0x0f, 0xbe, 0, 0, 0, 0, 0, 0, 0x20];
-        assert_eq!(parse_atk_battery(&real), Some((90, false)));
-        let mut charging = real; charging[7] = 1; charging[16] = charging[16].wrapping_sub(1);
-        assert_eq!(parse_atk_battery(&charging), Some((90, true)));
-        let mut bad = real; bad[16] ^= 1;
-        assert_eq!(parse_atk_battery(&bad), None, "bozuk sağlama");
-        let mut other = real; other[1] = 0x03; other[16] = other[16].wrapping_add(1);
-        assert_eq!(parse_atk_battery(&other), None, "başka komut");
-        let mut offline = real; offline[5] = 0; offline[16] = offline[16].wrapping_add(2);
-        assert_eq!(parse_atk_battery(&offline), None, "veri yok");
-        assert_eq!(parse_atk_battery(&real[..10]), None);
+        let mut tracker = NotifyTracker::default();
+        assert!(tracker.update(&[dev("a", 10, Some(true))], 20).is_empty());
+        assert_eq!(tracker.update(&[dev("a", 10, Some(false))], 20).len(), 1);
+        assert!(tracker.update(&[dev("a", 10, Some(true))], 20).is_empty());
+        assert_eq!(tracker.update(&[dev("a", 10, Some(false))], 20).len(), 1);
     }
 }

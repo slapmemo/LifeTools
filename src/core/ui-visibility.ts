@@ -2,23 +2,22 @@ import type { IconName } from '../../design/icons';
 import { resolveEnabled } from './module-state';
 
 export const groups = [
-  { id: 'notlar', label: 'Notlar', icon: 'notebook-pen', star: true, modules: ['slapmemo', 'watchlist'] },
+  { id: 'notlar', label: 'Notlar', icon: 'notebook-pen', star: true, modules: ['slapmemo'] },
   { id: 'metin', label: 'Metin', icon: 'text-cursor-input', star: true, modules: ['smart-replies', 'clip-slots', 'link-cleaner'] },
   {
     id: 'sekmeler',
     label: 'Sekmeler',
     icon: 'layout-grid',
     star: false,
-    modules: ['life-browser', 'zombie-tabs', 'tab-labels', 'tab-notes', 'title-cleaner', 'site-toolbar']
+    modules: ['tab-manager', 'zombie-tabs', 'tab-labels', 'tab-notes', 'title-cleaner', 'site-toolbar']
   },
   { id: 'odak', label: 'Odak', icon: 'timer', star: false, modules: ['site-blocker', 'time-tracker'] },
-  { id: 'medya', label: 'Medya', icon: 'clapperboard', star: false, modules: ['x-video', 'instagram', 'pip', 'video-downloader'] },
+  { id: 'medya', label: 'Medya', icon: 'clapperboard', star: false, modules: ['watchlist', 'x-video', 'instagram', 'pip', 'video-downloader', 'volume-booster', 'currency'] },
   { id: 'ayarlar', label: 'Ayarlar', icon: 'settings', star: false, modules: [] }
 ] as const;
 
-export type NotlarSubTab = 'slapmemo' | 'watchlist';
 export type MetinSubTab = 'smart-replies' | 'clip-slots' | 'link-cleaner';
-export type SekmelerSubTab = 'oturumlar' | 'temizlik' | 'etiket-notlar' | 'arac-cubugu';
+export type SekmelerSubTab = 'temizlik' | 'etiket-notlar' | 'arac-cubugu';
 export type OdakSubTab = 'engelleyici' | 'sureler';
 
 export function categories(flags: unknown) {
@@ -39,13 +38,6 @@ export function popupVisibility(flags: unknown) {
   };
 }
 
-export function notlarTabs(flags: unknown): NotlarSubTab[] {
-  const out: NotlarSubTab[] = [];
-  if (resolveEnabled(flags, 'slapmemo')) out.push('slapmemo');
-  if (resolveEnabled(flags, 'watchlist')) out.push('watchlist');
-  return out;
-}
-
 export function metinTabs(flags: unknown): MetinSubTab[] {
   const out: MetinSubTab[] = [];
   if (resolveEnabled(flags, 'smart-replies')) out.push('smart-replies');
@@ -56,7 +48,6 @@ export function metinTabs(flags: unknown): MetinSubTab[] {
 
 export function sekmelerTabs(flags: unknown): SekmelerSubTab[] {
   const out: SekmelerSubTab[] = [];
-  if (resolveEnabled(flags, 'life-browser')) out.push('oturumlar');
   if (resolveEnabled(flags, 'zombie-tabs')) out.push('temizlik');
   if (
     resolveEnabled(flags, 'tab-labels') ||

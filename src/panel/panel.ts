@@ -1,8 +1,6 @@
 import { isModuleEnabled, MODULE_FLAGS_KEY, resolveEnabled } from '../core/module-state';
 import { CLIP_SLOTS_ID } from '../modules/clip-slots/background';
 import { initClipSlotsPanel } from '../modules/clip-slots/panel';
-import { LIFE_BROWSER_ID } from '../modules/life-browser/background';
-import { initLifeBrowserPanel } from '../modules/life-browser/panel';
 import { LINK_CLEANER_ID } from '../modules/link-cleaner/background';
 import { initLinkCleanerPanel } from '../modules/link-cleaner/panel';
 import { SHORTCUTS_ID } from '../modules/shortcuts/background';
@@ -48,7 +46,6 @@ const shortcuts = initShortcutsPanel();
 const siteToolbar = initSiteToolbarPanel();
 const tabTools = initTabToolsPanel();
 document.querySelector('#open-tab-manager')?.addEventListener('click', () => { void chrome.tabs.create({ url: chrome.runtime.getURL('tabs.html') }); });
-const lifeBrowser = initLifeBrowserPanel();
 const zombies = initZombieTabsPanel();
 
 const timeTracker = initTimeTrackerPanel();
@@ -80,7 +77,6 @@ async function refresh(): Promise<void> {
   if (resolveEnabled(flags, SITE_BLOCKER_ID)) await blocker.render();
   if (resolveEnabled(flags, SLAPMEMO_ID)) await memo.render();
   if (resolveEnabled(flags, LINK_CLEANER_ID)) await cleaner.render();
-  if (resolveEnabled(flags, LIFE_BROWSER_ID)) await lifeBrowser.render();
   if (resolveEnabled(flags, ZOMBIE_TABS_ID)) await zombies.render();
   const shortcutsOn = resolveEnabled(flags, SHORTCUTS_ID);
   shortcutsSection.hidden = !shortcutsOn;

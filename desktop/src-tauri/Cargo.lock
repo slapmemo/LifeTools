@@ -2248,9 +2248,10 @@ dependencies = [
 
 [[package]]
 name = "lifetools-desktop"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arboard",
+ "cc",
  "rusqlite",
  "serde",
  "serde_json",

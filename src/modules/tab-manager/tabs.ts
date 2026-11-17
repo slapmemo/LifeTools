@@ -1,8 +1,11 @@
 import { applyTheme } from '../../core/theme';
 import { popupDb } from '../../db/client';
 import { confirmSecondClick, createKebabMenu } from '../../panel/ui';
-import { describeTabs, groupWindowBySite, moveTabsToSession, openSession } from '../life-browser/browser';
+import { closeWindowSafely, describeTabs, groupWindowBySite, moveTabsToSession, openSession } from '../life-browser/browser';
 import { createSessionsRepo, type Session, type SessionTab } from '../life-browser/repo';
+import { AUTO_SAVE_KEY } from '../life-browser/settings';
+import { findDuplicates } from '../life-browser/tabs';
+import { suppressAutoSaveForWindow } from '../life-browser/background';
 import { exportPlain, exportMarkdown, resolveShortcutTarget, sortSavedGroups, sortSavedTabs, clusterBySite, orderClusters, type SavedSort, buildViewModel, dropAction, dragThresholdExceeded, insertionPosition, autoScrollSpeed, type DragSource, type DropTarget, COLORS, filterSavedGroup, groupTargetLabels, HIDDEN_PREFIX, hiddenGroupCollapsed, hiddenOpenTabs, hiddenTabModel, matchesQuery, newGroupTitle, partitionSaveable, savedCardModel, savedStoredName, selectRange, type SavedCardModel } from './logic';
 import { isInternalTabUrl, extensionBaseUrl } from '../../core/internal-tab';
 import { PIN_MANAGER_KEY } from './settings';
@@ -11,6 +14,8 @@ void applyTheme();
 const el = <T extends HTMLElement>(selector: string): T => document.querySelector(selector) as T;
 const windowsEl = el<HTMLElement>('#windows'), search = el<HTMLInputElement>('#search'), message = el<HTMLElement>('#message');
 const groupSelect = el<HTMLDetailsElement>('#group-select');
+const windowSaveName = el<HTMLInputElement>('#window-save-name');
+const autoSaveWindow = el<HTMLInputElement>('#auto-save-window');
 let tabs: chrome.tabs.Tab[] = [], groups: chrome.tabGroups.TabGroup[] = [], currentWindowId: number | undefined;
 let selected = new Set<number>(), anchor: number | undefined, anchorWindow: number | undefined, color: chrome.tabGroups.ColorEnum = 'grey';
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -45,6 +50,8 @@ const report = (error: unknown): void => { message.textContent = error instanceo
 const pinSetting = el<HTMLInputElement>('#pin-manager');
 void chrome.storage.local.get({ [PIN_MANAGER_KEY]: true }).then(data => { pinSetting.checked = data[PIN_MANAGER_KEY] === true; });
 pinSetting.addEventListener('change', () => { void chrome.storage.local.set({ [PIN_MANAGER_KEY]: pinSetting.checked }); });
+void chrome.storage.local.get({ [AUTO_SAVE_KEY]: false }).then(data => { autoSaveWindow.checked = data[AUTO_SAVE_KEY] === true; });
+autoSaveWindow.addEventListener('change', () => { void chrome.storage.local.set({ [AUTO_SAVE_KEY]: autoSaveWindow.checked }); });
 const run = (fn: () => Promise<void>): void => { void fn().catch(report); };
 const button = (label: string, action: () => void): HTMLButtonElement => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('click', action); return b; };
 const dot = (value: string): HTMLElement => { const d = document.createElement('span'); d.className = 'dot'; d.style.setProperty('--group-color', colorValue(value)); return d; };
@@ -423,6 +430,45 @@ async function saveAndClose(candidates: chrome.tabs.Tab[], name?: string): Promi
   await Promise.all([load(), refreshSaved(true)]);
 }
 
+async function saveCurrentWindow(closeAfterSave: boolean): Promise<void> {
+  if (currentWindowId === undefined) throw new Error('Pencere bulunamadı.');
+  const own = await chrome.tabs.getCurrent();
+  const managerUrl = chrome.runtime.getURL('tabs.html');
+  const currentTabs = tabs
+    .filter(t => t.windowId === currentWindowId && t.id !== own?.id && !!(t.url || t.pendingUrl) && !isBlocked(t.url || t.pendingUrl || ''))
+    .map(t => ({ ...t, url: t.url || t.pendingUrl }));
+  if (!currentTabs.length) throw new Error('Bu pencerede kaydedilecek sekme yok.');
+  const date = new Date();
+  const two = (n: number): string => String(n).padStart(2, '0');
+  const fallback = `Pencere — ${two(date.getDate())}.${two(date.getMonth() + 1)} ${two(date.getHours())}:${two(date.getMinutes())}`;
+  const name = windowSaveName.value.trim() || fallback;
+  await repo.save(name, await describeTabs(currentTabs.filter(t => (t.url || '').split('?')[0] !== managerUrl)));
+  windowSaveName.value = '';
+  message.textContent = `${currentTabs.length} sekme “${name}” grubuna kaydedildi.`;
+  await refreshSaved(true);
+  if (closeAfterSave) {
+    await suppressAutoSaveForWindow(currentWindowId);
+    await closeWindowSafely(currentWindowId);
+  }
+}
+
+async function groupCurrentWindowBySite(): Promise<void> {
+  if (currentWindowId === undefined) throw new Error('Pencere bulunamadı.');
+  const count = await groupWindowBySite(currentWindowId);
+  message.textContent = count ? `${count} site grubu oluşturuldu.` : 'Gruplanacak (en az 2 sekmeli) site yok.';
+  await load();
+}
+
+async function closeCurrentWindowDuplicates(): Promise<void> {
+  if (currentWindowId === undefined) throw new Error('Pencere bulunamadı.');
+  const duplicates = findDuplicates(tabs.filter(t => t.windowId === currentWindowId));
+  const ids = duplicates.flatMap(set => set.close);
+  if (!ids.length) { message.textContent = 'Bu pencerede kopya sekme yok.'; return; }
+  await chrome.tabs.remove(ids);
+  message.textContent = `${ids.length} kopya sekme kapatıldı.`;
+  await load();
+}
+
 async function refreshSaved(force = false): Promise<void> {
   if (drag) { pendingRender = true; return; }
   const sequence = ++savedSequence;
@@ -561,6 +607,10 @@ function renderSwatches(): void { const s = el('#swatches'); s.replaceChildren(s
 el<HTMLFormElement>('#new-form').addEventListener('submit', e => { e.preventDefault(); run(async () => { const first = tabs.find(t => t.id === [...selected][0]); if (!first || !selected.size) return; await moveSelected(first.windowId); const id = await chrome.tabs.group({tabIds:[...selected] as [number,...number[]],createProperties:{windowId:first.windowId}}); const nameInput = el<HTMLInputElement>('#group-name'); await chrome.tabGroups.update(id,{title:newGroupTitle(nameInput.value),color}); nameInput.value = ''; selected.clear(); el('#new-form').hidden = true; await load(); }); });
 el('#ungroup').addEventListener('click', () => run(async () => { if (!selected.size) return; await chrome.tabs.ungroup([...selected]); selected.clear(); await load(); }));
 el('#save-close').addEventListener('click', () => run(() => saveAndClose(tabs.filter(t => t.id !== undefined && selected.has(t.id)))));
+el<HTMLFormElement>('#window-save-form').addEventListener('submit', e => { e.preventDefault(); run(() => saveCurrentWindow(false)); });
+el('#window-save-close').addEventListener('click', () => run(() => saveCurrentWindow(true)));
+el('#group-current-window').addEventListener('click', () => run(groupCurrentWindowBySite));
+confirmSecondClick(el<HTMLButtonElement>('#dedupe-current-window'), () => run(closeCurrentWindowDuplicates), 'Kopyalar kapatılsın mı?');
 confirmSecondClick(el<HTMLButtonElement>('#close'), () => run(async () => { if (!selected.size) return; await chrome.tabs.remove([...selected]); selected.clear(); await load(); }));
 el('#clear').addEventListener('click', () => { selected.clear(); render(); });
 confirmSecondClick(el<HTMLButtonElement>('#site'), () => run(async () => { let count = 0; for (const id of new Set(tabs.map(t => t.windowId))) count += await groupWindowBySite(id); message.textContent = `${count} grup oluşturuldu`; await load(); }), 'Tüm pencereler gruplansın mı?');

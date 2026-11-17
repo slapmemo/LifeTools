@@ -259,6 +259,7 @@ export function settingsView(): View {
 
   const themeBtns = new Map<ThemeMode, HTMLButtonElement>();
   const themeGroup = h('div', { class: 'chip-tabs', role: 'radiogroup', 'aria-label': 'Görünüm' });
+  const welcomeButton = h('button', { type: 'button', onClick: () => window.dispatchEvent(new Event('lifetools:show-welcome')) }, 'Karşılama ekranını göster');
 
   function syncThemeUi(active: ThemeMode): void {
     for (const [mode, btn] of themeBtns) {
@@ -300,7 +301,8 @@ export function settingsView(): View {
       version),
     msg,
     section('app-window', 'Görünüm',
-      h('div', { class: 'settings-row' }, h('span', { class: 'settings-label' }, 'Tema'), themeGroup)),
+      h('div', { class: 'settings-row' }, h('span', { class: 'settings-label' }, 'Tema'), themeGroup),
+      h('div', { class: 'toolbar settings-actions' }, welcomeButton)),
     section('zap', 'Başlangıç ve bildirimler',
       toggleRow('Windows açılışında başlat', autostart),
       toggleRow('Pil %20 altına düşünce bildir', battNotify)),

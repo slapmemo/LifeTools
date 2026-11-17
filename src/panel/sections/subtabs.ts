@@ -1,12 +1,10 @@
 import { MODULE_FLAGS_KEY, resolveEnabled } from '../../core/module-state';
 import {
   metinTabs,
-  notlarTabs,
   odakTabs,
   resolveActiveTab,
   sekmelerTabs,
   type MetinSubTab,
-  type NotlarSubTab,
   type OdakSubTab,
   type SekmelerSubTab
 } from '../../core/ui-visibility';
@@ -18,13 +16,13 @@ export interface SubTabsHandle {
   smartSection: HTMLElement;
 }
 
-/** Notlar / Metin / Sekmeler / Odak alt sekmelerini ve bölüm görünürlüğünü yönetir. */
+/** Metin / Sekmeler / Odak alt sekmelerini ve modül görünürlüğünü yönetir. */
 export function initSubTabs(): SubTabsHandle {
   const watchSection = document.querySelector('#watchlist-panel') as HTMLElement;
   const clipSection = document.querySelector('#clip-slots-panel') as HTMLElement;
   const toolbarSection = document.querySelector('#site-toolbar-panel') as HTMLElement;
   const tabToolsSection = document.querySelector('#tab-tools') as HTMLElement;
-  const lifeBrowserSection = document.querySelector('#life-browser-panel') as HTMLElement;
+  const openTabManagerButton = document.getElementById('open-tab-manager') as HTMLButtonElement;
   const temizlikSection = document.querySelector('#sekmeler-temizlik') as HTMLElement;
   const zombieSection = document.querySelector('#zombie-tabs-panel') as HTMLElement;
   const timeSection = document.querySelector('#time-tracker-panel') as HTMLElement;
@@ -33,26 +31,17 @@ export function initSubTabs(): SubTabsHandle {
   const cleanerSection = document.querySelector('#link-cleaner-panel') as HTMLElement;
   const smartSection = document.querySelector('#smart-replies-panel') as HTMLElement;
 
-  let notlarTab: NotlarSubTab = 'slapmemo';
   let metinTab: MetinSubTab = 'smart-replies';
   // panel.html#zombiler (zombi bildirimi / "zombiler" komutu) doğrudan Temizlik sekmesini açar.
-  let sekmelerTab: SekmelerSubTab = location.hash === '#zombiler' ? 'temizlik' : 'oturumlar';
+  let sekmelerTab: SekmelerSubTab = 'temizlik';
   window.addEventListener('hashchange', () => { if (location.hash === '#zombiler') { sekmelerTab = 'temizlik'; void updateSubTabs(); } });
   let odakTab: OdakSubTab = 'engelleyici';
 
-  const notlarTabsWrap = document.getElementById('notlar-tabs')!;
   const memoNewBtn = document.getElementById('memo-new-btn') as HTMLButtonElement;
   const watchNewBtn = document.getElementById('watch-new-btn') as HTMLButtonElement;
   const metinTabsWrap = document.getElementById('metin-tabs')!;
   const sekmelerTabsWrap = document.getElementById('sekmeler-tabs')!;
   const odakTabsWrap = document.getElementById('odak-tabs')!;
-
-  notlarTabsWrap.querySelectorAll<HTMLButtonElement>('[data-notlar-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      notlarTab = btn.dataset.notlarTab as NotlarSubTab;
-      void updateSubTabs();
-    });
-  });
 
   metinTabsWrap.querySelectorAll<HTMLButtonElement>('[data-metin-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -81,19 +70,9 @@ export function initSubTabs(): SubTabsHandle {
         ? rawFlags
         : (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
 
-    // Notlar
-    const enabledNotlar = notlarTabs(flags);
-    notlarTab = resolveActiveTab(notlarTab, enabledNotlar, 'slapmemo');
-    notlarTabsWrap.hidden = enabledNotlar.length <= 1;
-    notlarTabsWrap.querySelectorAll<HTMLButtonElement>('[data-notlar-tab]').forEach(btn => {
-      const key = btn.dataset.notlarTab as NotlarSubTab;
-      btn.hidden = !enabledNotlar.includes(key);
-      const active = key === notlarTab;
-      btn.classList.toggle('active', active);
-      btn.setAttribute('aria-selected', String(active));
-    });
-    const showMemo = enabledNotlar.includes('slapmemo') && notlarTab === 'slapmemo';
-    const showWatch = enabledNotlar.includes('watchlist') && notlarTab === 'watchlist';
+    // Notlar ve İzleme Listesi artık ayrı ana bölümlerde.
+    const showMemo = resolveEnabled(flags, 'slapmemo');
+    const showWatch = resolveEnabled(flags, 'watchlist');
     memoSection.hidden = !showMemo;
     watchSection.hidden = !showWatch;
     memoNewBtn.hidden = !showMemo;
@@ -116,7 +95,7 @@ export function initSubTabs(): SubTabsHandle {
 
     // Sekmeler
     const enabledSekmeler = sekmelerTabs(flags);
-    sekmelerTab = resolveActiveTab(sekmelerTab, enabledSekmeler, 'oturumlar');
+    sekmelerTab = resolveActiveTab(sekmelerTab, enabledSekmeler, 'temizlik');
     sekmelerTabsWrap.hidden = enabledSekmeler.length <= 1;
     sekmelerTabsWrap.querySelectorAll<HTMLButtonElement>('[data-sekmeler-tab]').forEach(btn => {
       const key = btn.dataset.sekmelerTab as SekmelerSubTab;
@@ -125,7 +104,7 @@ export function initSubTabs(): SubTabsHandle {
       btn.classList.toggle('active', active);
       btn.setAttribute('aria-selected', String(active));
     });
-    lifeBrowserSection.hidden = !(enabledSekmeler.includes('oturumlar') && sekmelerTab === 'oturumlar');
+    openTabManagerButton.hidden = !resolveEnabled(flags, 'tab-manager');
     temizlikSection.hidden = !(enabledSekmeler.includes('temizlik') && sekmelerTab === 'temizlik');
     zombieSection.hidden = !resolveEnabled(flags, ZOMBIE_TABS_ID);
     tabToolsSection.hidden = !(enabledSekmeler.includes('etiket-notlar') && sekmelerTab === 'etiket-notlar');

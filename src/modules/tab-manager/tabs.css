@@ -123,3 +123,10 @@ button { min-height: 34px; border-radius: var(--radius-8); }
 .row img, .favicon { width: 18px; height: 18px; border-radius: 4px; }
 .tab-title { font-weight: 500; }
 .dot { width: 12px; height: 12px; border: 0; }
+
+.window-tools { display: grid; gap: var(--space-8); margin-bottom: var(--space-16); padding: var(--space-12); }
+.window-tools form { display: grid; gap: var(--space-8); }
+.window-tools form > label { font-weight: 600; }
+.window-save-row, .window-tools-row { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
+.window-save-row input { flex: 1; min-width: 220px; }
+.window-tools-row .tm-option { margin-right: auto; }

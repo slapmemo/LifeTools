@@ -12,7 +12,6 @@ import {
   filterToolbarActions,
   groupModulesByCategory,
   metinTabs,
-  notlarTabs,
   odakTabs,
   popupVisibility,
   resolveActiveTab,
@@ -167,19 +166,18 @@ describe('arayüz', () => {
   });
 
   it('kapalı araçları alt sekmelerden, site araç çubuğundan gizler ve modülleri gruplar', () => {
-    expect(sekmelerTabs({})).toEqual(['oturumlar', 'temizlik', 'etiket-notlar', 'arac-cubugu']);
+    expect(sekmelerTabs({})).toEqual(['temizlik', 'etiket-notlar', 'arac-cubugu']);
     expect(
       sekmelerTabs({
-        'life-browser': false,
+        'tab-manager': false,
         'zombie-tabs': false
       })
     ).toEqual(['etiket-notlar', 'arac-cubugu']);
-    expect(resolveActiveTab('oturumlar', ['etiket-notlar', 'arac-cubugu'] as const, 'oturumlar')).toBe(
+    expect(resolveActiveTab('temizlik', ['etiket-notlar', 'arac-cubugu'] as const, 'temizlik')).toBe(
       'etiket-notlar'
     );
 
     expect(odakTabs({ 'site-blocker': false })).toEqual(['sureler']);
-    expect(notlarTabs({ slapmemo: false })).toEqual(['watchlist']);
     expect(metinTabs({ 'smart-replies': false, 'clip-slots': false })).toEqual(['link-cleaner']);
 
     const toolbarActions = [

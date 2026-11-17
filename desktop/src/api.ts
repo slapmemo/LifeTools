@@ -84,9 +84,16 @@ export interface ExtensionInfo {
 export interface DeviceBattery {
   id: string;
   name: string;
-  kind: 'system' | 'bluetooth' | 'wireless';
-  percent: number;
+  kind: string;
+  percent: number | null;
   charging: boolean | null;
+  via?: string | null;
+  detail?: string | null;
+  level_text?: string | null;
+  connected?: boolean;
+  asleep?: boolean;
+  millivolts?: number | null;
+  grace_sec?: number;
 }
 
 export interface DashboardSummary {

@@ -135,7 +135,7 @@ fn refresh_batteries(app: &AppHandle) -> Vec<battery::DeviceBattery> {
             .unwrap_or_else(|e| e.into_inner())
             .update(&readings, battery::LOW_THRESHOLD);
         if !low.is_empty() {
-            let parts: Vec<String> = low.iter().map(|d| format!("{} %{}", d.name, d.percent)).collect();
+            let parts: Vec<String> = low.iter().filter_map(|d| d.percent.map(|p| format!("{} %{}", d.name, p))).collect();
             toast(app, &format!("Pil azaldı: {}", parts.join(", ")));
         }
     }

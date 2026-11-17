@@ -18,18 +18,13 @@
       <div class="version">v0.1</div>
     </header>
 
-    <section id="notlar" class="category-view" aria-label="Notlar ve İzleme Listesi">
+    <section id="notlar" class="category-view" aria-label="Notlar">
       <div class="page-header">
         <div class="page-header-left">
           <h2 id="notlar-heading">Notlar</h2>
-          <div id="notlar-tabs" class="segmented" role="tablist" aria-label="Notlar bölümleri">
-            <button type="button" class="seg-btn active" data-notlar-tab="slapmemo" role="tab" aria-selected="true">Notlar</button>
-            <button type="button" class="seg-btn" data-notlar-tab="watchlist" role="tab" aria-selected="false">İzleme listesi</button>
-          </div>
         </div>
         <div class="page-header-actions">
           <button id="memo-new-btn" type="button" class="primary">＋ Yeni not</button>
-          <button id="watch-new-btn" type="button" class="primary" hidden>＋ Ekle</button>
         </div>
       </div>
 
@@ -67,37 +62,6 @@
         <ul id="memo-list" class="card list-card" aria-label="Notlar"></ul>
       </div>
 
-      <div id="watchlist-panel" hidden>
-        <div class="card stack-card"><label class="setting-row"><span>YouTube ve IMDb'de ＋ İzle düğmesi göster</span><span class="switch"><input id="watch-page-button-enabled" type="checkbox" /><span class="switch-track"></span></span></label></div>
-        <form id="watch-form" class="card inline-form-card" hidden>
-          <div class="inline-editor-row">
-            <input id="watch-title" maxlength="300" required placeholder="Başlık (film, dizi, video…)" aria-label="Başlık" />
-            <select id="watch-kind" aria-label="Tür">
-              <option value="film">Film</option>
-              <option value="dizi">Dizi</option>
-              <option value="video">Video</option>
-              <option value="diger">Diğer</option>
-            </select>
-            <input id="watch-url" type="url" placeholder="Bağlantı (isteğe bağlı)" aria-label="Bağlantı" />
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="primary">Kaydet</button>
-            <button id="watch-cancel" type="button">Vazgeç</button>
-          </div>
-        </form>
-
-        <div class="panel-toolbar">
-          <div class="segmented" role="tablist" aria-label="İzleme durumu">
-            <button type="button" class="seg-btn active" data-watch-status="izlenecek" aria-pressed="true">İzlenecek</button>
-            <button type="button" class="seg-btn" data-watch-status="izleniyor" aria-pressed="false">İzleniyor</button>
-            <button type="button" class="seg-btn" data-watch-status="bitti" aria-pressed="false">Bitti</button>
-          </div>
-        </div>
-
-        <p id="watch-feedback" class="feedback" aria-live="polite" hidden></p>
-        <div id="watch-empty" hidden></div>
-        <ul id="watch-list" class="card list-card" aria-label="İzleme listesi"></ul>
-      </div>
     </section>
 
     <section id="metin" class="category-view" hidden aria-label="Metin araçları">
@@ -105,7 +69,7 @@
         <div class="page-header-left">
           <h2 id="metin-heading">Metin</h2>
           <div id="metin-tabs" class="segmented" role="tablist" aria-label="Metin bölümleri">
-            <button type="button" class="seg-btn active" data-metin-tab="smart-replies" role="tab" aria-selected="true">Şablonlar</button>
+            <button type="button" class="seg-btn active" data-metin-tab="smart-replies" role="tab" aria-selected="true">Metin kısayolları</button>
             <button type="button" class="seg-btn" data-metin-tab="clip-slots" role="tab" aria-selected="false">Pano yuvaları</button>
             <button type="button" class="seg-btn" data-metin-tab="link-cleaner" role="tab" aria-selected="false">Link temizle</button>
           </div>
@@ -115,14 +79,14 @@
       <div id="smart-replies-panel">
         <div class="panel-toolbar">
           <div class="search-box">
-            <input id="snippet-search" type="search" placeholder="Şablonlarda ara… (/)" aria-label="Şablonlarda ara" />
+            <input id="snippet-search" type="search" placeholder="Metin kısayollarında ara… (/)" aria-label="Metin kısayollarında ara" />
           </div>
-          <button id="snippet-new-btn" type="button" class="primary">＋ Yeni şablon</button>
+          <button id="snippet-new-btn" type="button" class="primary">＋ Yeni metin kısayolu</button>
         </div>
 
         <div id="snippet-form-anchor">
           <form id="snippet-form" class="card inline-form-card" hidden>
-            <h3 id="snippet-form-title">Yeni şablon</h3>
+            <h3 id="snippet-form-title">Yeni metin kısayolu</h3>
             <div class="inline-editor-row">
               <input id="snippet-trigger" placeholder="/iade veya ;adres" aria-label="Tetikleyici" required />
               <input id="snippet-title" placeholder="Başlık" aria-label="Başlık" required />
@@ -137,7 +101,7 @@
 
         <p id="snippet-feedback" class="feedback" aria-live="polite" hidden></p>
         <div id="snippet-empty" hidden></div>
-        <ul id="snippet-list" class="card list-card" aria-label="Şablonlar"></ul>
+        <ul id="snippet-list" class="card list-card" aria-label="Metin kısayolları"></ul>
 
         <div class="card snippet-sites-card">
           <h3>Yazarken genişletme siteleri</h3>
@@ -193,7 +157,6 @@
         <div class="page-header-left">
           <h2 id="sekmeler-heading">Sekmeler</h2>
           <div id="sekmeler-tabs" class="segmented" role="tablist" aria-label="Sekmeler bölümleri">
-            <button type="button" class="seg-btn active" data-sekmeler-tab="oturumlar" role="tab" aria-selected="true">Kaydet</button>
             <button type="button" class="seg-btn" data-sekmeler-tab="temizlik" role="tab" aria-selected="false">Temizlik</button>
             <button type="button" class="seg-btn" data-sekmeler-tab="etiket-notlar" role="tab" aria-selected="false">Etiket ve notlar</button>
             <button type="button" class="seg-btn" data-sekmeler-tab="arac-cubugu" role="tab" aria-selected="false">Araç çubuğu</button>
@@ -201,33 +164,6 @@
         </div>
         <div class="page-header-actions">
           <button id="open-tab-manager" type="button">Sekme yöneticisini aç</button>
-        </div>
-      </div>
-
-      <div id="life-browser-panel" aria-label="Pencereyi kaydet">
-        <div class="card stack-card">
-          <label class="setting-row"><span>Pencere kapanınca sekmeleri otomatik kaydet</span><span class="switch"><input id="lb-auto-save" type="checkbox" /><span class="switch-track"></span></span></label>
-          <form id="lb-save-form" class="inline-editor-row">
-            <input id="lb-name" placeholder="Grup adı…" maxlength="100" aria-label="Grup adı" required />
-            <button type="submit" class="primary">Bu pencereyi kaydet</button>
-            <button id="lb-save-close" type="button">Kaydet ve kapat</button>
-            <input id="lb-close" type="checkbox" hidden />
-          </form>
-          <div class="toolbar-actions-row">
-            <button id="lb-group" type="button">Siteye göre grupla</button>
-            <button id="lb-dedupe" type="button">Kopyaları kapat</button>
-          </div>
-          <ul id="lb-duplicates" class="hint-list" hidden aria-label="Kopya sekmeler"></ul>
-          <p id="lb-feedback" class="feedback" aria-live="polite" hidden></p>
-        </div>
-
-        <!-- Kayıtlı grupların listesi yalnızca Sekme Yöneticisi'nde (tek yer); burada sayısı ve kısayol. -->
-        <div class="card saved-groups-link">
-          <div class="saved-groups-text">
-            <h3>Kayıtlı gruplar <span id="lb-count" class="chip">0</span></h3>
-            <p id="lb-count-hint" class="hint">Kaydettiğin gruplar Sekme Yöneticisi'nde listelenir; orada açabilir, düzenleyebilir ve silebilirsin.</p>
-          </div>
-          <button id="lb-open-manager" type="button" class="primary">Sekme Yöneticisi'nde aç</button>
         </div>
       </div>
 
@@ -437,6 +373,44 @@
         <div class="page-header-left">
           <h2 id="medya-heading">Medya</h2>
         </div>
+        <div class="page-header-actions">
+          <button id="watch-new-btn" type="button" class="primary" hidden>＋ Ekle</button>
+        </div>
+      </div>
+
+      <div id="watchlist-panel" hidden>
+        <div class="card stack-card">
+          <h3>İzleme listesi</h3>
+          <label class="setting-row"><span>YouTube ve IMDb'de ＋ İzle düğmesi göster</span><span class="switch"><input id="watch-page-button-enabled" type="checkbox" /><span class="switch-track"></span></span></label>
+        </div>
+        <form id="watch-form" class="card inline-form-card" hidden>
+          <div class="inline-editor-row">
+            <input id="watch-title" maxlength="300" required placeholder="Başlık (film, dizi, video…)" aria-label="Başlık" />
+            <select id="watch-kind" aria-label="Tür">
+              <option value="film">Film</option>
+              <option value="dizi">Dizi</option>
+              <option value="video">Video</option>
+              <option value="diger">Diğer</option>
+            </select>
+            <input id="watch-url" type="url" placeholder="Bağlantı (isteğe bağlı)" aria-label="Bağlantı" />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="primary">Kaydet</button>
+            <button id="watch-cancel" type="button">Vazgeç</button>
+          </div>
+        </form>
+
+        <div class="panel-toolbar">
+          <div class="segmented" role="tablist" aria-label="İzleme durumu">
+            <button type="button" class="seg-btn active" data-watch-status="izlenecek" aria-pressed="true">İzlenecek</button>
+            <button type="button" class="seg-btn" data-watch-status="izleniyor" aria-pressed="false">İzleniyor</button>
+            <button type="button" class="seg-btn" data-watch-status="bitti" aria-pressed="false">Bitti</button>
+          </div>
+        </div>
+
+        <p id="watch-feedback" class="feedback" aria-live="polite" hidden></p>
+        <div id="watch-empty" hidden></div>
+        <ul id="watch-list" class="card list-card" aria-label="İzleme listesi"></ul>
       </div>
 
       <div id="currency-panel" class="card stack-card" hidden>

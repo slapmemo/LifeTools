@@ -66,13 +66,13 @@ export function mount(container: HTMLElement, navigate: (route: RouteId) => void
 
   function render(s: DashboardSummary): void {
     const top = s.sites[0];
-    const battery = [...s.batteries].sort((a, b) => a.percent - b.percent)[0];
+    const battery = [...s.batteries].filter((item) => item.percent !== null).sort((a, b) => a.percent! - b.percent!)[0] ?? s.batteries[0];
     if (s.sites_available && s.sites_total_seconds > 0) subtitle.textContent = `Bugün tarayıcıda ${fmtDuration(s.sites_total_seconds)} geçirdin.`;
 
     const stats = h('div', { class: 'stat-grid' },
       stat('clock-3', 'Bugün', s.sites_available ? fmtDuration(s.sites_total_seconds) : '—', s.sites_available ? 'Tarayıcıda geçen süre' : 'Eklenti bağlı değil'),
       stat(top?.icon ? siteIcon(top.icon) : 'monitor', 'En çok ziyaret edilen', top ? top.domain : '—', top ? fmtDuration(top.seconds) : 'Bugün site kaydı yok'),
-      stat('battery-medium', 'Pil', battery ? `%${battery.percent}` : '—', battery ? battery.name : 'Pil bilgisi bulunamadı', 'piller'),
+      stat('battery-medium', 'Pil', battery ? (battery.percent === null ? battery.level_text || 'Bilinmiyor' : `%${battery.percent}`) : '—', battery ? battery.name : 'Pil bilgisi bulunamadı', 'piller'),
       ambientCard());
 
     const notes = h('div', { class: 'card panel' }, linkHead('Son notlar', 'notebook-pen', 'notlar'),

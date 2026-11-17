@@ -2,13 +2,23 @@ import { modules } from '../modules';
 import { MODULE_FLAGS_KEY } from './module-state';
 import { whatsNewFrom } from './whats-new';
 
-export const RECOMMENDED_MODULES: readonly string[] = ['currency', 'slapmemo', 'link-cleaner', 'tab-manager', 'life-browser', 'video-downloader', 'instagram', 'x-video', 'pip', 'volume-booster', 'shortcuts', 'tab-notes', 'time-tracker'];
+export const RECOMMENDED_MODULES: readonly string[] = ['currency', 'slapmemo', 'link-cleaner', 'tab-manager', 'video-downloader', 'instagram', 'x-video', 'pip', 'volume-booster', 'shortcuts', 'tab-notes', 'time-tracker'];
 export const ONBOARDING_DONE_KEY = 'onboardingDone';
 /** Özellik rehberinin (yenilikler) en son gösterildiği eklenti sürümü. */
 export const SEEN_VERSION_KEY = 'whatsNewSeenVersion';
 
 export function recommendedFlags(ids: readonly string[]): Record<string, boolean> {
   return Object.fromEntries(ids.map(id => [id, RECOMMENDED_MODULES.includes(id)]));
+}
+
+async function mergeLegacyTabManagerFlag(): Promise<void> {
+  const data = await chrome.storage.local.get(MODULE_FLAGS_KEY);
+  const stored: unknown = data[MODULE_FLAGS_KEY];
+  if (typeof stored !== 'object' || stored === null || !Object.prototype.hasOwnProperty.call(stored, 'life-browser')) return;
+  const flags = { ...(stored as Record<string, unknown>) };
+  flags['tab-manager'] = flags['tab-manager'] !== false || flags['life-browser'] !== false;
+  delete flags['life-browser'];
+  await chrome.storage.local.set({ [MODULE_FLAGS_KEY]: flags });
 }
 
 /** Güncellemeden sonra: son görülen sürümden beri anlatılacak yenilik varsa rehberi "yenilikler" kipinde açar. */
@@ -23,7 +33,10 @@ export async function showWhatsNewIfNeeded(current: string): Promise<void> {
 export function initOnboarding(): void {
   chrome.runtime.onInstalled.addListener(details => {
     const current = chrome.runtime.getManifest().version;
-    if (details.reason === 'update') { void showWhatsNewIfNeeded(current).catch(() => {}); return; }
+    if (details.reason === 'update') {
+      void mergeLegacyTabManagerFlag().then(() => showWhatsNewIfNeeded(current)).catch(() => {});
+      return;
+    }
     if (details.reason !== 'install') return;
     void (async () => {
       const data = await chrome.storage.local.get(MODULE_FLAGS_KEY);

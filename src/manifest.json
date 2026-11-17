@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "LifeTools",
   "short_name": "LifeTools",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Günlük küçük araçlar: site engelleyici ve daha fazlası. Veriler yalnızca bu tarayıcıda.",
   "minimum_chrome_version": "116",
   "permissions": [
@@ -90,14 +90,24 @@
   ],
   "content_scripts": [
     {
-      "matches": ["*://www.instagram.com/*", "*://instagram.com/*"],
-      "js": ["ig-hook.js"],
+      "matches": [
+        "*://www.instagram.com/*",
+        "*://instagram.com/*"
+      ],
+      "js": [
+        "ig-hook.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
-      "matches": ["*://www.instagram.com/*", "*://instagram.com/*"],
-      "js": ["ig-ui.js"],
+      "matches": [
+        "*://www.instagram.com/*",
+        "*://instagram.com/*"
+      ],
+      "js": [
+        "ig-ui.js"
+      ],
       "run_at": "document_start"
     },
     {

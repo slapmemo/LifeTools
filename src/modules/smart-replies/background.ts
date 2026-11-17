@@ -84,7 +84,7 @@ function syncSiteScripts(): void {
       await replaceSiteScript(SCRIPT, data[SITES_KEY] as string[], SCRIPT_FILE, true);
     })
     .catch(err => {
-      console.debug('[Akıllı Yanıtlar]', err);
+      console.debug('[Metin Kısayolları]', err);
     });
 }
 

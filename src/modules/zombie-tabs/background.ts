@@ -1,5 +1,6 @@
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { backgroundDb } from '../../db/host';
+import { TAB_MANAGER_ID } from '../tab-manager/id';
 import { moveTabsToSession } from '../life-browser/browser';
 import { createSessionsRepo } from '../life-browser/repo';
 import { AUTO_SLEEP_KEY, WEEKLY_KEY, LAST_SLEEP_KEY, LAST_WEEKLY_KEY, LAST_ACTIVE_KEY, ZOMBIE_HOURS_KEY, normalizeHours, pickTabsToDiscard, selectZombies, weeklyDue } from './zombie';
@@ -68,7 +69,7 @@ async function weeklyNotice(): Promise<void> {
   if (settings[WEEKLY_KEY] === false || !(await isModuleEnabled(ZOMBIE_TABS_ID)) || !weeklyDue(settings[LAST_WEEKLY_KEY], Date.now())) return;
   const tabs = await candidates(72);
   if (tabs.length < 5) return;
-  const move = await isModuleEnabled('life-browser');
+  const move = await isModuleEnabled(TAB_MANAGER_ID);
   await chrome.storage.local.set({ [NOTICE_KEY]: { ids: tabs.map(tab => tab.id), move } });
   await chrome.notifications.create(NOTICE, { type: 'basic', iconUrl: 'icons/icon128.png', title: 'Zombi sekmeler', message: `${tabs.length} sekme 3+ gündür açılmadı`, buttons: move ? [{ title: 'Kayıtlı gruba taşı' }, { title: 'Göster' }] : [{ title: 'Göster' }] });
   await chrome.storage.local.set({ [LAST_WEEKLY_KEY]: Date.now() });
@@ -79,7 +80,7 @@ async function noticeClick(index: number): Promise<void> {
   const notice = data[NOTICE_KEY] as { ids?: number[]; move?: boolean } | null;
   if (!notice || !Array.isArray(notice.ids)) return;
   if (notice.move && index === 0) {
-    if (!(await isModuleEnabled('life-browser'))) return;
+    if (!(await isModuleEnabled(TAB_MANAGER_ID))) return;
     const ids = new Set(notice.ids);
     const tabs = (await candidates(72)).filter(tab => tab.id !== undefined && ids.has(tab.id));
     if (tabs.length) {

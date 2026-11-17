@@ -10,8 +10,8 @@ import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { PIN_MANAGER_KEY } from './settings';
 import { migrateStoredSessions } from './workspace-migration';
 import { appendToSavedGroup } from './saved-group-append';
+import { TAB_MANAGER_ID } from './id';
 
-export const TAB_MANAGER_ID = 'tab-manager';
 const timers = new Map<number, ReturnType<typeof setTimeout>>();
 let queue = Promise.resolve();
 

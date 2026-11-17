@@ -10,7 +10,7 @@ import { createNotesRepo } from '../modules/slapmemo/repo';
 import { LINK_CLEANER_ID } from '../modules/link-cleaner/background';
 import { cleanUrl } from '../modules/link-cleaner/clean';
 import { SITE_BLOCKER_ID } from '../modules/site-blocker/background';
-import { LIFE_BROWSER_ID } from '../modules/life-browser/background';
+import { TAB_MANAGER_ID } from '../modules/tab-manager/id';
 import { createSessionsRepo } from '../modules/life-browser/repo';
 import { describeTabs, groupWindowBySite } from '../modules/life-browser/browser';
 import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
@@ -80,7 +80,7 @@ registerAction({
 });
 
 registerAction({
-  id: 'session.save', title: 'Pencereyi kayıtlı grup olarak kaydet', keywords: ['grup', 'kayıtlı grup', 'oturum', 'lifebrowser', 'sekmeleri kaydet'], moduleId: LIFE_BROWSER_ID, toolbar: true,
+  id: 'session.save', title: 'Pencereyi kayıtlı grup olarak kaydet', keywords: ['grup', 'kayıtlı grup', 'oturum', 'sekmeleri kaydet'], moduleId: TAB_MANAGER_ID, toolbar: true,
   async run({ tab, arg }) {
     const active = needTab(tab);
     const tabs = await chrome.tabs.query({ windowId: active.windowId });
@@ -91,7 +91,7 @@ registerAction({
 });
 
 registerAction({
-  id: 'group.bySite', title: 'Siteye göre grupla', keywords: ['grupla', 'sekme grubu', 'lifebrowser'], moduleId: LIFE_BROWSER_ID, toolbar: true,
+  id: 'group.bySite', title: 'Siteye göre grupla', keywords: ['grupla', 'sekme grubu'], moduleId: TAB_MANAGER_ID, toolbar: true,
   async run({ tab }) {
     const created = await groupWindowBySite(needTab(tab).windowId);
     return created ? `${created} grup oluşturuldu.` : 'Gruplanacak (en az 2 sekmeli) site yok.';
@@ -115,7 +115,7 @@ registerAction({
 
 registerAction({ id:'watch.addPage', title:'İzleme listesine ekle (sayfa)', keywords:['izleme','video','sayfa'], moduleId:WATCHLIST_ID, toolbar:true, async run({tab}) { const t=needTab(tab); const url=t.url ?? ''; await createWatchRepo(backgroundDb).add({title:(t.title || url || 'Sayfa').slice(0,300),kind:guessKind(url),url}); return 'İzleme listesine eklendi.'; } });
 registerAction({ id:'watch.add', title:'İzleme listesine ekle: <başlık>', keywords:['izle','izleme'], moduleId:WATCHLIST_ID, takesArg:true, argPrefix:'izle ', async run({arg}) { const title=(arg ?? '').slice(0,300); await createWatchRepo(backgroundDb).add({title,kind:'diger'}); return `İzleme listesine eklendi: ${title}`; } });
-registerAction({ id:'duplicates.show', title:'Kopya sekmeleri göster', keywords:['kopyalar','sekme'], moduleId:LIFE_BROWSER_ID, toolbar:true, async run() { await chrome.tabs.create({url:chrome.runtime.getURL('panel.html#sekmeler')}); } });
+registerAction({ id:'duplicates.show', title:'Kopya sekmeleri göster', keywords:['kopyalar','sekme'], moduleId:TAB_MANAGER_ID, toolbar:true, async run() { await chrome.tabs.create({url:chrome.runtime.getURL('tabs.html')}); } });
 registerAction({ id:'tabmanager.open', title:'Sekme yöneticisi', keywords:['sekmeler','onetab','yönetici'], moduleId:'tab-manager', toolbar:true, async run({tab}) { await openTabManager(tab?.windowId); } });
 registerAction({ id:'pip.toggle', title:'Resim içinde resim', keywords:['video','pip'], moduleId:PIP_ID, toolbar:true, async run({tab}) { return togglePip(needTab(tab).id); } });
 SLOT_IDS.forEach((slot,i)=>registerAction({id:'clip.copy'+slot,title:`Yuva ${slot}'yı kopyala`,keywords:['pano','yuva','kopyala',slot],moduleId:CLIP_SLOTS_ID,toolbar:true,async run(){const text=(await getSlots())[i].text; if(!text) throw new Error('Yuva boş.'); if(!await copyOffscreen(text)) throw new Error('Panoya kopyalanamadı.'); return `Yuva ${slot} kopyalandı.`;}}));

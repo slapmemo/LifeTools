@@ -28,7 +28,7 @@ Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını aç
 </tr>
 <tr>
 <td><img src="design/demos/tab-manager.svg" width="100%" alt="Sekme Yöneticisi animasyonu"><br><b>Sekme Yöneticisi:</b> sekmeleri gruba al, <b>Kaydet ve kapat</b> ile kayıtlı gruplara taşı.</td>
-<td><img src="design/demos/life-browser.svg" width="100%" alt="Pencere Kaydetme animasyonu"><br><b>Pencere Kaydetme:</b> penceredeki tüm sekmeleri tek kayıtlı grup yap.</td>
+<td><img src="design/demos/life-browser.svg" width="100%" alt="Sekme Yöneticisi animasyonu"><br><b>Sekme Yöneticisi:</b> pencerenin tamamını kayıtlı gruba al.</td>
 </tr>
 <tr>
 <td><img src="design/demos/time-tracker.svg" width="100%" alt="Süre takibi animasyonu"><br><b>Süre takibi:</b> sitelerde ne kadar kaldığını say; limitin %80'inde uyarır.</td>
@@ -52,16 +52,14 @@ Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını aç
 
 **Notlar**
 - **SlapMemo:** Metni seç, altında çıkan baloncukta **📝 Not**'a bas; ya da sağ tık › "Not olarak kaydet" veya `Alt+S`. Not, sayfanın bağlantısıyla kaydedilir; Panel › Notlar'da ara ve düzenle.
-- **İzleme Listesi:** Film, dizi ve videoları İzlenecek / İzleniyor / Bitti diye takip et; sayfadaki "+ İzle" düğmesinden, sağ tıktan veya Panel'den ekle.
 
 **Metin**
-- **Akıllı Yanıtlar:** "/merhaba" gibi kısaltmalara metin kaydet; seçtiğin sitelerde yazıp Boşluk'a basınca açılır, ya da metin kutusuna sağ tıklayıp ekle.
+- **Metin Kısayolları:** "/merhaba" gibi kısaltmalara metin kaydet; seçtiğin sitelerde yazıp Boşluk'a basınca açılır, ya da metin kutusuna sağ tıklayıp ekle.
 - **Pano Yuvaları:** Sık yapıştırdığın beş metni (IBAN, adres, imza…) yuvalara kaydet; metin kutusunda sağ tık › "Yuvadan yapıştır".
 - **Link Temizleyici:** `?utm_source=…` gibi takip eklerini silip temiz bağlantıyı kopyala; seçim baloncuğundaki **🔗 Temiz link**, sağ tık veya Panel. Otomatik temizlik ve kısa bağlantı çözümleme site izni ister.
 
 **Sekmeler**
-- **Sekme Yöneticisi:** Açık sekmeleri seç, gruba al, grubun adını ve rengini değiştir; **Kaydet ve kapat** ile kayıtlı gruplara taşı, sonra tek tıkla geri aç. Kayıtlı gruplar yalnızca burada yönetilir.
-- **Pencere Kaydetme:** Penceredeki tüm sekmeleri tek seferde kayıtlı grup yap; istersen pencere kapanınca kendiliğinden kaydetsin. Sekmeleri siteye göre grupla, kopya sekmeleri kapat.
+- **Sekme Yöneticisi:** Açık sekmeleri seçip gruplara al; istersen tüm pencereyi tek seferde kayıtlı grup yap veya kapanınca otomatik kaydet. Siteye göre gruplama, kopya kapatma ve kayıtlı grupları açma/düzenleme aynı yerde.
 - **Zombi Sekme Temizleyici:** Günlerdir açmadığın sekmeleri bul; kapat ya da kayıtlı gruba taşı. İsteğe bağlı otomatik uyutma ve haftalık hatırlatma var.
 - **Sekme Etiketleri** ve **Sekme Notları:** Sekmeye "Önemli" gibi bir etiket ya da "fiyatı düşerse al" gibi kısa bir not iliştir; sayfayı tekrar açınca not hatırlatılır.
 - **Sekme Başlığı Temizleyici:** Başlıklardaki "(3)" sayaçlarını ve " - YouTube" gibi ekleri gizler; siteye özel kuralları Panel'de düzenle.
@@ -73,6 +71,7 @@ Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını aç
 
 **Medya**
 - **Video İndirici:** YouTube'da videonun altındaki **↓ İndir** ile video ya da MP3 indir; oynatma listelerini de indirir. Masaüstü uygulaması gerekir.
+- **İzleme Listesi:** Film, dizi ve videoları İzlenecek / İzleniyor / Bitti diye takip et; sayfadaki "+ İzle" düğmesinden, sağ tıktan veya Panel › Medya'dan ekle.
 - **X Video İndirici:** Gönderinin altındaki simgeyle tek tıkla en yüksek kalitede indir; ▾ düğmesinden kalite, GIF ve toplu indirme.
 - **Instagram:** Videonun köşesindeki ↓ ile indir, hız düğmesiyle hızlandır; ilerleme çubuğuna tıkla veya sürükle.
 - **Resim içinde resim:** Videonun üstüne gelince çıkan ⧉ düğmesi ya da `Alt+P` ile videoyu küçük pencerede izle.
@@ -80,7 +79,7 @@ Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını aç
 - **Döviz Çevirici:** Steam'de fiyatları TL olarak gösterir; izin verirsen her sitede fiyatın üstüne gelince TL karşılığını gösterir.
 
 **Genel**
-- **Kısayol Oluşturucu:** Komutları ve tuş atamalarını gör; tuşları Chrome'un kısayol sayfasında değiştir.
+- **Kısayollar:** Komutları ve tuş atamalarını gör; tuşları Chrome'un kısayol sayfasında değiştir.
 - **Özellik rehberi:** Her özelliğin örneği, yeri ve kısayolu tek sayfada; açılır penceredeki "Özellikler ve yenilikler"den ya da Panel › Ayarlar'dan aç. Güncellemeden sonra neyin değiştiğini de gösterir.
 
 Seçim baloncuğu notun yanında arama, çeviri, temiz link ve pano yuvası düğmelerini de sunar. Panel'deki **Yedek** ile verileri dışa aktarabilir veya geri yükleyebilirsin; otomatik yedek ayarı da bulunur.
@@ -89,8 +88,7 @@ Seçim baloncuğu notun yanında arama, çeviri, temiz link ve pano yuvası dü�
 
 - **Ana sayfa:** Özet kartları ve hızlı erişimler.
 - **Notlar** ve **İzleme listesi:** Eklentiyle bağlıysan aynı notlar ve liste burada da görünür. `Ctrl+Alt+N` her programda hızlı not penceresi açar.
-- **Pano geçmişi:** Kopyalanan metinleri ara, sabitle veya sil; `Ctrl+Alt+V` seçiciden panoya geri kopyalar.
-- **Şablonlar:** Şablon oluştur; `Ctrl+Shift+Space` ile seçip etkin uygulamaya yapıştır.
+- **Metin ve Pano:** Metin şablonu oluşturup `Ctrl+Shift+Space` ile yapıştır; pano geçmişini ara, sabitle, sil veya `Ctrl+Alt+V` seçicisinden geri kopyala.
 - **Piller:** Windows'un bildirdiği sistem ve Bluetooth pil düzeyleri.
 - **Ortam sesi:** Ses kanallarını, seviyeleri ve zamanlayıcıyı seç; ön ayarları kaydet veya tepsiden oynatmayı kontrol et.
 - **Ayarlar:** Başlangıç, pano saklama ve gizlilik seçenekleri, tema, yedek ve Chrome bağlantısı.
@@ -127,7 +125,7 @@ Chrome araç çubuğundaki yapboz simgesinden LifeTools'u sabitle; eklenti simge
 
 Bazı özellikler ek site izni ister. İlgili seçeneği Panel'de açtığında veya site eklediğinde Chrome'un izin isteğini onayla:
 
-- **Akıllı Yanıtlar** ve **Site Araç Çubuğu:** Kullanılacak siteleri ekle.
+- **Metin Kısayolları** ve **Site Araç Çubuğu:** Kullanılacak siteleri ekle.
 - **İzleme Listesi:** YouTube ve IMDb sayfa düğmesini aç.
 - **SlapMemo:** Metin seçimi baloncuğunu veya notu olan sayfalarda hatırlatmayı aç.
 - **Link Temizleyici:** Otomatik temizlik veya kısa bağlantı çözümlemeyi aç.

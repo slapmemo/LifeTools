@@ -1,10 +1,46 @@
-use std::{fs, path::Path};
+use std::{fs, path::{Path, PathBuf}};
 
 fn main() {
     ensure_icon();
+    compile_wireless_battery();
     // `frontendDist` yolu derleme sırasında mevcut olmalı (npm run build henüz çalışmamış olabilir).
     let _ = fs::create_dir_all("../dist");
     tauri_build::build()
+}
+
+fn compile_wireless_battery() {
+    let root = Path::new("vendor/wireless-battery/src");
+    println!("cargo:rerun-if-changed={}", root.display());
+    let mut sources = Vec::new();
+    collect_cpp(root, &mut sources);
+    sources.sort();
+
+    let mut build = cc::Build::new();
+    build.cpp(true).std("c++17").define("UNICODE", None).define("_UNICODE", None)
+        .define("WIN32_LEAN_AND_MEAN", None).define("NOMINMAX", None)
+        .include(root).flag_if_supported("/EHsc").warnings(false);
+    for source in sources {
+        println!("cargo:rerun-if-changed={}", source.display());
+        build.file(source);
+    }
+    build.compile("wireless_battery");
+
+    for library in ["hid", "setupapi", "cfgmgr32", "advapi32", "ole32", "oleaut32", "runtimeobject", "ws2_32", "user32"] {
+        println!("cargo:rustc-link-lib={library}");
+    }
+}
+
+fn collect_cpp(dir: &Path, files: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_cpp(&path, files);
+        } else if path.extension().is_some_and(|ext| ext == "cpp")
+            && !matches!(path.file_name().and_then(|name| name.to_str()), Some("main.cpp" | "widget.cpp" | "headsetcontrol.cpp")) {
+            files.push(path);
+        }
+    }
 }
 
 /// `icons/icon.ico` yoksa basit bir 32x32 simge üretir (Windows kaynak dosyası için gerekli).

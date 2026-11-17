@@ -4,12 +4,12 @@ import { api, errText, type Snippet } from '../api';
 import { debounce, h, type View } from '../dom';
 import { emptyState, miniFooter, miniHeader, rowMenu } from '../view-components';
 
-// ---------- Ana pencere: Şablonlar bölümü ----------
+// ---------- Ana pencere: Metin şablonları bölümü ----------
 
 export function snippetsView(): View {
-  const search = h('input', { type: 'search', placeholder: 'Şablonlarda ara…', 'aria-label': 'Şablonlarda ara' });
+  const search = h('input', { type: 'search', placeholder: 'Metin şablonlarında ara…', 'aria-label': 'Metin şablonlarında ara' });
   const searchBox = h('label', { class: 'search-field' }, icon('search', 16), search);
-  const addBtn = h('button', { type: 'button', class: 'primary' }, icon('plus', 16), 'Yeni şablon');
+  const addBtn = h('button', { type: 'button', class: 'primary' }, icon('plus', 16), 'Yeni metin şablonu');
   const list = h('div', { class: 'note-list' });
   const status = h('div', { class: 'muted status' });
 
@@ -32,7 +32,7 @@ export function snippetsView(): View {
     {},
     h('header', { class: 'page-header page-header-row' },
       h('div', {},
-        h('h2', { class: 'page-title page-title-icon' }, icon('message-square-text', 26), 'Şablonlar'),
+        h('h2', { class: 'page-title page-title-icon' }, icon('message-square-text', 26), 'Metin şablonları'),
         h('p', { class: 'page-subtitle', title: 'Seçici her uygulamada açılır; Enter ile şablon yapıştırılır. Yazarken otomatik genişletme yoktur (klavye dinlenmez).' },
           'Hazır metinler: her uygulamada Ctrl+Shift+Space ile seç, Enter ile yapıştır.')),
       h('div', { class: 'page-actions' }, searchBox, addBtn)),
@@ -131,10 +131,10 @@ export function refresh(): Promise<void> | void {
 // ---------- Küçük seçici penceresi (Ctrl+Shift+Space) ----------
 
 export function mountSnippetPicker(root: HTMLElement): void {
-  const search = h('input', { type: 'search', placeholder: 'Şablon ara…', 'aria-label': 'Şablon ara' });
-  const list = h('div', { class: 'picker-list', role: 'listbox', 'aria-label': 'Şablonlar' });
+  const search = h('input', { type: 'search', placeholder: 'Metin şablonlarında ara…', 'aria-label': 'Metin şablonlarında ara' });
+  const list = h('div', { class: 'picker-list', role: 'listbox', 'aria-label': 'Metin şablonları' });
   root.append(h('div', { class: 'picker' },
-    miniHeader('message-square-text', 'Şablonlar'),
+    miniHeader('message-square-text', 'Metin şablonları'),
     h('label', { class: 'search-field' }, icon('search', 16), search),
     list,
     miniFooter([['↑↓', 'seç'], ['Enter', 'ekle'], ['Esc', 'kapat']])));

@@ -13,7 +13,6 @@ import { linkCleanerModule } from './link-cleaner';
 import type { LifeModule } from '../core/module';
 import { siteBlockerModule } from './site-blocker';
 import { slapMemoModule } from './slapmemo';
-import { lifeBrowserModule } from './life-browser';
 import { zombieTabsModule } from './zombie-tabs';
 import { shortcutsModule } from './shortcuts';
 import { siteToolbarModule } from './site-toolbar';
@@ -22,4 +21,4 @@ import { videoDownloaderModule } from './video-downloader';
 import { currencyModule } from './currency';
 
 /** Tüm araçların kaydı. Yeni araç buraya eklenir. */
-export const modules: readonly LifeModule[] = [currencyModule, videoDownloaderModule, volumeBoosterModule, xVideoModule, instagramModule, watchlistModule, pipModule, clipSlotsModule, timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, lifeBrowserModule, zombieTabsModule, tabLabelsModule, tabNotesModule, tabManagerModule, titleCleanerModule, shortcutsModule, siteToolbarModule];
+export const modules: readonly LifeModule[] = [currencyModule, videoDownloaderModule, volumeBoosterModule, xVideoModule, instagramModule, watchlistModule, pipModule, clipSlotsModule, timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, zombieTabsModule, tabLabelsModule, tabNotesModule, tabManagerModule, titleCleanerModule, shortcutsModule, siteToolbarModule];
