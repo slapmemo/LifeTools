@@ -10,6 +10,11 @@ const bar = (url: string) => `<div class="demo-bar"><i></i><i></i><i></i><span c
 const toast = (title: string, detail = '', icon = '✓') =>
   `<div class="demo-toast"><span class="demo-check">${icon}</span><span><b>${title}</b>${detail ? `<small>${detail}</small>` : ''}</span></div>`;
 const caret = '<span class="demo-caret"></span>';
+// Masaüstü animasyonları için: arka plandaki pencere, küçük seçici pencere ve basılan tuşlar.
+const win = (title: string) => `<div class="dk-win"><div class="dk-title"><i></i>${title}</div></div>`;
+const miniHead = (glyph: string, title: string) => `<div class="dk-mini-head"><span>${glyph}</span>${title}</div>`;
+const miniFoot = (items: [string, string][]) => `<div class="dk-mini-foot">${items.map(([k, t]) => `<kbd>${k}</kbd> ${t}`).join(' · ')}</div>`;
+const keys = (cls: string, names: string[]) => `<div class="dk-keys ${cls}">${names.map(n => `<kbd>${n}</kbd>`).join('<span>+</span>')}</div>`;
 
 export const DEMOS: Readonly<Record<string, Demo>> = {
   slapmemo: {
@@ -49,14 +54,33 @@ export const DEMOS: Readonly<Record<string, Demo>> = {
       <div class="tm-saved"><span class="muted">Kayıtlı gruplar</span><span class="tm-chip">📁 Dersler · 2 sekme</span></div>
       ${POINTER}`,
   },
+  'tab-manager-drag': {
+    label: 'Animasyon: Sekme Yöneticisi\'nde açık bir sekme tutulup Kayıtlı gruplar\'daki "Okunacaklar" grubuna sürüklenir; sekme oraya kaydedilip kapanır, "Geri al" seçeneği çıkar.',
+    html: `<div class="tmd-head"><b>Sekme Yöneticisi</b></div>
+      <div class="tmd-win"><div class="tmd-label">Pencere 1</div>
+        <div class="tmd-row"><span class="fav" style="--c:#e33">▶</span>YouTube · Ders 1</div>
+        <div class="tmd-row tmd-grab" data-aim="grab"><span class="fav" style="--c:#5b8def">M</span>Makale: Uzay</div>
+        <div class="tmd-row"><span class="fav" style="--c:#888">W</span>Vikipedi · Türev</div>
+      </div>
+      <div class="tmd-saved"><div class="tmd-label">Kayıtlı gruplar</div>
+        <div class="tmd-card" data-aim="drop"><div class="tmd-card-head">📁 Okunacaklar <span class="tmd-count"><span class="tmd-c1">2</span><span class="tmd-c2">3</span></span></div>
+          <div class="tmd-mini tmd-new"><span class="fav" style="--c:#5b8def">M</span>Makale: Uzay</div>
+          <div class="tmd-mini"><span class="fav" style="--c:#2a7">B</span>Blog yazısı</div>
+          <div class="tmd-mini"><span class="fav" style="--c:#d9a400">T</span>Tarif</div>
+        </div>
+      </div>
+      <div class="tmd-clone"><span class="fav" style="--c:#5b8def">M</span>Makale: Uzay</div>
+      ${POINTER}
+      <div class="tmd-toast">1 sekme “Okunacaklar” grubuna eklendi <b>Geri al</b></div>`,
+  },
   'life-browser': {
-    label: 'Animasyon: gruba ad yazılır, "Kaydet ve kapat"a basılır, penceredeki tüm sekmeler kapanıp tek bir kayıtlı grup olur.',
+    label: 'Animasyon: Sekme Yöneticisi\'nde gruba ad yazılır, "Kaydet ve sekmeleri kapat"a basılır, penceredeki sekmeler kapanıp tek bir kayıtlı grup olur; "Geri al" ile geri açılabilir.',
     html: `<div class="lb-tabs">${['Makale', 'PDF', 'Video', 'Notlar', 'Harita'].map((t, i) => `<span class="lb-tab" style="--i:${i}"><i style="--c:${['#5b8def', '#e55', '#e33', '#d9a400', '#2a7'][i]}"></i>${t}</span>`).join('')}</div>
       <div class="lb-card">
-        <div class="lb-form"><span class="lb-input"><span class="lb-ph">Grup adı…</span><span class="lb-typed">Tez araştırması</span></span><span class="demo-btn primary">Bu pencereyi kaydet</span><span class="demo-btn soft lb-save" data-aim="save">Kaydet ve kapat</span></div>
-        <div class="lb-auto"><span>Pencere kapanınca sekmeleri otomatik kaydet</span><span class="lb-switch"></span></div>
+        <div class="lb-form"><span class="lb-input"><span class="lb-ph">Grup adı…</span><span class="lb-typed">Tez araştırması</span></span><span class="demo-btn primary">Pencereyi kaydet</span><span class="demo-btn soft lb-save" data-aim="save">Kaydet ve sekmeleri kapat</span></div>
+        <div class="lb-auto"><span>Pencere kapanınca otomatik kaydet</span><span class="lb-switch"></span></div>
       </div>
-      ${POINTER}${toast('5 sekme kayıtlı gruba kaydedildi', 'Tez araştırması')}`,
+      ${POINTER}${toast('5 sekme kaydedildi', 'Tez araştırması · Geri al')}`,
   },
   'time-tracker': {
     label: 'Animasyon: Bugün kartında sitelerdeki süreler dolar; x.com için konulan 30 dakikalık limitin %80\'i dolunca uyarı çıkar.',
@@ -130,14 +154,85 @@ export const DEMOS: Readonly<Record<string, Demo>> = {
       <div class="cu-tip">Orijinal: $59.99 · 1 $ = 42,00 ₺ · ECB</div>
       ${POINTER}`,
   },
+
+  // ---------- Masaüstü uygulaması (desktop/src/views/hosgeldin.ts) ----------
+  'desktop-notlar': {
+    label: 'Animasyon: Ctrl+Alt+N ile hızlı not penceresi açılır, not yazılır, Ctrl+Enter ile kaydedilir ve Notlar listesinin en üstüne eklenir.',
+    html: `${win('LifeTools — Notlar')}
+      <div class="dk-list dn-list">
+        <div class="dk-row dn-new">📝 Pazartesi: faturayı öde</div>
+        <div class="dk-row dn-old">📝 Kitap önerileri</div>
+        <div class="dk-row dn-old">📝 Market listesi</div>
+      </div>
+      <div class="dk-mini dn-mini">${miniHead('✎', 'Hızlı not')}<div class="dk-mini-body"><span class="dk-typed dn-typed">Pazartesi: faturayı öde</span></div>${miniFoot([['Ctrl+Enter', 'kaydet'], ['Esc', 'kapat']])}</div>
+      ${keys('dn-k1', ['Ctrl', 'Alt', 'N'])}${keys('dn-k2', ['Ctrl', 'Enter'])}`,
+  },
+  'desktop-izleme': {
+    label: 'Animasyon: İzleme listesine "Interstellar" yazılıp Enter\'a basılır, en üste İzlenecek olarak eklenir; durumuna tıklanınca İzleniyor olur.',
+    html: `${win('LifeTools — İzleme listesi')}
+      <div class="dz-input"><span class="dz-ph">Ne izleyeceksin? (Enter: ekle)</span><span class="dk-typed dz-typed">Interstellar</span></div>
+      <div class="dk-list dz-list">
+        <div class="dk-row dz-new">🎬 Interstellar <span class="muted">· Film</span><span class="dz-chip" data-aim="chip"><span class="dz-s1">İzlenecek</span><span class="dz-s2">İzleniyor</span></span></div>
+        <div class="dk-row dz-old">📺 The Bear <span class="muted">· Dizi</span><span class="dz-chip on">İzleniyor</span></div>
+        <div class="dk-row dz-old">🎬 Dune <span class="muted">· Film</span><span class="dz-chip">İzlenecek</span></div>
+      </div>
+      ${keys('dz-k1', ['Enter'])}${POINTER}`,
+  },
+  'desktop-sablonlar': {
+    label: 'Animasyon: e-posta yazarken Ctrl+Shift+Space ile şablon seçici açılır, /imza seçilip Enter\'a basılır, imza metni yazının sonuna eklenir.',
+    html: `${win('E-posta — Yeni ileti')}
+      <div class="dk-doc ds-doc"><span class="muted">Kime: ali@ornek.com</span><span>Merhaba Ali, raporu ekte gönderiyorum.</span><span class="dk-typed ds-ins">Saygılarımla, Ayşe Yılmaz</span></div>
+      <div class="dk-mini ds-mini">${miniHead('💬', 'Metin şablonları')}
+        <div class="dk-mini-row sel"><b>/imza</b><span class="muted">Saygılarımla, Ayşe…</span></div>
+        <div class="dk-mini-row"><b>/adres</b><span class="muted">Atatürk Cad. No: 5…</span></div>
+        <div class="dk-mini-row"><b>/iban</b><span class="muted">TR12 0006 4000…</span></div>
+        ${miniFoot([['↑↓', 'seç'], ['Enter', 'ekle'], ['Esc', 'kapat']])}</div>
+      ${keys('ds-k1', ['Ctrl', 'Shift', 'Space'])}${keys('ds-k2', ['Enter'])}`,
+  },
+  'desktop-pano': {
+    label: 'Animasyon: Ctrl+Alt+V ile pano geçmişi açılır, birkaç dakika önce kopyalanan bağlantı seçilip Enter\'a basılır, bağlantı yazının içine yapıştırılır.',
+    html: `${win('Not Defteri')}
+      <div class="dk-doc dp-doc"><span>Rapor bağlantısı: <span class="dk-typed dp-ins">https://ornek.com/rapor</span></span><span class="muted">Toplantı perşembe.</span></div>
+      <div class="dk-mini dp-mini">${miniHead('📋', 'Pano geçmişi')}
+        <div class="dp-rows"><i class="dp-hl"></i>
+          <div class="dk-mini-row">📄 Toplantı 14:30'da</div>
+          <div class="dk-mini-row">🔗 https://ornek.com/rapor</div>
+          <div class="dk-mini-row">📄 Teşekkürler!</div></div>
+        ${miniFoot([['↑↓', 'seç'], ['Enter', 'kopyala'], ['Esc', 'kapat']])}</div>
+      ${keys('dp-k1', ['Ctrl', 'Alt', 'V'])}${keys('dp-k2', ['↓'])}${keys('dp-k3', ['Enter'])}`,
+  },
+  'desktop-ortam': {
+    label: 'Animasyon: Ortam sesinde Yağmur ve Fan açılır, oynat düğmesine basılır, sesler çalmaya başlar.',
+    html: `${win('LifeTools — Ortam sesi')}
+      <div class="do-list">
+        ${[['🌧', 'Yağmur', 'rain', 70], ['🌀', 'Fan', 'fan', 45], ['🟫', 'Kahverengi gürültü', 'brown', 30]].map(([emoji, name, id, vol]) =>
+          `<div class="do-row do-${id}"><span>${emoji} ${name}</span><span class="do-slider"><i style="width:${vol}%"></i></span><span class="do-switch"${id !== 'brown' ? ` data-aim="${id}"` : ''}></span></div>`).join('')}
+      </div>
+      <div class="do-play"><span class="do-btn" data-aim="play"><span class="do-i1">▶</span><span class="do-i2">❚❚</span></span><span class="do-label"><span class="do-l1">Çalmıyor · 2 ses hazır</span><span class="do-l2">Çalıyor · 2 etkin ses</span></span><span class="vb-eq do-eq">${'<i></i>'.repeat(6)}</span></div>
+      ${POINTER}`,
+  },
+  'desktop-piller': {
+    label: 'Animasyon: kablosuz farenin pili %24\'ten %19\'a iner, çubuk kırmızıya döner ve "Pil azaldı" bildirimi gelir.',
+    html: `${win('LifeTools — Cihaz pilleri')}
+      <div class="dl-cards">
+        <div class="dl-card dl-mouse"><div class="dl-head"><span><b>Kablosuz fare</b><small>Fare · 2.4 GHz alıcı</small></span><span class="dl-pct"><span class="dl-p1">%24</span><span class="dl-p2">%19</span></span></div><span class="dl-bar"><i></i></span></div>
+        <div class="dl-card"><div class="dl-head"><span><b>Kulaklık</b><small>Kulaklık · Bluetooth</small></span><span class="dl-pct">%70</span></div><span class="dl-bar dl-full"><i></i></span></div>
+      </div>
+      <div class="dl-toast"><span class="dl-app">LT</span><span><b>LifeTools</b><small>Pil azaldı: Kablosuz fare %19</small></span></div>`,
+  },
 };
 
 /** Birden çok animasyonu olan modüller. Pencere Kaydetme 0.8.0'da Sekme Yöneticisi'ne katıldı; animasyonu da orada. */
-const MODULE_DEMOS: Readonly<Record<string, readonly string[]>> = { 'tab-manager': ['tab-manager', 'life-browser'] };
+const MODULE_DEMOS: Readonly<Record<string, readonly string[]>> = { 'tab-manager': ['tab-manager', 'tab-manager-drag', 'life-browser'] };
 
 /** Bir modülün rehber kartında gösterilecek animasyonlar (yoksa boş). */
 export function featureDemos(moduleId: string): HTMLElement[] {
   return (MODULE_DEMOS[moduleId] ?? [moduleId]).map(buildDemo).filter((box): box is HTMLElement => box !== null);
+}
+
+/** Masaüstü rehberindeki özelliğin animasyonu (kimlik: desktop-features.ts). */
+export function desktopDemo(featureId: string): HTMLElement | null {
+  return buildDemo(`desktop-${featureId}`);
 }
 
 function buildDemo(demoId: string): HTMLElement | null {
@@ -153,13 +248,16 @@ function buildDemo(demoId: string): HTMLElement | null {
 }
 
 /** İmlecin gideceği noktalar: data-aim="ad" olan öğe için --ad-x / --ad-y (öğenin içinde, metni örtmeyen sağ alt bölge).
- * offset* kullanılır; dönüşümler (animasyondaki kaymalar) ölçümü bozmaz. Seçim için sağ ucu alınır. */
+ * offset* kullanılır; dönüşümler (animasyondaki kaymalar) ölçümü bozmaz. Seçim için sağ ucu alınır.
+ * Bazı animasyonlar satır yüksekliğini de oynattığı için ölçüm, animasyonlar kapalıyken (başlangıç yerleşiminde) yapılır. */
 function aim(box: HTMLElement): void {
-  for (const node of box.querySelectorAll<HTMLElement>('[data-aim]')) {
+  box.classList.add('demo-measuring');
+  for (const node of Array.from(box.querySelectorAll<HTMLElement>('[data-aim]'))) {
     let x = 0, y = 0;
     for (let el: HTMLElement | null = node; el && el !== box; el = el.offsetParent as HTMLElement | null) { x += el.offsetLeft; y += el.offsetTop; }
     const sel = node.classList.contains('demo-sel');
     box.style.setProperty(`--${node.dataset.aim}-x`, `${Math.round(x + node.offsetWidth * (sel ? 1 : .62))}px`);
     box.style.setProperty(`--${node.dataset.aim}-y`, `${Math.round(y + node.offsetHeight * (sel ? .3 : .6))}px`);
   }
+  box.classList.remove('demo-measuring');
 }

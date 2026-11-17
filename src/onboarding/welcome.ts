@@ -60,18 +60,20 @@ function renderWhatsNew(from: string): void {
   }
 }
 
-function shortcutChips(names: readonly string[], keys: Map<string, string>): HTMLElement | null {
+/** Tek komutta yalnızca tuş; birden çok komutta her birinin adı da yazılır (yoksa "atanmamış"lar karışır). */
+function shortcutChips(names: readonly string[], keys: Map<string, string>, labels: Map<string, string>): HTMLElement | null {
   if (!names.length) return null;
   const wrap = el('span');
   names.forEach((name, i) => {
     const key = keys.get(name);
-    if (i) wrap.append(' ');
-    wrap.append(key ? el('kbd', '', key) : el('span', '', 'kısayol atanmamış'));
+    if (i) wrap.append(' · ');
+    if (names.length > 1) wrap.append(`${labels.get(name) ?? name}: `);
+    wrap.append(key ? el('kbd', '', key) : el('span', '', 'atanmamış'));
   });
   return wrap;
 }
 
-function renderFeatures(flags: unknown, badges: Map<string, string>, keys: Map<string, string>): void {
+function renderFeatures(flags: unknown, badges: Map<string, string>, keys: Map<string, string>, labels: Map<string, string>): void {
   const groups = $('groups');
   for (const category of GUIDE_CATEGORIES) {
     const items = modules.filter(m => FEATURE_GUIDE[m.id]?.category === category);
@@ -94,11 +96,20 @@ function renderFeatures(flags: unknown, badges: Map<string, string>, keys: Map<s
       example.append(el('b', '', 'Örnek: '), guide.example);
       const meta = el('div', 'feature-meta');
       meta.append(el('span', '', `Nerede: ${guide.where}`));
-      const chips = shortcutChips(guide.commands ?? [], keys);
+      const chips = shortcutChips(guide.commands ?? [], keys, labels);
       if (chips) { const s = el('span', '', 'Kısayol: '); s.append(chips); meta.append(s); }
       main.append(name, el('div', 'feature-desc', module.description));
       main.append(...featureDemos(module.id));
-      main.append(example, meta);
+      main.append(example);
+      if (guide.tips?.length) {
+        const tips = el('details', 'feature-tips');
+        tips.append(el('summary', '', `Bilmen gerekenler (${guide.tips.length})`));
+        const list = el('ul');
+        for (const tip of guide.tips) list.append(el('li', '', tip));
+        tips.append(list);
+        main.append(tips);
+      }
+      main.append(meta);
 
       const toggle = el('label', 'switch');
       toggle.title = on ? 'Kapat' : 'Aç';
@@ -173,7 +184,8 @@ async function init(): Promise<void> {
 
   const commands = await chrome.commands.getAll().catch(() => [] as chrome.commands.Command[]);
   const keys = new Map(commands.filter(c => c.name && c.shortcut).map(c => [c.name!, c.shortcut!]));
-  renderFeatures(data[MODULE_FLAGS_KEY], from ? featureBadges(from, version) : new Map(), keys);
+  const labels = new Map(commands.filter(c => c.name && c.description).map(c => [c.name!, c.description!]));
+  renderFeatures(data[MODULE_FLAGS_KEY], from ? featureBadges(from, version) : new Map(), keys, labels);
   void renderSetupStatus();
   // Rehber görüldü: aynı sürüm için güncellemede bir daha açılmasın.
   await chrome.storage.local.set({ [SEEN_VERSION_KEY]: version });

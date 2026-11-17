@@ -10,7 +10,10 @@ const WIDTH = 357, HEIGHT = 140;
 const AIM = {
   slapmemo: { '--sel-x': '208px', '--sel-y': '59px', '--btn-x': '76px', '--btn-y': '86px' },
   'link-cleaner': { '--sel-x': '295px', '--sel-y': '60px', '--btn-x': '151px', '--btn-y': '86px' },
-  'life-browser': { '--save-x': '296px', '--save-y': '63px' },
+  'life-browser': { '--save-x': '280px', '--save-y': '63px' },
+  'tab-manager-drag': { '--grab-x': '125px', '--grab-y': '83px', '--drop-x': '291px', '--drop-y': '82px' },
+  'desktop-izleme': { '--chip-x': '313px', '--chip-y': '69px' },
+  'desktop-ortam': { '--rain-x': '333px', '--rain-y': '42px', '--fan-x': '333px', '--fan-y': '68px', '--play-x': '28px', '--play-y': '118px' },
   'tab-manager': { '--new-x': '215px', '--new-y': '21px', '--save-x': '308px', '--save-y': '21px', '--c1-x': '27px', '--c1-y': '52px', '--c2-x': '27px', '--c2-y': '74px' },
   currency: { '--p3-x': '310px', '--p3-y': '107px' },
   'video-downloader': { '--dl-x': '324px', '--dl-y': '73px', '--opt-x': '302px', '--opt-y': '111px' },

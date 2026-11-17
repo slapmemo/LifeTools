@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="357" height="140" viewBox="0 0 357 140" role="img" aria-label="Animasyon: gruba ad yazılır, &quot;Kaydet ve kapat&quot;a basılır, penceredeki tüm sekmeler kapanıp tek bir kayıtlı grup olur.">
+<svg xmlns="http://www.w3.org/2000/svg" width="357" height="140" viewBox="0 0 357 140" role="img" aria-label="Animasyon: Sekme Yöneticisi'nde gruba ad yazılır, &quot;Kaydet ve sekmeleri kapat&quot;a basılır, penceredeki sekmeler kapanıp tek bir kayıtlı grup olur; &quot;Geri al&quot; ile geri açılabilir.">
 <foreignObject x="0" y="0" width="357" height="140">
-<div xmlns="http://www.w3.org/1999/xhtml" class="demo demo-life-browser" style="--save-x:296px;--save-y:63px"><style><![CDATA[/* Renkler: LifeTools tasarım teslimi v1 (2026-11). Değişken adları masaüstü ve eklentide ortaktır. */
+<div xmlns="http://www.w3.org/1999/xhtml" class="demo demo-life-browser" style="--save-x:280px;--save-y:63px"><style><![CDATA[/* Renkler: LifeTools tasarım teslimi v1 (2026-11). Değişken adları masaüstü ve eklentide ortaktır. */
 :root, :root[data-theme="light"] {
   color-scheme: light;
   --bg: #f6f5fb; --sidebar: #f0eff7; --surface: #ffffff; --sub: #f3f1f9; --border: #ddd9eb; --border-input: #d3cee4;
@@ -116,14 +116,15 @@
   66%, 100% { left: var(--save-x); top: var(--save-y); opacity: 0; }
 }
 
-/* ---------- Pencere Kaydetme ---------- */
+/* ---------- Sekme Yöneticisi: tüm pencereyi kaydet ---------- */
 .demo-life-browser { --loop: 7s; }
 .lb-tabs { display: flex; gap: 2px; height: 26px; padding: 4px 6px 0; background: var(--sub); border-bottom: 1px solid var(--border); overflow: hidden; }
 .lb-tab { display: flex; align-items: center; gap: 5px; min-width: 0; padding: 0 9px; border-radius: 7px 7px 0 0; background: var(--bg); color: var(--text-2); font-size: 11px; white-space: nowrap; animation: lb-tab var(--loop) ease-in infinite; animation-delay: calc(var(--i) * 70ms); }
 .lb-tab i { width: 9px; height: 9px; border-radius: 3px; background: var(--c); }
 .lb-card { position: absolute; left: 12px; right: 12px; top: 40px; display: flex; flex-direction: column; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
-.lb-form { display: flex; align-items: center; gap: 5px; font-size: 11px; }
-.lb-input { position: relative; flex: 1; min-width: 70px; height: 22px; padding: 0 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); line-height: 21px; white-space: nowrap; overflow: hidden; }
+.lb-form { display: flex; align-items: center; gap: 4px; font-size: 11px; }
+.lb-form .demo-btn { padding: 3px 6px; font-size: 10.5px; }
+.lb-input { position: relative; flex: 1; min-width: 60px; height: 22px; padding: 0 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); line-height: 21px; white-space: nowrap; overflow: hidden; }
 .lb-ph { position: absolute; left: 7px; color: var(--muted); animation: lb-ph var(--loop) step-end infinite; }
 .lb-typed { display: inline-block; clip-path: inset(0 100% 0 0); animation: lb-type var(--loop) steps(15, end) infinite; }
 .lb-save { animation: lb-save var(--loop) ease-out infinite; }
@@ -334,6 +335,195 @@
 @keyframes cu-tip { 0%, 56% { opacity: 0; } 60%, 88% { opacity: 1; } 92%, 100% { opacity: 0; } }
 @keyframes cu-pointer { 0%, 36% { left: 120px; top: 125px; opacity: 0; } 40% { left: 120px; top: 125px; opacity: 1; } 52%, 88% { left: var(--p3-x); top: var(--p3-y); opacity: 1; } 92%, 100% { left: var(--p3-x); top: var(--p3-y); opacity: 0; } }
 
+/* ---------- Sekme Yöneticisi: sürükle-bırak ---------- */
+.demo-tab-manager-drag { --loop: 8s; }
+.tmd-head { position: absolute; left: 12px; top: 6px; font-size: 13px; }
+.tmd-label { margin-bottom: 4px; color: var(--muted); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.tmd-win { position: absolute; left: 10px; top: 28px; width: 52%; }
+.tmd-saved { position: absolute; right: 10px; top: 28px; width: 40%; }
+.tmd-row { box-sizing: border-box; display: flex; align-items: center; gap: 6px; height: 22px; margin-bottom: 3px; padding: 0 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: 11px; white-space: nowrap; overflow: hidden; }
+.tmd-grab { animation: tmd-grab var(--loop) ease-in-out infinite; }
+.tmd-card { padding: 5px 7px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); animation: tmd-card var(--loop) ease-out infinite; }
+.tmd-card-head { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.tmd-count { display: grid; margin-left: auto; padding: 0 6px; border-radius: 999px; background: var(--sub); color: var(--text-2); font-size: 10px; }
+.tmd-count > span { grid-area: 1 / 1; }
+.tmd-c1 { animation: dk-before-52 var(--loop) step-end infinite; }
+.tmd-c2 { opacity: 0; animation: dk-after-52 var(--loop) step-end infinite; }
+.tmd-mini { display: flex; align-items: center; gap: 5px; height: 16px; color: var(--text-2); font-size: 10px; white-space: nowrap; overflow: hidden; }
+.tmd-mini .fav, .tmd-row .fav, .tmd-clone .fav { width: 12px; height: 12px; font-size: 7px; }
+.tmd-new { height: 0; opacity: 0; animation: tmd-new var(--loop) ease-out infinite; }
+.tmd-clone { position: absolute; z-index: 4; display: flex; align-items: center; gap: 6px; width: 150px; height: 22px; padding: 0 7px; border: 1px solid var(--accent); border-radius: 6px; background: var(--surface); box-shadow: var(--shadow-pop); font-size: 11px; white-space: nowrap; opacity: 0; animation: tmd-clone var(--loop) ease-in-out infinite; }
+.demo-tab-manager-drag .demo-pointer { animation: tmd-pointer var(--loop) ease-in-out infinite; }
+.tmd-toast { position: absolute; z-index: 5; left: 10px; bottom: 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-pop); font-size: 11px; white-space: nowrap; opacity: 0; animation: tmd-toast var(--loop) ease-out infinite; }
+.tmd-toast b { margin-left: 8px; color: var(--accent); }
+@keyframes tmd-grab { 0%, 15% { opacity: 1; height: 22px; margin-bottom: 3px; border-color: var(--border); } 18%, 48% { opacity: .35; height: 22px; margin-bottom: 3px; border-color: var(--accent); } 55%, 94% { opacity: 0; height: 0; margin-bottom: 0; border-width: 0; } 99%, 100% { opacity: 1; height: 22px; margin-bottom: 3px; } }
+@keyframes tmd-card { 0%, 38% { border-color: var(--border); background: var(--surface); } 42%, 50% { border-color: var(--accent); background: var(--accent-soft); } 60%, 100% { border-color: var(--border); background: var(--surface); } }
+@keyframes tmd-new { 0%, 51% { height: 0; opacity: 0; } 57%, 94% { height: 16px; opacity: 1; } 99%, 100% { height: 0; opacity: 0; } }
+@keyframes dk-before-52 { 0% { opacity: 1; } 52% { opacity: 0; } 97% { opacity: 1; } }
+@keyframes dk-after-52 { 0% { opacity: 0; } 52% { opacity: 1; } 97% { opacity: 0; } }
+@keyframes tmd-clone {
+  0%, 18% { left: calc(var(--grab-x) - 90px); top: calc(var(--grab-y) - 13px); opacity: 0; transform: none; }
+  21% { left: calc(var(--grab-x) - 90px); top: calc(var(--grab-y) - 13px); opacity: .95; transform: rotate(-2deg); }
+  46% { left: calc(var(--drop-x) - 90px); top: calc(var(--drop-y) - 13px); opacity: .95; transform: rotate(-2deg); }
+  50%, 100% { left: calc(var(--drop-x) - 90px); top: calc(var(--drop-y) - 13px); opacity: 0; transform: scale(.9); }
+}
+@keyframes tmd-pointer {
+  0%, 4% { left: 170px; top: 128px; opacity: 0; }
+  8% { left: 170px; top: 128px; opacity: 1; }
+  16%, 20% { left: var(--grab-x); top: var(--grab-y); opacity: 1; }
+  46%, 50% { left: var(--drop-x); top: var(--drop-y); opacity: 1; }
+  55%, 100% { left: var(--drop-x); top: var(--drop-y); opacity: 0; }
+}
+@keyframes tmd-toast { 0%, 55% { opacity: 0; transform: translateY(8px); } 60%, 88% { opacity: 1; transform: none; } 94%, 100% { opacity: 0; } }
+
+/* ================= Masaüstü uygulaması (desktop-*) ================= */
+.demo[class*="demo-desktop-"] { --loop: 7s; }
+.dk-win { position: absolute; inset: 0; background: var(--surface); }
+.dk-title { display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; background: var(--sub); border-bottom: 1px solid var(--border); color: var(--muted); font-size: 10px; }
+.dk-title i { width: 8px; height: 8px; border-radius: 2px; background: var(--accent); }
+.dk-list { position: absolute; left: 12px; right: 12px; top: 30px; display: flex; flex-direction: column; }
+.dk-row { box-sizing: border-box; display: flex; align-items: flex-start; gap: 5px; height: 22px; margin-bottom: 4px; padding: 4px 8px 0; border-radius: 6px; background: var(--sub); font-size: 11px; white-space: nowrap; overflow: hidden; }
+.dk-mini { position: absolute; z-index: 3; top: 28px; right: 12px; width: 196px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-pop); font-size: 11px; overflow: hidden; opacity: 0; }
+.dk-mini-head { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-bottom: 1px solid var(--border); font-weight: 650; }
+.dk-mini-body { height: 34px; padding: 6px 9px; }
+.dk-mini-row { box-sizing: border-box; position: relative; z-index: 1; display: flex; gap: 8px; height: 20px; padding: 3px 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dk-mini-row.sel { background: var(--accent-soft); }
+.dk-mini-foot { padding: 3px 9px; border-top: 1px solid var(--border); color: var(--muted); font-size: 9px; white-space: nowrap; }
+.dk-mini-foot kbd { padding: 0 3px; border: 1px solid var(--border); border-radius: 3px; background: var(--sub); color: var(--text); font: 600 9px var(--font); }
+.dk-keys { position: absolute; z-index: 4; left: 12px; bottom: 10px; display: flex; align-items: center; gap: 4px; color: var(--muted); font-weight: 700; opacity: 0; }
+.dk-keys kbd { min-width: 22px; padding: 3px 7px; border: 1px solid var(--border); border-bottom-width: 3px; border-radius: 6px; background: var(--surface); box-shadow: var(--shadow-pop); color: var(--text); font: 600 12px var(--font); text-align: center; }
+.dk-typed { display: inline-block; vertical-align: bottom; white-space: nowrap; clip-path: inset(0 100% 0 0); }
+.dk-doc { position: absolute; left: 12px; right: 12px; top: 30px; display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
+
+/* Ortak tuş ve pencere zamanlamaları (başlangıç/bitiş yüzdeleri sınıf başına) */
+@keyframes dk-key-a { 0%, 3% { opacity: 0; transform: translateY(6px); } 6%, 13% { opacity: 1; transform: none; } 9% { opacity: 1; transform: translateY(2px); } 17%, 100% { opacity: 0; transform: none; } }
+@keyframes dk-mini-in { 0%, 13% { opacity: 0; transform: translateY(-6px) scale(.97); } 17%, 52% { opacity: 1; transform: none; } 56%, 100% { opacity: 0; transform: scale(.98); } }
+
+/* --- Notlar: hızlı not --- */
+.dn-k1 { animation: dk-key-a var(--loop) ease-out infinite; }
+.dn-mini { animation: dn-mini var(--loop) ease-out infinite; }
+.dn-typed { animation: dn-typed var(--loop) steps(23, end) infinite; }
+.dn-k2 { animation: dn-k2 var(--loop) ease-out infinite; }
+.dn-new { height: 0; margin-bottom: 0; opacity: 0; animation: dn-new var(--loop) ease-out infinite; }
+@keyframes dn-mini { 0%, 13% { opacity: 0; transform: translateY(-6px) scale(.97); } 17%, 56% { opacity: 1; transform: none; } 60%, 100% { opacity: 0; transform: scale(.98); } }
+@keyframes dn-typed { 0%, 19% { clip-path: inset(0 100% 0 0); } 40%, 96% { clip-path: inset(0 0 0 0); } 97%, 100% { clip-path: inset(0 100% 0 0); } }
+@keyframes dn-k2 { 0%, 43% { opacity: 0; transform: translateY(6px); } 46%, 55% { opacity: 1; transform: none; } 50% { opacity: 1; transform: translateY(2px); } 58%, 100% { opacity: 0; } }
+@keyframes dn-new { 0%, 60% { height: 0; margin-bottom: 0; opacity: 0; background: var(--accent-soft); } 66% { height: 22px; margin-bottom: 4px; opacity: 1; background: var(--accent-soft); } 85%, 94% { height: 22px; margin-bottom: 4px; opacity: 1; background: var(--sub); } 99%, 100% { height: 0; margin-bottom: 0; opacity: 0; } }
+
+/* --- İzleme listesi --- */
+.dz-input { position: absolute; left: 12px; right: 12px; top: 28px; height: 22px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); font-size: 11px; line-height: 20px; overflow: hidden; }
+.dz-ph { position: absolute; left: 8px; color: var(--muted); animation: dz-ph var(--loop) step-end infinite; }
+.dz-typed { animation: dz-typed var(--loop) steps(12, end) infinite; }
+.dz-list { top: 56px; }
+.dz-chip { display: grid; margin-left: auto; padding: 0 7px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-2); font-size: 10px; line-height: 13px; }
+.dz-chip.on { border-color: transparent; background: var(--accent-soft); color: var(--accent); }
+.dz-chip > span { grid-area: 1 / 1; }
+.dz-new .dz-chip { animation: dz-chip var(--loop) step-end infinite; }
+.dz-s1 { animation: dz-s1 var(--loop) step-end infinite; }
+.dz-s2 { opacity: 0; animation: dz-s2 var(--loop) step-end infinite; }
+.dz-new { height: 0; margin-bottom: 0; opacity: 0; animation: dz-new var(--loop) ease-out infinite; }
+.dz-k1 { left: auto; right: 16px; bottom: auto; top: 26px; animation: dz-k1 var(--loop) ease-out infinite; }
+.demo-desktop-izleme .demo-pointer { animation: dz-pointer var(--loop) ease-in-out infinite; }
+@keyframes dz-ph { 0% { opacity: 1; } 8% { opacity: 0; } 36% { opacity: 1; } }
+@keyframes dz-typed { 0%, 8% { clip-path: inset(0 100% 0 0); } 26%, 35% { clip-path: inset(0 0 0 0); } 36%, 100% { clip-path: inset(0 100% 0 0); } }
+@keyframes dz-k1 { 0%, 26% { opacity: 0; transform: translateY(6px); } 29%, 37% { opacity: 1; transform: none; } 32% { opacity: 1; transform: translateY(2px); } 40%, 100% { opacity: 0; } }
+@keyframes dz-new { 0%, 35% { height: 0; margin-bottom: 0; opacity: 0; } 41%, 94% { height: 22px; margin-bottom: 4px; opacity: 1; } 99%, 100% { height: 0; margin-bottom: 0; opacity: 0; } }
+@keyframes dz-chip { 0% { background: var(--surface); color: var(--text-2); border-color: var(--border); } 62% { background: var(--accent-soft); color: var(--accent); border-color: transparent; } 97% { background: var(--surface); color: var(--text-2); border-color: var(--border); } }
+@keyframes dz-s1 { 0% { opacity: 1; } 62% { opacity: 0; } 97% { opacity: 1; } }
+@keyframes dz-s2 { 0% { opacity: 0; } 62% { opacity: 1; } 97% { opacity: 0; } }
+@keyframes dz-pointer { 0%, 44% { left: 200px; top: 125px; opacity: 0; } 48% { left: 200px; top: 125px; opacity: 1; } 57%, 62% { left: var(--chip-x); top: var(--chip-y); opacity: 1; } 68%, 100% { left: var(--chip-x); top: var(--chip-y); opacity: 0; } }
+
+/* --- Metin şablonları --- */
+.ds-mini { animation: dk-mini-in var(--loop) ease-out infinite; }
+.ds-k1 { animation: dk-key-a var(--loop) ease-out infinite; }
+.ds-k2 { animation: ds-k2 var(--loop) ease-out infinite; }
+.ds-ins { animation: ds-ins var(--loop) steps(24, end) infinite; }
+@keyframes ds-k2 { 0%, 40% { opacity: 0; transform: translateY(6px); } 43%, 51% { opacity: 1; transform: none; } 47% { opacity: 1; transform: translateY(2px); } 54%, 100% { opacity: 0; } }
+@keyframes ds-ins { 0%, 56% { clip-path: inset(0 100% 0 0); } 63%, 95% { clip-path: inset(0 0 0 0); } 97%, 100% { clip-path: inset(0 100% 0 0); } }
+
+/* --- Pano geçmişi --- */
+.dp-mini { animation: dk-mini-in var(--loop) ease-out infinite; }
+.dp-rows { position: relative; }
+.dp-hl { position: absolute; left: 0; right: 0; top: 0; height: 20px; background: var(--accent-soft); animation: dp-hl var(--loop) ease-out infinite; }
+.dp-k1 { animation: dk-key-a var(--loop) ease-out infinite; }
+.dp-k2 { animation: dp-k2 var(--loop) ease-out infinite; }
+.dp-k3 { animation: dp-k3 var(--loop) ease-out infinite; }
+.dp-ins { animation: dp-ins var(--loop) steps(22, end) infinite; }
+@keyframes dp-hl { 0%, 28% { transform: none; } 31%, 100% { transform: translateY(20px); } }
+@keyframes dp-k2 { 0%, 22% { opacity: 0; transform: translateY(6px); } 25%, 33% { opacity: 1; transform: none; } 28% { opacity: 1; transform: translateY(2px); } 36%, 100% { opacity: 0; } }
+@keyframes dp-k3 { 0%, 38% { opacity: 0; transform: translateY(6px); } 41%, 50% { opacity: 1; transform: none; } 45% { opacity: 1; transform: translateY(2px); } 53%, 100% { opacity: 0; } }
+@keyframes dp-ins { 0%, 57% { clip-path: inset(0 100% 0 0); } 63%, 95% { clip-path: inset(0 0 0 0); } 97%, 100% { clip-path: inset(0 100% 0 0); } }
+
+/* --- Ortam sesi --- */
+.do-list { position: absolute; left: 12px; right: 12px; top: 30px; display: flex; flex-direction: column; gap: 4px; }
+.do-row { display: flex; align-items: center; gap: 10px; height: 22px; font-size: 11px; white-space: nowrap; }
+.do-row > span:first-child { width: 128px; }
+.do-slider { position: relative; flex: 1; height: 4px; border-radius: 2px; background: var(--sub); }
+.do-slider i { position: absolute; inset: 0 auto 0 0; border-radius: 2px; background: var(--muted); opacity: .45; }
+.do-switch { position: relative; flex-shrink: 0; width: 26px; height: 14px; border-radius: 999px; background: var(--border); }
+.do-switch::after { content: ""; position: absolute; left: 2px; top: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--surface); }
+.do-rain .do-switch { animation: do-sw-rain var(--loop) step-end infinite; }
+.do-rain .do-switch::after { animation: do-knob-rain var(--loop) ease-out infinite; }
+.do-rain .do-slider i { animation: do-fill-rain var(--loop) step-end infinite; }
+.do-fan .do-switch { animation: do-sw-fan var(--loop) step-end infinite; }
+.do-fan .do-switch::after { animation: do-knob-fan var(--loop) ease-out infinite; }
+.do-fan .do-slider i { animation: do-fill-fan var(--loop) step-end infinite; }
+.do-play { position: absolute; left: 12px; right: 12px; bottom: 10px; display: flex; align-items: center; gap: 10px; font-size: 11px; }
+.do-btn { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-size: 10px; animation: do-btn var(--loop) ease-out infinite; }
+.do-btn > span, .do-label > span { grid-area: 1 / 1; }
+.do-label { display: grid; color: var(--text-2); }
+.do-i1, .do-l1 { animation: dk-before var(--loop) step-end infinite; }
+.do-i2, .do-l2 { opacity: 0; animation: dk-after var(--loop) step-end infinite; }
+.do-eq { height: 18px; margin-left: auto; gap: 3px; animation: do-eq var(--loop) ease-out infinite; }
+.do-eq i { width: 4px; }
+.demo-desktop-ortam .demo-pointer { animation: do-pointer var(--loop) ease-in-out infinite; }
+@keyframes do-sw-rain { 0% { background: var(--border); } 14% { background: var(--accent); } 97% { background: var(--border); } }
+@keyframes do-knob-rain { 0%, 13% { transform: none; } 16%, 96% { transform: translateX(12px); } 99%, 100% { transform: none; } }
+@keyframes do-fill-rain { 0% { background: var(--muted); opacity: .45; } 14% { background: var(--accent); opacity: 1; } 97% { background: var(--muted); opacity: .45; } }
+@keyframes do-sw-fan { 0% { background: var(--border); } 30% { background: var(--accent); } 97% { background: var(--border); } }
+@keyframes do-knob-fan { 0%, 29% { transform: none; } 32%, 96% { transform: translateX(12px); } 99%, 100% { transform: none; } }
+@keyframes do-fill-fan { 0% { background: var(--muted); opacity: .45; } 30% { background: var(--accent); opacity: 1; } 97% { background: var(--muted); opacity: .45; } }
+@keyframes do-btn { 0%, 43% { transform: none; } 45% { transform: scale(.86); } 48%, 100% { transform: none; } }
+@keyframes dk-before { 0% { opacity: 1; } 46% { opacity: 0; } 97% { opacity: 1; } }
+@keyframes dk-after { 0% { opacity: 0; } 46% { opacity: 1; } 97% { opacity: 0; } }
+@keyframes do-eq { 0%, 45% { transform: scaleY(.2); opacity: .4; } 52%, 94% { transform: scaleY(1.4); opacity: 1; } 99%, 100% { transform: scaleY(.2); opacity: .4; } }
+@keyframes do-pointer {
+  0%, 3% { left: 190px; top: 125px; opacity: 0; }
+  6% { left: 190px; top: 125px; opacity: 1; }
+  11%, 15% { left: var(--rain-x); top: var(--rain-y); opacity: 1; }
+  26%, 31% { left: var(--fan-x); top: var(--fan-y); opacity: 1; }
+  40%, 46% { left: var(--play-x); top: var(--play-y); opacity: 1; }
+  52%, 100% { left: var(--play-x); top: var(--play-y); opacity: 0; }
+}
+
+/* --- Piller --- */
+.dl-cards { position: absolute; left: 12px; right: 12px; top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dl-card { display: grid; gap: 4px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+.dl-mouse { animation: dl-card var(--loop) step-end infinite; }
+.dl-head { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; line-height: 1.2; }
+.dl-head b { display: block; white-space: nowrap; }
+.dl-head small { display: block; color: var(--muted); font-size: 9px; white-space: nowrap; }
+.dl-pct { display: grid; font-size: 13px; font-weight: 700; }
+.dl-pct > span { grid-area: 1 / 1; }
+.dl-p1 { animation: dk-before-38 var(--loop) step-end infinite; }
+.dl-p2 { opacity: 0; color: var(--danger); animation: dk-after-38 var(--loop) step-end infinite; }
+.dl-bar { position: relative; height: 5px; border-radius: 3px; background: var(--sub); }
+.dl-bar i { position: absolute; inset: 0 auto 0 0; width: 24%; border-radius: 3px; background: var(--accent); }
+.dl-mouse .dl-bar i { animation: dl-bar var(--loop) ease-in-out infinite; }
+.dl-full i { width: 70%; }
+.dl-toast { position: absolute; z-index: 3; right: 10px; bottom: 5px; display: flex; align-items: center; gap: 9px; padding: 4px 12px 4px 7px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-pop); font-size: 11px; opacity: 0; animation: dl-toast var(--loop) ease-out infinite; }
+.dl-toast b { display: block; }
+.dl-toast small { display: block; color: var(--text-2); font-size: 10px; } .dl-toast > span:last-child { line-height: 1.2; }
+.dl-app { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--accent); color: var(--on-accent); font-size: 9px; font-weight: 800; }
+@keyframes dl-bar { 0%, 12% { width: 24%; background: var(--accent); } 38%, 94% { width: 19%; background: var(--danger); } 99%, 100% { width: 24%; background: var(--accent); } }
+@keyframes dk-before-38 { 0% { opacity: 1; } 38% { opacity: 0; } 97% { opacity: 1; } }
+@keyframes dk-after-38 { 0% { opacity: 0; } 38% { opacity: 1; } 97% { opacity: 0; } }
+@keyframes dl-card { 0% { border-color: var(--border); } 38% { border-color: color-mix(in srgb, var(--danger) 55%, var(--border)); } 97% { border-color: var(--border); } }
+@keyframes dl-toast { 0%, 44% { opacity: 0; transform: translateX(24px); } 50%, 88% { opacity: 1; transform: none; } 94%, 100% { opacity: 0; transform: translateX(8px); } }
+
+/* Ölçüm sırasında (demos.ts › aim) başlangıç yerleşimi: animasyonlar bir anlığına kapalı. */
+.demo-measuring, .demo-measuring * { animation: none !important; }
+
 /* ---------- Hareket azaltma: her animasyon döngünün %75'inde (sonuç karesi) durur ---------- */
 @media (prefers-reduced-motion: reduce) {
   .demo *, .demo *::before, .demo *::after { animation-play-state: paused !important; animation-delay: calc(var(--loop) * -0.75) !important; }
@@ -342,9 +532,9 @@
 
 .demo, .demo * { box-sizing: border-box; } .demo { width: 357px; font-family: var(--font); }]]></style><div class="lb-tabs"><span class="lb-tab" style="--i:0"><i style="--c:#5b8def"></i>Makale</span><span class="lb-tab" style="--i:1"><i style="--c:#e55"></i>PDF</span><span class="lb-tab" style="--i:2"><i style="--c:#e33"></i>Video</span><span class="lb-tab" style="--i:3"><i style="--c:#d9a400"></i>Notlar</span><span class="lb-tab" style="--i:4"><i style="--c:#2a7"></i>Harita</span></div>
       <div class="lb-card">
-        <div class="lb-form"><span class="lb-input"><span class="lb-ph">Grup adı…</span><span class="lb-typed">Tez araştırması</span></span><span class="demo-btn primary">Bu pencereyi kaydet</span><span class="demo-btn soft lb-save" data-aim="save">Kaydet ve kapat</span></div>
-        <div class="lb-auto"><span>Pencere kapanınca sekmeleri otomatik kaydet</span><span class="lb-switch"></span></div>
+        <div class="lb-form"><span class="lb-input"><span class="lb-ph">Grup adı…</span><span class="lb-typed">Tez araştırması</span></span><span class="demo-btn primary">Pencereyi kaydet</span><span class="demo-btn soft lb-save" data-aim="save">Kaydet ve sekmeleri kapat</span></div>
+        <div class="lb-auto"><span>Pencere kapanınca otomatik kaydet</span><span class="lb-switch"></span></div>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="demo-pointer" viewBox="0 0 16 22" aria-hidden="true"><path d="M1 1v17l4.5-4.2 3 6.7 3-1.4-3-6.6H15z"/></svg><div class="demo-toast"><span class="demo-check">✓</span><span><b>5 sekme kayıtlı gruba kaydedildi</b><small>Tez araştırması</small></span></div></div>
+      <svg xmlns="http://www.w3.org/2000/svg" class="demo-pointer" viewBox="0 0 16 22" aria-hidden="true"><path d="M1 1v17l4.5-4.2 3 6.7 3-1.4-3-6.6H15z"/></svg><div class="demo-toast"><span class="demo-check">✓</span><span><b>5 sekme kaydedildi</b><small>Tez araştırması · Geri al</small></span></div></div>
 </foreignObject>
 </svg>

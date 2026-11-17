@@ -44,7 +44,24 @@ Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını aç
 </tr>
 <tr>
 <td><img src="design/demos/currency.svg" width="100%" alt="Döviz animasyonu"><br><b>Döviz:</b> Steam fiyatları TL olarak görünür.</td>
-<td></td>
+<td><img src="design/demos/tab-manager-drag.svg" width="100%" alt="Sekme Yöneticisi sürükle-bırak animasyonu"><br><b>Sekme Yöneticisi:</b> sekmeyi tutup istediğin gruba ya da kayıtlı gruba sürükle.</td>
+</tr>
+</table>
+
+**Masaüstü uygulaması**
+
+<table>
+<tr>
+<td width="50%"><img src="design/demos/desktop-notlar.svg" width="100%" alt="Hızlı not animasyonu"><br><b>Hızlı not:</b> her programda <code>Ctrl+Alt+N</code>, yaz, <code>Ctrl+Enter</code>.</td>
+<td width="50%"><img src="design/demos/desktop-pano.svg" width="100%" alt="Pano geçmişi animasyonu"><br><b>Pano geçmişi:</b> <code>Ctrl+Alt+V</code> ile eskiden kopyaladığını seç ve yapıştır.</td>
+</tr>
+<tr>
+<td><img src="design/demos/desktop-sablonlar.svg" width="100%" alt="Metin şablonları animasyonu"><br><b>Metin şablonları:</b> <code>Ctrl+Shift+Space</code> ile şablonu seç, yazıya eklensin.</td>
+<td><img src="design/demos/desktop-izleme.svg" width="100%" alt="İzleme listesi animasyonu"><br><b>İzleme listesi:</b> film ve dizileri ekle, durumunu değiştir.</td>
+</tr>
+<tr>
+<td><img src="design/demos/desktop-ortam.svg" width="100%" alt="Ortam sesi animasyonu"><br><b>Ortam sesi:</b> yağmur, fan gibi sesleri karıştırıp çal.</td>
+<td><img src="design/demos/desktop-piller.svg" width="100%" alt="Piller animasyonu"><br><b>Piller:</b> kablosuz fare, kulaklık ve kumandaların pili; azalınca bildirim.</td>
 </tr>
 </table>
 
