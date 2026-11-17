@@ -48,13 +48,13 @@ pub fn read_supported_devices() -> Vec<DeviceBattery> {
     let Ok(items) = serde_json::from_str::<Vec<PolledBattery>>(&json) else { return Vec::new() };
     items.into_iter().filter(|item| item.connected).map(|item| DeviceBattery {
         id: item.id,
-        name: item.name,
+        name: battery::tr_name(&item.name),
         kind: item.kind,
         percent: item.percent.filter(|p| *p <= 100),
         charging: Some(item.charging),
-        via: item.via.filter(|v| !v.is_empty()),
-        detail: item.detail.filter(|v| !v.is_empty()),
-        level_text: item.level_text.filter(|v| !v.is_empty()),
+        via: item.via.filter(|v| !v.is_empty()).map(|v| battery::tr_via(&v)),
+        detail: item.detail.filter(|v| !v.is_empty()).map(|v| battery::tr_detail(&v)),
+        level_text: item.level_text.filter(|v| !v.is_empty()).map(|v| battery::tr_level(&v)),
         connected: item.connected,
         asleep: item.asleep,
         millivolts: item.millivolts,

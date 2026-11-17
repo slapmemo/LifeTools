@@ -39,6 +39,48 @@ pub fn parse_system_status(battery_flag: u8, percent: u8) -> Option<DeviceBatter
     ))
 }
 
+// ---- Gömülü C++ sürücülerinin İngilizce metinleri (vendor/wireless-battery) ----
+// Kütüphanenin kendisine dokunulmaz (GPL kaynağı aynen kalsın, güncellemesi kolay olsun); metinler burada çevrilir.
+
+/// Bağlantı yolu: "2.4 GHz receiver" → "2.4 GHz alıcı", AirPods ayrıntısı "Bluetooth · L 60%  R 55%  case 40%" dahil.
+pub fn tr_via(text: &str) -> String {
+    const PAIRS: [(&str, &str); 10] = [
+        ("2.4 GHz receiver or USB", "2.4 GHz alıcı ya da USB"),
+        ("2.4 GHz receiver", "2.4 GHz alıcı"),
+        ("2.4 GHz dongle", "2.4 GHz alıcı"),
+        ("USB cable", "USB kablosu"),
+        ("UWB base station", "UWB baz istasyonu"),
+        ("Jabra Link dongle", "Jabra Link alıcısı"),
+        (" receiver", " alıcısı"),
+        ("\u{00B7} L ", "\u{00B7} Sol "),
+        ("  R ", "  Sağ "),
+        ("  case ", "  kutu "),
+    ];
+    PAIRS.iter().fold(text.to_string(), |s, (from, to)| s.replace(from, to))
+}
+
+/// Kulaklık ayrıntısı: "L 60%, R 55%, case 40%" → "Sol 60%, Sağ 55%, kutu 40%".
+pub fn tr_detail(text: &str) -> String {
+    let s = text.strip_prefix("L ").map(|rest| format!("Sol {rest}")).unwrap_or_else(|| text.to_string());
+    s.replace(", R ", ", Sağ ").replace(", case ", ", kutu ")
+}
+
+/// Yüzde bildirmeyen aygıtların seviyesi.
+pub fn tr_level(text: &str) -> String {
+    match text {
+        "Full" => "Dolu", "Good" => "İyi", "Medium" => "Orta", "Low" => "Düşük", "Critical" => "Kritik", "Empty" => "Boş",
+        other => other,
+    }.to_string()
+}
+
+/// Adı bilinmeyen aygıtların yedek adı.
+pub fn tr_name(text: &str) -> String {
+    match text {
+        "Wireless device" => "Kablosuz aygıt", "Bluetooth device" => "Bluetooth aygıtı",
+        other => other,
+    }.to_string()
+}
+
 /// Aynı aygıt birden çok düğüm olarak görünürse kimliğe göre tek kayıt tutar.
 pub fn dedupe(list: Vec<DeviceBattery>) -> Vec<DeviceBattery> {
     let mut seen = HashSet::new();
@@ -125,6 +167,21 @@ mod tests {
         assert!(tracker.update(&[dev("a", 15, None)], 20).is_empty());
         assert!(tracker.update(&[dev("a", 20, None)], 20).is_empty());
         assert_eq!(tracker.update(&[dev("a", 10, None)], 20).len(), 1);
+    }
+
+    #[test]
+    fn library_texts_are_turkish() {
+        assert_eq!(tr_via("2.4 GHz receiver"), "2.4 GHz alıcı");
+        assert_eq!(tr_via("2.4 GHz receiver or USB"), "2.4 GHz alıcı ya da USB");
+        assert_eq!(tr_via("USB cable"), "USB kablosu");
+        assert_eq!(tr_via("Logitech receiver"), "Logitech alıcısı");
+        assert_eq!(tr_via("Bluetooth"), "Bluetooth");
+        assert_eq!(tr_via("Bluetooth \u{00B7} L 60%\u{26A1}  R 55%  case 40%"), "Bluetooth \u{00B7} Sol 60%\u{26A1}  Sağ 55%  kutu 40%");
+        assert_eq!(tr_detail("L 60%, R 55%, case 40%"), "Sol 60%, Sağ 55%, kutu 40%");
+        assert_eq!(tr_level("Critical"), "Kritik");
+        assert_eq!(tr_level("bilinmeyen"), "bilinmeyen");
+        assert_eq!(tr_name("Wireless device"), "Kablosuz aygıt");
+        assert_eq!(tr_name("Nearlink Mouse"), "Nearlink Mouse");
     }
 
     #[test]
