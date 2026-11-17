@@ -2,8 +2,6 @@ use rusqlite::{Connection, OptionalExtension, Result};
 use serde::Serialize;
 
 #[derive(Serialize, Debug)]
-pub struct DashboardTask { pub id: i64, pub title: String, pub due: String }
-#[derive(Serialize, Debug)]
 pub struct DashboardNote { pub id: i64, pub title: String, pub updated_at: i64 }
 #[derive(Serialize, Debug)]
 pub struct DashboardSite { pub domain: String, pub seconds: i64, pub icon: Option<String> }
@@ -11,10 +9,9 @@ pub struct DashboardSite { pub domain: String, pub seconds: i64, pub icon: Optio
 pub struct DashboardClip { pub id: i64, pub preview: String, pub created_at: i64 }
 #[derive(Serialize, Debug)]
 pub struct DashboardSummary {
-    pub tasks_available: bool, pub notes_available: bool, pub sites_available: bool,
-    pub open_count: i64, pub overdue_count: i64, pub today_tasks: Vec<DashboardTask>,
+    pub notes_available: bool, pub sites_available: bool,
     pub notes: Vec<DashboardNote>, pub sites: Vec<DashboardSite>, pub sites_total_seconds: i64, pub clipboard: Vec<DashboardClip>,
-    pub batteries: Vec<crate::battery::DeviceBattery>, pub ambient_playing: bool, pub ambient_active_count: usize,
+    pub batteries: Vec<crate::battery::DeviceBattery>,
 }
 
 fn table_exists(db: &Connection, name: &str) -> Result<bool> {
@@ -60,17 +57,9 @@ pub fn backup_data(db: &Connection) -> std::result::Result<serde_json::Value, St
 
 pub fn dashboard_summary(db: &Connection, today: &str) -> Result<DashboardSummary> {
     let mut out = DashboardSummary {
-        tasks_available: table_exists(db, "tasks")?, notes_available: table_exists(db, "notes")?,
-        sites_available: table_exists(db, "site_time")?, open_count: 0, overdue_count: 0,
-        today_tasks: vec![], notes: vec![], sites: vec![], sites_total_seconds: 0, clipboard: vec![], batteries: vec![],
-        ambient_playing: false, ambient_active_count: 0,
+        notes_available: table_exists(db, "notes")?, sites_available: table_exists(db, "site_time")?,
+        notes: vec![], sites: vec![], sites_total_seconds: 0, clipboard: vec![], batteries: vec![],
     };
-    if out.tasks_available {
-        out.open_count = db.query_row("SELECT count(*) FROM tasks WHERE done_at IS NULL", [], |r| r.get(0))?;
-        out.overdue_count = db.query_row("SELECT count(*) FROM tasks WHERE done_at IS NULL AND due_date IS NOT NULL AND substr(due_date,1,10) < ?1", [today], |r| r.get(0))?;
-        let mut st = db.prepare("SELECT id,title,due_date FROM tasks WHERE done_at IS NULL AND substr(due_date,1,10)=?1 ORDER BY due_date,id LIMIT 5")?;
-        out.today_tasks = st.query_map([today], |r| Ok(DashboardTask { id:r.get(0)?, title:r.get(1)?, due:r.get(2)? }))?.collect::<Result<_>>()?;
-    }
     if out.notes_available {
         let mut st = db.prepare("SELECT id,coalesce(nullif(trim(page_title),''),text),updated_at/1000 FROM notes ORDER BY updated_at DESC,id DESC LIMIT 5")?;
         out.notes = st.query_map([], |r| { let text: String = r.get(1)?; Ok(DashboardNote { id:r.get(0)?, title:text.lines().next().unwrap_or("").chars().take(100).collect(), updated_at:r.get(2)? }) })?.collect::<Result<_>>()?;

@@ -32,9 +32,8 @@
     fn dashboard_handles_missing_extension_tables() {
         let d = db();
         let s = dashboard_summary(&d, "2026-11-08").unwrap();
-        assert!(!s.tasks_available && !s.notes_available && !s.sites_available);
-        assert_eq!((s.open_count, s.overdue_count), (0, 0));
-        assert!(s.today_tasks.is_empty() && s.notes.is_empty() && s.sites.is_empty());
+        assert!(!s.notes_available && !s.sites_available);
+        assert!(s.notes.is_empty() && s.sites.is_empty());
     }
 
     #[test]
@@ -49,8 +48,6 @@
         }
         d.execute("INSERT INTO tasks VALUES(8,'done','2026-11-07',1)", []).unwrap();
         let s = dashboard_summary(&d, "2026-11-08").unwrap();
-        assert_eq!((s.open_count, s.overdue_count, s.today_tasks.len()), (7, 1, 5));
-        assert_eq!(s.today_tasks[0].id, 2);
         assert_eq!((s.notes.len(), s.notes[0].id, s.notes[0].title.as_str()), (5, 7, "note 7"));
         assert_eq!((s.sites.len(), s.sites[0].domain.as_str()), (5, "site7"));
         assert_eq!((s.clipboard.len(), s.clipboard[0].preview.as_str()), (3, "clip 7"));
