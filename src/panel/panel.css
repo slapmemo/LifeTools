@@ -755,3 +755,5 @@ h2 svg { width: 26px; height: 26px; vertical-align: 0; }
 .saved-groups-link h3 { display: flex; align-items: center; gap: var(--space-8); margin: 0 0 var(--space-4); }
 .saved-groups-link .hint { margin: 0; }
 .saved-groups-link > button { flex-shrink: 0; }
+.guide-link { margin-left: auto; display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); border-radius: 8px; background: var(--accent-soft); color: var(--text); text-decoration: none; font-weight: 600; font-size: 13px; white-space: nowrap; }
+.guide-link:hover { border-color: var(--accent); }

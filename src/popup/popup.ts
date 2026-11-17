@@ -28,7 +28,11 @@ const versionStatus = document.createElement('div');
 const versionWarning = document.createElement('div');
 versionWarning.hidden = true;
 versionWarning.setAttribute('role', 'status');
-versionFooter.append(versionStatus, versionWarning);
+const guideLink = document.createElement('a');
+guideLink.href = chrome.runtime.getURL('welcome.html?guide=1');
+guideLink.target = '_blank';
+guideLink.textContent = 'Özellikler ve yenilikler';
+versionFooter.append(versionStatus, guideLink, versionWarning);
 document.querySelector('main')!.append(versionFooter);
 void showVersions(versionStatus, versionWarning);
 

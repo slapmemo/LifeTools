@@ -3,30 +3,80 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LifeTools'a hoş geldin</title>
+  <title>LifeTools · Özellik rehberi</title>
   <link rel="stylesheet" href="tokens.css" /><link rel="stylesheet" href="components.css" /><link rel="stylesheet" href="welcome.css" />
 </head>
 <body>
   <main>
-    <header>
-      <h1>LifeTools'a hoş geldin</h1>
-      <p>Hangi özellikleri kullanmak istiyorsun? Bunları sonra Panel › Ayarlar'dan değiştirebilirsin.</p>
-    </header>
-    <div class="actions" aria-label="Toplu seçim">
-      <button id="recommended" type="button">Önerilenleri seç</button>
-      <button id="select-all" type="button">Hepsini seç</button>
-      <button id="select-none" type="button">Hiçbirini seçme</button>
-    </div>
-    <form id="welcome-form">
-      <div id="groups"></div>
-      <div class="actions save-actions">
-        <button class="primary" type="submit">Kaydet ve başla</button>
-        <span id="feedback" role="status" aria-live="polite"></span>
-        <a id="panel-link" href="panel.html" hidden>Panel'i aç</a>
+    <header class="hero">
+      <svg class="lt-logo" viewBox="0 0 128 128" aria-hidden="true" focusable="false"><rect x="3" y="3" width="122" height="122" rx="29" fill="var(--accent)"/><g fill="var(--on-accent)"><path d="M 28 27 L 44 27 L 35 79 L 62 79 L 59.4 94 L 17 94 Z"/><path d="M 56 27 L 109 27 L 106 42 L 87.4 42 L 79.2 83 L 62.9 83 L 71.3 42 L 53.3 42 Z"/><path d="M 73 110 C 72 96 79 83 93 77 C 99 74 107 72 113 70 C 113 90 102 105 88 109 C 82 111 77 111 73 110 Z"/></g><path d="M 75 109 C 81 96 93 86 105 81" fill="none" stroke="var(--accent)" stroke-width="4.4" stroke-linecap="round"/></svg>
+      <div>
+        <h1 id="title">LifeTools'a hoş geldin</h1>
+        <p id="subtitle"></p>
       </div>
-    </form>
-    <footer>Video İndirici, masaüstü uygulamasını gerektirir.</footer>
+    </header>
+
+    <section id="whats-new" class="card" hidden aria-labelledby="whats-new-title">
+      <h2 id="whats-new-title">Yenilikler</h2>
+      <div id="whats-new-list"></div>
+    </section>
+
+    <details id="setup" class="card" open>
+      <summary><h2>Kurulum</h2><span class="hint">Üç kısa adım</span></summary>
+      <ol class="steps">
+        <li class="step" id="step-pin">
+          <span class="step-no">1</span>
+          <div class="step-body">
+            <h3>Eklentiyi araç çubuğuna sabitle <span class="status" id="pin-status"></span></h3>
+            <p>Chrome'un sağ üstündeki yapboz simgesine tıkla, LifeTools'un yanındaki raptiyeye bas. Açılır pencere (hızlı not, sesi yükselt, bugünün özeti) bu simgeden açılır.</p>
+          </div>
+        </li>
+        <li class="step" id="step-desktop">
+          <span class="step-no">2</span>
+          <div class="step-body">
+            <h3>Masaüstü uygulamasını bağla <span class="status" id="desktop-status"></span></h3>
+            <p>LifeTools masaüstü uygulaması notlarını ve izleme listeni bilgisayarında saklar, video indirmeyi sağlar, hem kendini hem eklentiyi otomatik günceller. Pano geçmişi, her programda şablon yapıştırma (Ctrl+Shift+Space) ve hızlı not (Ctrl+Alt+N) de oradadır.</p>
+            <p id="desktop-help" class="hint"></p>
+            <div class="row-actions">
+              <a id="desktop-download" class="button" href="https://github.com/slapmemo/LifeTools/releases/latest" target="_blank" rel="noopener">Masaüstü uygulamasını indir</a>
+              <a class="button" href="panel.html#storage-section">Depolama ayarlarını aç</a>
+            </div>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-no">3</span>
+          <div class="step-body">
+            <h3>Kullanacağın özellikleri seç</h3>
+            <p>Aşağıda her özelliğin ne işe yaradığı, örneği ve kısayolu var. Kapattıkların menülerden ve panelden gizlenir; istediğin zaman geri açarsın.</p>
+          </div>
+        </li>
+      </ol>
+    </details>
+
+    <section id="features" aria-labelledby="features-title">
+      <div class="section-head">
+        <h2 id="features-title">Özellikler</h2>
+        <div class="bulk" aria-label="Toplu seçim">
+          <button id="recommended" type="button">Önerilenler</button>
+          <button id="select-all" type="button">Hepsini aç</button>
+          <button id="select-none" type="button">Hepsini kapat</button>
+        </div>
+      </div>
+      <div id="groups"></div>
+    </section>
+
+    <section id="first-steps" class="card" hidden aria-labelledby="first-steps-title">
+      <h2 id="first-steps-title">Şimdi şunları dene</h2>
+      <div id="first-steps-list" class="tips"></div>
+      <div class="row-actions">
+        <button id="finish" type="button" class="primary">Kurulumu bitir</button>
+        <a id="panel-link" class="button" href="panel.html" hidden>Paneli aç</a>
+      </div>
+    </section>
+
+    <footer id="footer"></footer>
   </main>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <script src="welcome.js" type="module"></script>
 </body>
 </html>
