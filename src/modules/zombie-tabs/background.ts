@@ -70,7 +70,7 @@ async function weeklyNotice(): Promise<void> {
   if (tabs.length < 5) return;
   const move = await isModuleEnabled('life-browser');
   await chrome.storage.local.set({ [NOTICE_KEY]: { ids: tabs.map(tab => tab.id), move } });
-  await chrome.notifications.create(NOTICE, { type: 'basic', iconUrl: 'icons/icon128.png', title: 'Zombi sekmeler', message: `${tabs.length} sekme 3+ gündür açılmadı`, buttons: move ? [{ title: 'Oturuma taşı' }, { title: 'Göster' }] : [{ title: 'Göster' }] });
+  await chrome.notifications.create(NOTICE, { type: 'basic', iconUrl: 'icons/icon128.png', title: 'Zombi sekmeler', message: `${tabs.length} sekme 3+ gündür açılmadı`, buttons: move ? [{ title: 'Kayıtlı gruba taşı' }, { title: 'Göster' }] : [{ title: 'Göster' }] });
   await chrome.storage.local.set({ [LAST_WEEKLY_KEY]: Date.now() });
 }
 async function noticeClick(index: number): Promise<void> {

@@ -20,6 +20,7 @@ describe('command center', () => {
     expect(parsePrefix('IZLE Film')).toEqual({ id: 'watch.add', arg: 'Film' });
     expect(parsePrefix('SÜRE')).toEqual({ id: 'time.today', arg: '' });
     expect(parsePrefix('oturum kaydet İş')).toEqual({ id: 'session.save', arg: 'İş' });
+    expect(parsePrefix('grup kaydet İş')).toEqual({ id: 'session.save', arg: 'İş' });
   });
 });
 it('detects duplicate assigned shortcuts', () => {

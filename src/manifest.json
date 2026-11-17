@@ -56,7 +56,7 @@
       "description": "Sayfanın temiz linkini kopyala"
     },
     "action-session-save": {
-      "description": "Oturumu kaydet"
+      "description": "Pencereyi kayıtlı grup olarak kaydet"
     },
     "action-blocker-toggle": {
       "description": "Engelleyiciyi aç/kapat"

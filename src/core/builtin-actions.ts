@@ -81,11 +81,11 @@ registerAction({
 });
 
 registerAction({
-  id: 'session.save', title: 'Oturumu kaydet', keywords: ['oturum', 'lifebrowser', 'sekmeleri kaydet'], moduleId: LIFE_BROWSER_ID, toolbar: true,
+  id: 'session.save', title: 'Pencereyi kayıtlı grup olarak kaydet', keywords: ['grup', 'kayıtlı grup', 'oturum', 'lifebrowser', 'sekmeleri kaydet'], moduleId: LIFE_BROWSER_ID, toolbar: true,
   async run({ tab, arg }) {
     const active = needTab(tab);
     const tabs = await chrome.tabs.query({ windowId: active.windowId });
-    const name = arg?.slice(0, 200) || `Oturum ${new Date().toLocaleString('tr-TR')}`;
+    const name = arg?.slice(0, 200) || `Grup ${new Date().toLocaleString('tr-TR')}`;
     await sessions.save(name, await describeTabs(tabs));
     return `${tabs.length} sekme kaydedildi.`;
   }

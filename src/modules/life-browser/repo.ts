@@ -35,7 +35,7 @@ export function createSessionsRepo(ex: Executor, now: () => number = Date.now) {
     /** Oturumu ve sekmelerini tek işlemde kaydeder; yeni oturum kimliğini döndürür. */
     async save(name: string, tabs: readonly SessionTabInput[]): Promise<number> {
       const trimmed = name.trim();
-      if (!trimmed || (trimmed.startsWith(HIDDEN_PREFIX) ? !trimmed.slice(HIDDEN_PREFIX.length).trim() : trimmed.length > MAX_NAME)) throw new Error(`Oturum adı 1–${MAX_NAME} karakter olmalı.`);
+      if (!trimmed || (trimmed.startsWith(HIDDEN_PREFIX) ? !trimmed.slice(HIDDEN_PREFIX.length).trim() : trimmed.length > MAX_NAME)) throw new Error(`Grup adı 1–${MAX_NAME} karakter olmalı.`);
       if (!tabs.length) throw new Error('Kaydedilecek sekme yok.');
       return withReservedIds(async () => {
         const id = await nextId('sessions');
@@ -102,7 +102,7 @@ export function createSessionsRepo(ex: Executor, now: () => number = Date.now) {
     },
     async rename(sessionId: number, name: string): Promise<void> {
       const trimmed = name.trim();
-      if (!trimmed || (trimmed.startsWith(HIDDEN_PREFIX) ? !trimmed.slice(HIDDEN_PREFIX.length).trim() : trimmed.length > MAX_NAME)) throw new Error(`Oturum adı 1–${MAX_NAME} karakter olmalı.`);
+      if (!trimmed || (trimmed.startsWith(HIDDEN_PREFIX) ? !trimmed.slice(HIDDEN_PREFIX.length).trim() : trimmed.length > MAX_NAME)) throw new Error(`Grup adı 1–${MAX_NAME} karakter olmalı.`);
       await ex.exec('UPDATE sessions SET name = ? WHERE id = ?', [trimmed, sessionId]);
     },
     /** Sekme kaydını kaldırır; oturum boşalırsa oturumu da siler (tek işlemde). */

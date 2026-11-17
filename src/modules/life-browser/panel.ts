@@ -1,14 +1,9 @@
 import { popupDb } from '../../db/client';
 import type { Executor } from '../../db/migrations';
-import {
-  createEmptyState,
-  createKebabMenu,
-  createListRow,
-  formatRelativeDate,
-  showToast
-} from '../../panel/ui';
-import { closeWindowSafely, describeTabs, groupWindowBySite, openSession } from './browser';
-import { AUTO_PREFIX, createSessionsRepo, type Session } from './repo';
+import { showToast } from '../../panel/ui';
+import { openTabManager } from '../tab-manager/open';
+import { closeWindowSafely, describeTabs, groupWindowBySite } from './browser';
+import { createSessionsRepo } from './repo';
 import { AUTO_SAVE_KEY } from './settings';
 import { findDuplicates } from './tabs';
 
@@ -16,15 +11,19 @@ function $<T extends HTMLElement>(selector: string): T {
   return document.querySelector(selector) as T;
 }
 
+/**
+ * Panel → Sekmeler → Kaydet: o anki pencere için hızlı işlemler.
+ * Kayıtlı grupların listesi yalnızca Sekme Yöneticisi'nde; burada yalnızca sayısı ve oraya kısayol var.
+ */
 export function initLifeBrowserPanel(db: Executor = popupDb): { render(): Promise<void> } {
   const repo = createSessionsRepo(db);
   const form = $<HTMLFormElement>('#lb-save-form');
   const name = $<HTMLInputElement>('#lb-name');
   const closeAfter = document.querySelector<HTMLInputElement>('#lb-close');
   const saveCloseBtn = document.querySelector<HTMLButtonElement>('#lb-save-close');
-  const list = $<HTMLElement>('#lb-sessions');
-  const empty = document.querySelector<HTMLElement>('#lb-empty');
   const count = $<HTMLElement>('#lb-count');
+  const countHint = document.querySelector<HTMLElement>('#lb-count-hint');
+  const openManager = document.querySelector<HTMLButtonElement>('#lb-open-manager');
   const feedback = $<HTMLElement>('#lb-feedback');
   const dupList = document.querySelector<HTMLElement>('#lb-duplicates');
   const dedupe = $<HTMLButtonElement>('#lb-dedupe');
@@ -61,67 +60,6 @@ export function initLifeBrowserPanel(db: Executor = popupDb): { render(): Promis
     return win.id;
   }
 
-  function sessionItem(session: Session): HTMLLIElement {
-    const title = document.createElement('strong');
-    title.className = 'session-name';
-    title.textContent = session.name;
-
-    const meta = document.createElement('div');
-    meta.className = 'session-meta';
-    const tabChip = document.createElement('span');
-    tabChip.className = 'chip';
-    tabChip.textContent = `${session.tab_count} sekme`;
-    const dateSpan = document.createElement('span');
-    dateSpan.className = 'muted';
-    dateSpan.textContent = formatRelativeDate(session.created_at);
-    dateSpan.title = new Date(session.created_at).toLocaleString('tr-TR');
-    meta.append(tabChip, dateSpan);
-    if (session.name.startsWith(AUTO_PREFIX)) {
-      const autoChip = document.createElement('span');
-      autoChip.className = 'chip';
-      autoChip.textContent = 'otomatik';
-      meta.append(autoChip);
-    }
-
-    const actionsWrap = document.createElement('div');
-    actionsWrap.className = 'row-action-group';
-    const open = document.createElement('button');
-    open.type = 'button';
-    open.textContent = 'Aç';
-    open.addEventListener('click', () => {
-      void act(async () => {
-        await openSession(await repo.tabs(session.id));
-        say(`"${session.name}" oturumu açıldı.`);
-      });
-    });
-
-    const kebab = createKebabMenu(
-      [
-        {
-          label: 'Sil',
-          icon: 'trash-2',
-          danger: true,
-          confirm: true,
-          onSelect: () =>
-            act(async () => {
-              await repo.delete(session.id);
-              say('Oturum silindi.');
-            })
-        }
-      ],
-      'Oturum işlemleri'
-    );
-
-    actionsWrap.append(open, kebab);
-
-    return createListRow({
-      content: title,
-      meta,
-      actions: actionsWrap,
-      className: 'session-item'
-    });
-  }
-
   async function renderDuplicates(): Promise<void> {
     const sets = findDuplicates(await chrome.tabs.query({ currentWindow: true }));
     pendingClose = sets.flatMap(set => set.close);
@@ -144,21 +82,12 @@ export function initLifeBrowserPanel(db: Executor = popupDb): { render(): Promis
     try {
       const sessions = await repo.list();
       if (current !== seq) return;
-      list.replaceChildren(...sessions.map(sessionItem));
-      list.hidden = sessions.length === 0;
-      if (empty) {
-        empty.hidden = sessions.length > 0;
-        if (sessions.length === 0) {
-          empty.replaceChildren(
-            createEmptyState({
-              icon: 'layout-grid',
-              title: 'Kayıtlı oturum yok.',
-              hint: 'Bu penceredeki açık sekmeleri daha sonra tek tıkla geri açmak için yukarıdan kaydet.'
-            })
-          );
-        }
-      }
       count.textContent = String(sessions.length);
+      if (countHint) {
+        countHint.textContent = sessions.length
+          ? 'Kaydettiğin gruplar Sekme Yöneticisi\'nde listelenir; orada açabilir, düzenleyebilir ve silebilirsin.'
+          : 'Henüz kayıtlı grup yok. Bu penceredeki sekmeleri sonra tek tıkla geri açmak için yukarıdan kaydet.';
+      }
       await renderDuplicates();
     } catch (err) {
       if (current === seq) fail(err);
@@ -174,7 +103,7 @@ export function initLifeBrowserPanel(db: Executor = popupDb): { render(): Promis
       const tabs = await chrome.tabs.query({ windowId });
       await repo.save(name.value, await describeTabs(tabs));
       name.value = '';
-      say(`${tabs.length} sekme kaydedildi.`);
+      say(`${tabs.length} sekme kayıtlı gruba kaydedildi.`);
       if (shouldCloseWindow) {
         if (closeAfter) closeAfter.checked = false;
         await closeWindowSafely(windowId);
@@ -196,6 +125,10 @@ export function initLifeBrowserPanel(db: Executor = popupDb): { render(): Promis
 
   saveCloseBtn?.addEventListener('click', () => {
     void saveCurrentWindow(true);
+  });
+
+  openManager?.addEventListener('click', () => {
+    void openTabManager().catch(fail);
   });
 
   groupButton.addEventListener('click', () => {

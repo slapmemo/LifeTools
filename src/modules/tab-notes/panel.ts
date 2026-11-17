@@ -267,7 +267,7 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
       chrome.storage.local.get({ [TRANSFER_KEY]: true, [LABEL_TITLE_KEY]: true, [SHOW_NOTE_KEY]: true, [TITLE_RULES_KEY]: {} })
     ]);
 
-    get<HTMLElement>('tab-tools').hidden = !(le || ne || ce || se);
+    // Bölümün kendisini (#tab-tools) sekme seçici yönetir (subtabs.ts); burada açmak onu diğer sekmelerin altında da gösteriyordu.
     get<HTMLElement>('tab-labels-controls').hidden = !le;
     get<HTMLElement>('tab-notes-controls').hidden = !ne;
     if (currentCard) currentCard.hidden = !(le || ne);

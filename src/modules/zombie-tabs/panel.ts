@@ -65,7 +65,7 @@ export function initZombieTabsPanel(db: Executor = popupDb): { render(): Promise
     if (!tabs.length) return;
     const name = sessionName();
     await moveTabsToSession(repo, name, tabs);
-    say(`${tabs.length} sekme "${name}" oturumuna taşındı.`);
+    say(`${tabs.length} sekme "${name}" kayıtlı grubuna taşındı.`);
   }
 
   function buildFavicon(tab: chrome.tabs.Tab): HTMLElement {
@@ -121,7 +121,7 @@ export function initZombieTabsPanel(db: Executor = popupDb): { render(): Promise
     });
     const moveButton = document.createElement('button');
     moveButton.type = 'button';
-    moveButton.textContent = 'Oturuma taşı';
+    moveButton.textContent = 'Gruba taşı';
     moveButton.addEventListener('click', () => {
       void act(() => move([zombie.tab]));
     });

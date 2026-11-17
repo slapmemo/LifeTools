@@ -42,7 +42,7 @@ export async function groupWindowBySite(windowId: number): Promise<number> {
 
 /** Kayıtlı oturumu yeni pencerede açar; sabit sekmeleri ve sekme gruplarını geri kurar. */
 export async function openSession(tabs: readonly SessionTab[], targetWindowId?: number): Promise<void> {
-  if (!tabs.length) throw new Error('Bu oturumda sekme yok.');
+  if (!tabs.length) throw new Error('Bu grupta sekme yok.');
   const win = targetWindowId === undefined ? await chrome.windows.create({ url: tabs.map(tab => tab.url), focused: true }) : undefined;
   const windowId = targetWindowId ?? win?.id;
   const created = targetWindowId === undefined ? win?.tabs ?? [] : await Promise.all(tabs.map(tab => chrome.tabs.create({ windowId: targetWindowId, url: tab.url, active: false })));

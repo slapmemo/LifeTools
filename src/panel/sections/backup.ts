@@ -73,7 +73,7 @@ export function initBackup(): void {
       try {
         selectedBackup = validateBackup(JSON.parse(await backupFile.files[0].text()));
         const t = selectedBackup.tables;
-        backupPreview.textContent = `${t.notes.length} not, ${t.snippets.length} şablon, ${t.tasks.length} görev, ${t.site_time.length} site süresi kaydı, ${t.sessions.length} oturum (${t.session_tabs.length} sekme). Mevcut veriler ve ayarlar değiştirilecek.`;
+        backupPreview.textContent = `${t.notes.length} not, ${t.snippets.length} şablon, ${t.tasks.length} görev, ${t.site_time.length} site süresi kaydı, ${t.sessions.length} kayıtlı grup (${t.session_tabs.length} sekme). Mevcut veriler ve ayarlar değiştirilecek.`;
         backupRestore.hidden = false;
       } catch (err) {
         backupError(err);

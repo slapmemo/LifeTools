@@ -193,7 +193,7 @@
         <div class="page-header-left">
           <h2 id="sekmeler-heading">Sekmeler</h2>
           <div id="sekmeler-tabs" class="segmented" role="tablist" aria-label="Sekmeler bölümleri">
-            <button type="button" class="seg-btn active" data-sekmeler-tab="oturumlar" role="tab" aria-selected="true">Oturumlar</button>
+            <button type="button" class="seg-btn active" data-sekmeler-tab="oturumlar" role="tab" aria-selected="true">Kaydet</button>
             <button type="button" class="seg-btn" data-sekmeler-tab="temizlik" role="tab" aria-selected="false">Temizlik</button>
             <button type="button" class="seg-btn" data-sekmeler-tab="etiket-notlar" role="tab" aria-selected="false">Etiket ve notlar</button>
             <button type="button" class="seg-btn" data-sekmeler-tab="arac-cubugu" role="tab" aria-selected="false">Araç çubuğu</button>
@@ -205,11 +205,11 @@
         </div>
       </div>
 
-      <div id="life-browser-panel" aria-label="Oturumlar">
+      <div id="life-browser-panel" aria-label="Pencereyi kaydet">
         <div class="card stack-card">
           <label class="setting-row"><span>Pencere kapanınca sekmeleri otomatik kaydet</span><span class="switch"><input id="lb-auto-save" type="checkbox" /><span class="switch-track"></span></span></label>
           <form id="lb-save-form" class="inline-editor-row">
-            <input id="lb-name" placeholder="Oturum adı…" maxlength="100" aria-label="Oturum adı" required />
+            <input id="lb-name" placeholder="Grup adı…" maxlength="100" aria-label="Grup adı" required />
             <button type="submit" class="primary">Bu pencereyi kaydet</button>
             <button id="lb-save-close" type="button">Kaydet ve kapat</button>
             <input id="lb-close" type="checkbox" hidden />
@@ -222,12 +222,14 @@
           <p id="lb-feedback" class="feedback" aria-live="polite" hidden></p>
         </div>
 
-        <div class="section-subheader">
-          <h3>Kayıtlı oturumlar</h3>
-          <span id="lb-count" class="chip">0</span>
+        <!-- Kayıtlı grupların listesi yalnızca Sekme Yöneticisi'nde (tek yer); burada sayısı ve kısayol. -->
+        <div class="card saved-groups-link">
+          <div class="saved-groups-text">
+            <h3>Kayıtlı gruplar <span id="lb-count" class="chip">0</span></h3>
+            <p id="lb-count-hint" class="hint">Kaydettiğin gruplar Sekme Yöneticisi'nde listelenir; orada açabilir, düzenleyebilir ve silebilirsin.</p>
+          </div>
+          <button id="lb-open-manager" type="button" class="primary">Sekme Yöneticisi'nde aç</button>
         </div>
-        <div id="lb-empty" hidden></div>
-        <ul id="lb-sessions" class="card list-card" aria-label="Kayıtlı oturumlar"></ul>
       </div>
 
       <div id="sekmeler-temizlik" class="stack-group" hidden>
@@ -251,7 +253,7 @@
                 </select>
               </form>
               <button id="zombie-close-all" type="button" hidden>Tümünü kapat</button>
-              <button id="zombie-move-all" type="button" hidden>Tümünü oturuma taşı</button>
+              <button id="zombie-move-all" type="button" hidden>Tümünü kayıtlı gruba taşı</button>
             </div>
           </div>
           <label class="setting-row"><span>Zombi sekmeleri otomatik uyut</span><span class="switch"><input id="zombie-auto-sleep" type="checkbox" /><span class="switch-track"></span></span></label>

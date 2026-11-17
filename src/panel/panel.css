@@ -751,3 +751,7 @@ h2 svg { width: 26px; height: 26px; vertical-align: 0; }
 .app input[type=search] { padding-left: 36px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239993b1' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 12px center; }
 /* Sütun düzenli kartlarda tek başına duran düğmeler tüm genişliğe yayılmasın. */
 .app .stack-card > button { align-self: flex-start; }
+.saved-groups-link { display: flex; align-items: center; justify-content: space-between; gap: var(--space-16); flex-direction: row; }
+.saved-groups-link h3 { display: flex; align-items: center; gap: var(--space-8); margin: 0 0 var(--space-4); }
+.saved-groups-link .hint { margin: 0; }
+.saved-groups-link > button { flex-shrink: 0; }

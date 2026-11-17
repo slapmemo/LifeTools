@@ -28,7 +28,7 @@ export function parsePrefix(input: string): { id: string; arg: string } | null {
   const second = foldSearch(words[1] || '');
   const args: Record<string, string> = { not: 'note.add', izle: 'watch.add' };
   if (args[first]) return words.length > 1 ? { id: args[first], arg: trimmed.slice(words[0].length).trim() } : null;
-  if (first === 'oturum' && second === 'kaydet') return { id: 'session.save', arg: words.slice(2).join(' ') };
+  if ((first === 'oturum' || first === 'grup') && second === 'kaydet') return { id: 'session.save', arg: words.slice(2).join(' ') };
   if (first === 'temiz' && second === 'link' && words.length === 2) return { id: 'link.copyPage', arg: '' };
   const commands: Record<string, string> = { grupla: 'group.bySite', kopyalar: 'duplicates.show', zombiler: 'zombie.show', yuva: 'slots.show', sure: 'time.today' };
   return words.length === 1 && commands[first] ? { id: commands[first], arg: '' } : null;
