@@ -144,6 +144,45 @@ export function siteLabel(host: string): string {
   if (/^google\.[a-z.]+$/i.test(host)) return 'Google';
   return host || 'Diğer';
 }
+/** Siteye göre gruplamanın anahtarı: YouTube / X / Google tek site sayılır, diğerleri alan adı. */
+export function siteClusterKey(url: string | null | undefined): string {
+  const host = siteKey(url ?? null) || '';
+  const label = siteLabel(host);
+  return label === 'YouTube' ? 'youtube.com' : label === 'X' ? 'x.com' : label === 'Google' ? 'google.com' : host;
+}
+
+/** Sekme Yöneticisi'ndeki site filtresi hapları ("Tümü 14 · YouTube 7 · X 2 · Diğer 5"). */
+export const PILL_ALL = '';
+export const PILL_OTHER = '*diger';
+export interface SitePill { key: string; label: string; count: number }
+
+/** En az `min` sekmesi olan en kalabalık `max` site ayrı hap olur; kalanlar "Diğer". Tek site bile yoksa boş döner (haplar gizlenir). */
+export function sitePills(urls: readonly (string | null | undefined)[], max = 5, min = 2): SitePill[] {
+  const counts = new Map<string, { label: string; count: number }>();
+  for (const url of urls) {
+    const key = siteClusterKey(url);
+    if (!key) continue;
+    const entry = counts.get(key) ?? { label: siteLabel(key), count: 0 };
+    entry.count++; counts.set(key, entry);
+  }
+  const top = [...counts.entries()].filter(([, v]) => v.count >= min)
+    .sort((a, b) => b[1].count - a[1].count || a[1].label.localeCompare(b[1].label, 'tr')).slice(0, max)
+    .map(([key, v]) => ({ key, label: v.label, count: v.count }));
+  if (!top.length) return [];
+  const inTop = top.reduce((n, p) => n + p.count, 0);
+  const pills: SitePill[] = [{ key: PILL_ALL, label: 'Tümü', count: urls.length }, ...top];
+  if (urls.length > inTop) pills.push({ key: PILL_OTHER, label: 'Diğer', count: urls.length - inTop });
+  return pills;
+}
+
+/** Sekme seçili hapa uyuyor mu? `pills` aynı listeden üretilmiş olmalı ("Diğer" = üstteki sitelerin hiçbiri). */
+export function matchesSitePill(url: string | null | undefined, pill: string, pills: readonly SitePill[]): boolean {
+  if (pill === PILL_ALL) return true;
+  const key = siteClusterKey(url);
+  if (pill === PILL_OTHER) return !pills.some(p => p.key !== PILL_ALL && p.key !== PILL_OTHER && p.key === key);
+  return key === pill;
+}
+
 export function clusterBySite<T extends { id: number; url: string }>(tabs: readonly T[]): { key: string; host: string; label: string; tabs: T[] }[] {
   const clusters = new Map<string, { key: string; host: string; label: string; tabs: T[] }>();
   for (const tab of [...tabs].sort((a, b) => a.id - b.id)) {

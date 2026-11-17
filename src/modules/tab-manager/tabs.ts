@@ -1,12 +1,11 @@
 import { applyTheme } from '../../core/theme';
 import { popupDb } from '../../db/client';
 import { confirmSecondClick, createKebabMenu } from '../../panel/ui';
-import { closeWindowSafely, describeTabs, groupWindowBySite, moveTabsToSession, openSession } from '../life-browser/browser';
+import { describeTabs, groupWindowBySite, moveTabsToSession, openSession } from '../life-browser/browser';
 import { createSessionsRepo, type Session, type SessionTab } from '../life-browser/repo';
 import { AUTO_SAVE_KEY } from '../life-browser/settings';
 import { findDuplicates } from '../life-browser/tabs';
-import { suppressAutoSaveForWindow } from '../life-browser/closed-marker';
-import { exportPlain, exportMarkdown, resolveShortcutTarget, sortSavedGroups, sortSavedTabs, clusterBySite, orderClusters, type SavedSort, buildViewModel, dropAction, dragThresholdExceeded, insertionPosition, autoScrollSpeed, type DragSource, type DropTarget, COLORS, filterSavedGroup, groupTargetLabels, HIDDEN_PREFIX, hiddenGroupCollapsed, hiddenOpenTabs, hiddenTabModel, matchesQuery, newGroupTitle, partitionSaveable, savedCardModel, savedStoredName, selectRange, type SavedCardModel } from './logic';
+import { exportPlain, exportMarkdown, resolveShortcutTarget, sortSavedGroups, sortSavedTabs, clusterBySite, orderClusters, type SavedSort, buildViewModel, dropAction, dragThresholdExceeded, insertionPosition, autoScrollSpeed, type DragSource, type DropTarget, COLORS, filterSavedGroup, groupTargetLabels, HIDDEN_PREFIX, hiddenGroupCollapsed, hiddenOpenTabs, hiddenTabModel, matchesQuery, newGroupTitle, partitionSaveable, savedCardModel, savedStoredName, selectRange, type SavedCardModel, matchesSitePill, PILL_ALL, sitePills } from './logic';
 import { isInternalTabUrl, extensionBaseUrl } from '../../core/internal-tab';
 import { PIN_MANAGER_KEY } from './settings';
 
@@ -96,12 +95,28 @@ function renderGroupTargets(): void {
   }
   if (!groupList.childElementCount) { const empty = document.createElement('span'); empty.className = 'muted'; empty.textContent = 'Henüz grup yok.'; groupList.append(empty); }
 }
+/** Site filtresi: "Tümü 14 · YouTube 7 · X 2 · Diğer 5". Yalnızca açık sekmeleri süzer; aramayla birlikte çalışır. */
+let sitePill = PILL_ALL;
+function renderSitePills(pills: ReturnType<typeof sitePills>): void {
+  const box = el<HTMLElement>('#site-pills');
+  box.hidden = pills.length === 0;
+  box.replaceChildren(...pills.map(p => {
+    const b = button('', () => { sitePill = p.key; render(); });
+    b.className = 'site-pill' + (p.key === sitePill ? ' active' : '');
+    b.setAttribute('aria-pressed', String(p.key === sitePill));
+    b.append(p.label, Object.assign(document.createElement('span'), { className: 'pill-count', textContent: String(p.count) }));
+    return b;
+  }));
+}
 function render(): void {
   if (drag) { pendingRender = true; return; }
   const model = buildViewModel(tabs, groups, chrome.runtime.getURL('tabs.html'), currentWindowId);
   windowNumbers = new Map(model.map((win, index) => [win.id, index + 1]));
   const query = search.value.trim();
-  const matches = (t: chrome.tabs.Tab): boolean => matchesQuery(`${t.title || ''} ${t.url || t.pendingUrl || ''}`, query);
+  const pills = sitePills(model.flatMap(w => w.tabs.map(t => t.url || t.pendingUrl)));
+  if (!pills.some(p => p.key === sitePill)) sitePill = PILL_ALL;
+  renderSitePills(pills);
+  const matches = (t: chrome.tabs.Tab): boolean => matchesQuery(`${t.title || ''} ${t.url || t.pendingUrl || ''}`, query) && matchesSitePill(t.url || t.pendingUrl, sitePill, pills);
   el('#counts').textContent = `${model.reduce((n,w) => n + w.tabs.length, 0)} sekme · ${model.reduce((n,w) => n + w.groups.length, 0)} grup`;
   renderSelectionBar();
   renderGroupTargets();
@@ -109,7 +124,10 @@ function render(): void {
   model.forEach((win, index) => {
     const section = document.createElement('section'); section.className = 'window';
     const heading = document.createElement('div'); heading.className = 'window-title'; const h = document.createElement('h2'); h.textContent = `Pencere ${index + 1}`;
-    heading.append(h, button('Tümünü seç', () => { for (const t of win.tabs.filter(matches)) if (t.id !== undefined) selected.add(t.id); render(); }), button('Penceredekileri kaydet ve kapat', () => run(() => saveAndClose(win.tabs)))); section.append(heading);
+    heading.append(h, button('Tümünü seç', () => { for (const t of win.tabs.filter(matches)) if (t.id !== undefined) selected.add(t.id); render(); }));
+    // Bu pencere için üstteki "Kaydet ve sekmeleri kapat" var; düğme yalnızca diğer pencerelerde.
+    if (win.id !== currentWindowId) heading.append(button('Penceredekileri kaydet ve kapat', () => run(() => saveAndClose(win.tabs))));
+    section.append(heading);
     const row = (tab: chrome.tabs.Tab): HTMLElement => {
       const li = document.createElement('li'); li.className = 'row'; setupDrag(li, { kind: 'open', windowId: tab.windowId, groupId: tab.groupId }, tab); setupRowDrop(li, { kind: 'open', windowId: tab.windowId, groupId: tab.groupId, rowIndex: tab.index }); const check = document.createElement('input'); check.type = 'checkbox'; check.checked = selected.has(tab.id!); check.setAttribute('aria-label', `${tab.title || 'Sekme'} seç`);
       check.addEventListener('click', e => { const ids = win.tabs.filter(matches).map(t => t.id!).filter(id => id !== undefined); selected = selectRange(ids, (e as MouseEvent).shiftKey && anchorWindow === win.id ? anchor : undefined, tab.id!, selected, check.checked); anchor = tab.id; anchorWindow = win.id; render(); });
@@ -432,6 +450,13 @@ async function saveAndClose(candidates: chrome.tabs.Tab[], name?: string): Promi
 
 async function saveCurrentWindow(closeAfterSave: boolean): Promise<void> {
   if (currentWindowId === undefined) throw new Error('Pencere bulunamadı.');
+  // "Kaydet ve sekmeleri kapat": pencereyi değil sekmeleri kapatır; sabitlenmişler kalır, "Geri al" çıkar.
+  if (closeAfterSave) {
+    const name = windowSaveName.value.trim() || undefined;
+    await saveAndClose(tabs.filter(t => t.windowId === currentWindowId), name);
+    windowSaveName.value = '';
+    return;
+  }
   const own = await chrome.tabs.getCurrent();
   const managerUrl = chrome.runtime.getURL('tabs.html');
   // Yönetici sekmeleri (bu sayfa ve aynı penceredeki başka bir kopyası) kaydedilmez ve sayılmaz.
@@ -448,10 +473,6 @@ async function saveCurrentWindow(closeAfterSave: boolean): Promise<void> {
   windowSaveName.value = '';
   message.textContent = `${currentTabs.length} sekme “${name}” grubuna kaydedildi.`;
   await refreshSaved(true);
-  if (closeAfterSave) {
-    await suppressAutoSaveForWindow(currentWindowId);
-    await closeWindowSafely(currentWindowId);
-  }
 }
 
 async function groupCurrentWindowBySite(): Promise<void> {

@@ -130,3 +130,12 @@ button { min-height: 34px; border-radius: var(--radius-8); }
 .window-save-row, .window-tools-row { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
 .window-save-row input { flex: 1; min-width: 220px; }
 .window-tools-row .tm-option { margin-right: auto; }
+
+/* Site filtresi hapları (Tümü · YouTube · X · Diğer) */
+.site-pills { display: flex; flex-wrap: wrap; gap: var(--space-8); margin: calc(var(--space-8) * -1) 0 var(--space-16); }
+.site-pills[hidden] { display: none; }
+.site-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text-2); font-weight: 500; }
+.site-pill:hover { background: var(--sub); color: var(--text); }
+.site-pill.active { border-color: transparent; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.pill-count { padding: 0 6px; border-radius: var(--radius-pill); background: var(--sub); color: var(--text-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.site-pill.active .pill-count { background: var(--accent); color: var(--on-accent); }
