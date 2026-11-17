@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { clearActions, filterEnabled, getAction, listActions, registerAction, splitArg, toInfo, type LifeAction } from '../src/core/actions';
-import { parsePrefix, rankActions } from '../src/modules/command-center/search';
+import { parsePrefix, rankActions } from '../src/core/command-search';
 import { COMMAND_ACTIONS, describeCommands, duplicateBindings } from '../src/modules/shortcuts/duplicates';
 import { normalizeToolbarSettings } from '../src/modules/site-toolbar/settings';
 

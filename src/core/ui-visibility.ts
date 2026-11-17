@@ -9,7 +9,7 @@ export const groups = [
     label: 'Sekmeler',
     icon: 'layout-grid',
     star: false,
-    modules: ['life-browser', 'zombie-tabs', 'pinned-guard', 'tab-labels', 'tab-notes', 'title-cleaner', 'tab-switcher', 'site-toolbar']
+    modules: ['life-browser', 'zombie-tabs', 'tab-labels', 'tab-notes', 'title-cleaner', 'tab-switcher', 'site-toolbar']
   },
   { id: 'odak', label: 'Odak', icon: 'timer', star: false, modules: ['site-blocker', 'time-tracker'] },
   { id: 'medya', label: 'Medya', icon: 'clapperboard', star: false, modules: ['x-video', 'instagram', 'pip', 'video-downloader'] },
@@ -34,7 +34,7 @@ export function popupVisibility(flags: unknown) {
   return {
     notes: resolveEnabled(flags, 'slapmemo'),
     sites: resolveEnabled(flags, 'time-tracker'),
-    search: resolveEnabled(flags, 'command-center'),
+    search: true, // Komut Merkezi sayfası 0.7.0'da kaldırıldı; açılır penceredeki arama her zaman açık
     snippets: resolveEnabled(flags, 'smart-replies')
   };
 }
@@ -57,7 +57,7 @@ export function metinTabs(flags: unknown): MetinSubTab[] {
 export function sekmelerTabs(flags: unknown): SekmelerSubTab[] {
   const out: SekmelerSubTab[] = [];
   if (resolveEnabled(flags, 'life-browser')) out.push('oturumlar');
-  if (resolveEnabled(flags, 'zombie-tabs') || resolveEnabled(flags, 'pinned-guard')) out.push('temizlik');
+  if (resolveEnabled(flags, 'zombie-tabs')) out.push('temizlik');
   if (
     resolveEnabled(flags, 'tab-labels') ||
     resolveEnabled(flags, 'tab-notes') ||

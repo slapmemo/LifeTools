@@ -1,4 +1,4 @@
-/** Turkish-insensitive search normalization shared by command-center ranking. */
+/** Turkish-insensitive search normalization shared by popup search ranking. */
 export function foldSearch(value: string): string {
   return value.toLocaleLowerCase('tr-TR').normalize('NFD').replace(/\p{M}/gu, '').replace(/ı/g, 'i');
 }

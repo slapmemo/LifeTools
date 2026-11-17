@@ -6,7 +6,7 @@ import { type NoteCategory } from '../modules/slapmemo/categories';
 import { createTimeTrackerRepo, type SiteTotal } from '../modules/time-tracker/repo';
 import { localDay } from '../modules/time-tracker/tracker';
 import { createSnippetsRepo } from '../modules/smart-replies/repo';
-import { parsePrefix, rankActions } from '../modules/command-center/search';
+import { parsePrefix, rankActions } from '../core/command-search';
 import { requestActions, requestRunAction, splitArg } from '../core/actions';
 import { MODULE_FLAGS_KEY, resolveEnabled } from '../core/module-state';
 import { popupVisibility } from '../core/ui-visibility';

@@ -5,8 +5,6 @@ import { LIFE_BROWSER_ID } from '../modules/life-browser/background';
 import { initLifeBrowserPanel } from '../modules/life-browser/panel';
 import { LINK_CLEANER_ID } from '../modules/link-cleaner/background';
 import { initLinkCleanerPanel } from '../modules/link-cleaner/panel';
-import { PINNED_GUARD_ID } from '../modules/pinned-guard/background';
-import { initPinnedGuardPanel } from '../modules/pinned-guard/panel';
 import { SHORTCUTS_ID } from '../modules/shortcuts/background';
 import { initShortcutsPanel } from '../modules/shortcuts/panel';
 import { SITE_BLOCKER_ID } from '../modules/site-blocker/background';
@@ -52,7 +50,6 @@ const tabTools = initTabToolsPanel();
 document.querySelector('#open-tab-manager')?.addEventListener('click', () => { void chrome.tabs.create({ url: chrome.runtime.getURL('tabs.html') }); });
 const lifeBrowser = initLifeBrowserPanel();
 const zombies = initZombieTabsPanel();
-const pinned = initPinnedGuardPanel();
 
 const timeTracker = initTimeTrackerPanel();
 
@@ -85,7 +82,6 @@ async function refresh(): Promise<void> {
   if (resolveEnabled(flags, LINK_CLEANER_ID)) await cleaner.render();
   if (resolveEnabled(flags, LIFE_BROWSER_ID)) await lifeBrowser.render();
   if (resolveEnabled(flags, ZOMBIE_TABS_ID)) await zombies.render();
-  if (resolveEnabled(flags, PINNED_GUARD_ID)) await pinned.render();
   const shortcutsOn = resolveEnabled(flags, SHORTCUTS_ID);
   shortcutsSection.hidden = !shortcutsOn;
   const shortcutsAnchor = document.querySelector<HTMLElement>('[data-ayarlar-anchor="shortcuts-panel"]');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parsePrefix, parseTurkishDue, rankActions } from '../src/modules/command-center/search';
+import { parsePrefix, parseTurkishDue, rankActions } from '../src/core/command-search';
 import { duplicateBindings } from '../src/modules/shortcuts/duplicates';
 import { normalizeToolbarSettings } from '../src/modules/site-toolbar/settings';
 describe('command center', () => {

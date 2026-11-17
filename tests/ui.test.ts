@@ -171,8 +171,7 @@ describe('arayüz', () => {
     expect(
       sekmelerTabs({
         'life-browser': false,
-        'zombie-tabs': false,
-        'pinned-guard': false
+        'zombie-tabs': false
       })
     ).toEqual(['etiket-notlar', 'arac-cubugu']);
     expect(resolveActiveTab('oturumlar', ['etiket-notlar', 'arac-cubugu'] as const, 'oturumlar')).toBe(

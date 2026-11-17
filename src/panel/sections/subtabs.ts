@@ -10,7 +10,6 @@ import {
   type OdakSubTab,
   type SekmelerSubTab
 } from '../../core/ui-visibility';
-import { PINNED_GUARD_ID } from '../../modules/pinned-guard/background';
 import { ZOMBIE_TABS_ID } from '../../modules/zombie-tabs/background';
 
 export interface SubTabsHandle {
@@ -28,7 +27,6 @@ export function initSubTabs(): SubTabsHandle {
   const lifeBrowserSection = document.querySelector('#life-browser-panel') as HTMLElement;
   const temizlikSection = document.querySelector('#sekmeler-temizlik') as HTMLElement;
   const zombieSection = document.querySelector('#zombie-tabs-panel') as HTMLElement;
-  const pinnedSection = document.querySelector('#pinned-guard-panel') as HTMLElement;
   const timeSection = document.querySelector('#time-tracker-panel') as HTMLElement;
   const blockerSection = document.querySelector('#blocker-panel') as HTMLElement;
   const memoSection = document.querySelector('#slapmemo-panel') as HTMLElement;
@@ -128,7 +126,6 @@ export function initSubTabs(): SubTabsHandle {
     lifeBrowserSection.hidden = !(enabledSekmeler.includes('oturumlar') && sekmelerTab === 'oturumlar');
     temizlikSection.hidden = !(enabledSekmeler.includes('temizlik') && sekmelerTab === 'temizlik');
     zombieSection.hidden = !resolveEnabled(flags, ZOMBIE_TABS_ID);
-    pinnedSection.hidden = !resolveEnabled(flags, PINNED_GUARD_ID);
     tabToolsSection.hidden = !(enabledSekmeler.includes('etiket-notlar') && sekmelerTab === 'etiket-notlar');
     toolbarSection.hidden = !(enabledSekmeler.includes('arac-cubugu') && sekmelerTab === 'arac-cubugu');
 

@@ -28,7 +28,6 @@ await build({
     blocked: 'src/modules/site-blocker/blocked.ts',
     switcher: 'src/modules/tab-switcher/switcher.ts',
     tabs: 'src/modules/tab-manager/tabs.ts',
-    'command-center': 'src/modules/command-center/command-center.ts',
     offscreen: 'src/db/offscreen.ts',
     'db-worker': 'src/db/worker.ts'
   }
@@ -62,8 +61,6 @@ copyFileSync('src/modules/tab-switcher/switcher.html', join(dist, 'switcher.html
 copyFileSync('src/modules/tab-switcher/switcher.css', join(dist, 'switcher.css'));
 copyFileSync('src/modules/tab-manager/tabs.html', join(dist, 'tabs.html'));
 copyFileSync('src/modules/tab-manager/tabs.css', join(dist, 'tabs.css'));
-copyFileSync('src/modules/command-center/command-center.html', join(dist, 'command-center.html'));
-copyFileSync('src/modules/command-center/command-center.css', join(dist, 'command-center.css'));
 copyFileSync('design/tokens.css', join(dist, 'tokens.css'));
 copyFileSync('design/components.css', join(dist, 'components.css'));
 copyFileSync('src/panel/panel.html', join(dist, 'panel.html'));

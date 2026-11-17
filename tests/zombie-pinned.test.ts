@@ -1,6 +1,5 @@
 import { expect, test } from 'vitest';
 import { DEFAULT_HOURS, normalizeHours, selectZombies, pickTabsToDiscard, weeklyDue, type ZombieTabLike } from '../src/modules/zombie-tabs/zombie';
-import { pushClosed, readClosed, type ClosedPinned } from '../src/modules/pinned-guard/guard';
 
 const HOUR = 3600 * 1000;
 const now = 1_000 * HOUR;
@@ -44,14 +43,3 @@ test('zombi saat ayarı doğrulanır', () => {
   expect(normalizeHours(48)).toBe(48);
 });
 
-test('son kapanan sabit sekmeler listesi en fazla 10 öğe tutar', () => {
-  const entry = (n: number): ClosedPinned => ({ key: `k${n}`, url: `https://s${n}.com`, title: `S${n}`, windowId: 1, closedAt: n });
-  let list: ClosedPinned[] = [];
-  for (let n = 1; n <= 12; n++) list = pushClosed(list, entry(n));
-  expect(list).toHaveLength(10);
-  expect(list[0].key).toBe('k12');
-  expect(list[9].key).toBe('k3');
-  expect(pushClosed(list, entry(5)).filter(e => e.key === 'k5')).toHaveLength(1);
-  expect(readClosed([entry(1), { key: 1 }, null])).toEqual([entry(1)]);
-  expect(readClosed('x')).toEqual([]);
-});
