@@ -5,6 +5,7 @@ import { fmtTime, h } from '../dom';
 import { emptyState } from '../view-components';
 import { toggleFromTray } from './ortam';
 import type { RouteId } from '../app';
+import { isOn } from '../feature-state';
 
 export function greeting(hour: number): string {
   if (hour >= 5 && hour < 12) return 'Günaydın';
@@ -72,16 +73,16 @@ export function mount(container: HTMLElement, navigate: (route: RouteId) => void
     const stats = h('div', { class: 'stat-grid' },
       stat('clock-3', 'Bugün', s.sites_available ? fmtDuration(s.sites_total_seconds) : '—', s.sites_available ? 'Tarayıcıda geçen süre' : 'Eklenti bağlı değil'),
       stat(top?.icon ? siteIcon(top.icon) : 'monitor', 'En çok ziyaret edilen', top ? top.domain : '—', top ? fmtDuration(top.seconds) : 'Bugün site kaydı yok'),
-      stat('battery-medium', 'Pil', battery ? (battery.percent === null ? battery.level_text || 'Bilinmiyor' : `%${battery.percent}`) : '—', battery ? battery.name : 'Pil bilgisi bulunamadı', 'piller'),
-      ambientCard());
+      isOn('piller') && stat('battery-medium', 'Pil', battery ? (battery.percent === null ? battery.level_text || 'Bilinmiyor' : `%${battery.percent}`) : '—', battery ? battery.name : 'Pil bilgisi bulunamadı', 'piller'),
+      isOn('ortam') && ambientCard());
 
-    const notes = h('div', { class: 'card panel' }, linkHead('Son notlar', 'notebook-pen', 'notlar'),
+    const notes = isOn('notlar') && h('div', { class: 'card panel' }, linkHead('Son notlar', 'notebook-pen', 'notlar'),
       !s.notes_available ? emptyState('Chrome eklentisi bağlı değil', 'Notlar eklentiden masaüstüne taşınınca burada görünür.')
         : s.notes.length ? h('div', { class: 'panel-list' }, ...s.notes.slice(0, 3).map((note) => h('div', { class: 'panel-row' },
           h('div', { class: 'panel-row-main' }, h('span', { class: 'panel-row-title clamp-1' }, note.title || 'Adsız not'), h('span', { class: 'panel-row-meta' }, fmtTime(note.updated_at))))))
           : emptyState('Henüz not yok', 'İlk notunu Notlar sayfasından ekleyebilirsin.', 'notes'));
 
-    const clips = h('div', { class: 'card panel' }, linkHead('Son kopyalananlar', 'clipboard', 'pano'),
+    const clips = isOn('pano') && h('div', { class: 'card panel' }, linkHead('Son kopyalananlar', 'clipboard', 'pano'),
       s.clipboard.length ? h('div', { class: 'panel-list' }, ...s.clipboard.map((clip) => {
         const copy = h('button', { type: 'button', class: 'icon-button', title: 'Kopyala', 'aria-label': 'Kopyala' }, icon('copy', 16));
         copy.addEventListener('click', () => void api.clipCopy(clip.id).then(() => {
@@ -94,7 +95,7 @@ export function mount(container: HTMLElement, navigate: (route: RouteId) => void
           copy);
       })) : emptyState('Pano geçmişi boş', 'Kopyaladığın metinler burada görünür.', 'clipboard'));
 
-    body.replaceChildren(stats, h('div', { class: 'panel-grid' }, notes, clips));
+    body.replaceChildren(stats, (notes || clips) ? h('div', { class: 'panel-grid' }, notes, clips) : '');
   }
 
   void api.dashboardSummary().then((s) => { if (body.isConnected) render(s); })

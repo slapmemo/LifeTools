@@ -259,7 +259,7 @@ export function settingsView(): View {
 
   const themeBtns = new Map<ThemeMode, HTMLButtonElement>();
   const themeGroup = h('div', { class: 'chip-tabs', role: 'radiogroup', 'aria-label': 'Görünüm' });
-  const welcomeButton = h('button', { type: 'button', onClick: () => window.dispatchEvent(new Event('lifetools:show-welcome')) }, 'Karşılama ekranını göster');
+  const welcomeButton = h('button', { type: 'button', onClick: () => window.dispatchEvent(new Event('lifetools:show-welcome')) }, 'Özellik rehberini aç');
 
   function syncThemeUi(active: ThemeMode): void {
     for (const [mode, btn] of themeBtns) {

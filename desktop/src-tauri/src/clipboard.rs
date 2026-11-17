@@ -117,7 +117,8 @@ unsafe fn read_meta(hwnd: HWND) -> (bool, Option<u32>, Option<String>, bool) {
 
 fn handle_update(app: &AppHandle, state: &Arc<AppState>, hwnd: HWND) {
     let settings = db::load_settings(&state.db()).unwrap_or_default();
-    if settings.paused {
+    // Pano geçmişi rehberden kapatıldıysa kopyalananlar kaydedilmez.
+    if settings.paused || !crate::features::enabled(app, crate::features::CLIPBOARD) {
         return;
     }
     let (exclude, can, process, readable) = unsafe { read_meta(hwnd) };

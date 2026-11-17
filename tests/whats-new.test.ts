@@ -3,6 +3,7 @@ import { changesSince, featureBadges, whatsNewFrom, CHANGELOG, type ChangeEntry 
 import { FEATURE_GUIDE, GUIDE_CATEGORIES } from '../src/onboarding/catalog';
 import { modules } from '../src/modules';
 import manifest from '../src/manifest.json';
+import { DESKTOP_FEATURES, desktopFeatureEnabled, parseDesktopFlags } from '../src/core/desktop-features';
 
 const log: ChangeEntry[] = [
   { version: '0.7.0', items: [{ kind: 'new', features: ['a'], text: 'a geldi' }, { kind: 'improved', features: ['b'], text: 'b iyileşti' }] },
@@ -58,5 +59,21 @@ describe('gerçek veri', () => {
     expect(versions[0]).toBe((manifest as { version: string }).version);
     for (let i = 1; i < versions.length; i++) expect(changesSince(versions[i], versions[i - 1]).length).toBe(1);
     for (const e of CHANGELOG) for (const item of e.items) for (const id of item.features ?? []) expect(modules.map(m => m.id)).toContain(id);
+    for (const e of CHANGELOG) for (const item of e.items) for (const id of item.desktop ?? []) expect(DESKTOP_FEATURES.map(f => f.id)).toContain(id);
+  });
+  it('masaüstü rozetleri ayrı alandan okunur', () => {
+    const desk: ChangeEntry[] = [{ version: '0.8.0', items: [{ kind: 'new', desktop: ['piller'], features: ['a'], text: 'x' }, { kind: 'improved', desktop: ['pano'], text: 'y' }] }];
+    expect([...featureBadges('0.7.0', '0.8.0', desk, i => i.desktop)]).toEqual([['piller', 'Yeni'], ['pano', 'Güncellendi']]);
+    expect([...featureBadges('0.7.0', '0.8.0', desk)]).toEqual([['a', 'Yeni']]);
+  });
+});
+
+describe('masaüstü özellik ayarı', () => {
+  it('yalnızca açıkça false olan kapalı; bozuk kayıt hepsini açık sayar', () => {
+    expect(desktopFeatureEnabled(parseDesktopFlags(null), 'piller')).toBe(true);
+    expect(desktopFeatureEnabled(parseDesktopFlags('bozuk'), 'piller')).toBe(true);
+    expect(desktopFeatureEnabled(parseDesktopFlags('[false]'), 'piller')).toBe(true);
+    expect(desktopFeatureEnabled(parseDesktopFlags('{"piller":"x"}'), 'piller')).toBe(true);
+    expect(desktopFeatureEnabled(parseDesktopFlags('{"piller":false}'), 'piller')).toBe(false);
   });
 });

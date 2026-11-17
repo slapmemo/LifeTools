@@ -7,6 +7,7 @@ mod clipboard;
 mod commands;
 mod db;
 mod extension_dir;
+mod features;
 mod native_host;
 mod native_reg;
 mod paste;
@@ -122,7 +123,8 @@ mod shortcut_tests {
 
 /// Pilleri okur, tepsi ipucunu günceller ve (açıksa) eşik altı bildirimini verir.
 fn refresh_batteries(app: &AppHandle) -> Vec<battery::DeviceBattery> {
-    let readings = battery_win::read_all();
+    // Piller kapalıysa aygıtlar hiç taranmaz; tepside yalnızca sürüm görünür.
+    let readings = if features::enabled(app, features::BATTERIES) { battery_win::read_all() } else { Vec::new() };
     if let Some(t) = app.tray_by_id("main") {
         let _ = t.set_tooltip(Some(battery::tooltip_text(&readings)));
     }
@@ -206,6 +208,7 @@ fn place_near_cursor(w: &WebviewWindow) {
 }
 
 fn toggle_picker(app: &AppHandle) {
+    if !features::enabled(app, features::CLIPBOARD) { return; }
     let Some(w) = app.get_webview_window("picker") else { return };
     if w.is_visible().unwrap_or(false) {
         let _ = w.hide();
@@ -218,6 +221,7 @@ fn toggle_picker(app: &AppHandle) {
 }
 
 fn toggle_snippets(app: &AppHandle) {
+    if !features::enabled(app, features::SNIPPETS) { return; }
     let Some(w) = app.get_webview_window("snippets") else { return };
     if w.is_visible().unwrap_or(false) {
         let _ = w.hide();
@@ -234,6 +238,7 @@ fn toggle_snippets(app: &AppHandle) {
 }
 
 fn toggle_quicknote(app: &AppHandle) {
+    if !features::enabled(app, features::NOTES) { return; }
     let Some(w) = app.get_webview_window("quicknote") else { return };
     if w.is_visible().unwrap_or(false) {
         let _ = w.hide();

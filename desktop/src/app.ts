@@ -14,6 +14,8 @@ import * as pano from './views/pano';
 import * as piller from './views/piller';
 import * as sablonlar from './views/sablonlar';
 import * as hosgeldin from './views/hosgeldin';
+import { FEATURES_CHANGED, isOn, loadFeatureFlags } from './feature-state';
+import { DESKTOP_FEATURES } from '../../src/core/desktop-features';
 
 export type RouteId = 'hosgeldin' | 'anasayfa' | 'notlar' | 'izleme' | 'sablonlar' | 'pano' | 'ortam' | 'piller' | 'ayarlar';
 interface NavItem { id: RouteId; label: string; icon: IconName; }
@@ -46,13 +48,9 @@ const ROUTE_ALIASES: Record<string, RouteId> = {
 
 const OTHER_COLLAPSED_KEY = 'lifetools_other_collapsed';
 const TEXT_COLLAPSED_KEY = 'lifetools_text_collapsed';
-const WELCOME_DONE_KEY = 'lifetools_desktop_welcome_done';
-function isWelcomeDone(): boolean {
-  try { return localStorage.getItem(WELCOME_DONE_KEY) === '1'; } catch { return true; }
-}
-function markWelcomeDone(): void {
-  try { localStorage.setItem(WELCOME_DONE_KEY, '1'); } catch { /* yoksay */ }
-}
+/** Rehberden kapatılabilen bölümler (kimlikleri rota adlarıyla aynı). */
+const FEATURE_ROUTES = new Set<string>(DESKTOP_FEATURES.map((f) => f.id));
+const routeEnabled = (id: RouteId): boolean => !FEATURE_ROUTES.has(id) || isOn(id);
 function readOtherCollapsed(): boolean {
   try { return localStorage.getItem(OTHER_COLLAPSED_KEY) === '1'; } catch { return false; }
 }
@@ -123,10 +121,17 @@ export function mountMain(root: HTMLElement): void {
     otherToggleBtn.classList.toggle('collapsed', otherCollapsed);
     otherToggleBtn.setAttribute('aria-expanded', String(!otherCollapsed));
   }
+  /** Kapalı özellikler menüden kalkar; grubun hepsi kapalıysa grup başlığı da gizlenir. */
+  function syncFeatureNav(): void {
+    for (const [id, btn] of buttons) btn.hidden = !routeEnabled(id);
+    textGroup.hidden = TEXT_ITEMS.every((it) => !routeEnabled(it.id));
+    otherGroup.hidden = OTHER_ITEMS.every((it) => !routeEnabled(it.id));
+  }
   function show(id: RouteId): void {
+    if (!routeEnabled(id)) id = 'anasayfa';
+    if (current === 'hosgeldin' && id !== 'hosgeldin') hosgeldin.markGuideSeen();
     if (current !== id) views[current]?.unmount?.();
     current = id;
-    if (id !== 'hosgeldin') markWelcomeDone();
     if (OTHER_ITEMS.some((it) => it.id === id) && otherCollapsed) {
       otherCollapsed = false;
       writeOtherCollapsed(false);
@@ -156,11 +161,21 @@ export function mountMain(root: HTMLElement): void {
   syncTextGroup();
   syncOtherGroup();
   root.append(h('div', { class: 'shell' }, nav, content));
-  show(isWelcomeDone() ? 'anasayfa' : 'hosgeldin');
+  void (async () => {
+    await loadFeatureFlags().catch(() => undefined);
+    syncFeatureNav();
+    const guide = await hosgeldin.startupGuide().catch(() => null);
+    if (guide) hosgeldin.setGuideMode(guide);
+    show(guide ? 'hosgeldin' : 'anasayfa');
+  })();
 
   void listen<string>('navigate', (e) => { const t = ROUTE_ALIASES[e.payload]; if (t) show(t); });
-  void listen('ambient-toggle', () => void ortam.toggleFromTray());
+  void listen('ambient-toggle', () => { if (isOn('ortam')) void ortam.toggleFromTray(); });
   void listen('clipboard-changed', () => { if (current === 'pano') void pano.refresh(); });
   void listen('notes-changed', () => { if (current === 'notlar') void notlar.refresh(); });
-  window.addEventListener('lifetools:show-welcome', () => show('hosgeldin'));
+  window.addEventListener('lifetools:show-welcome', () => { hosgeldin.setGuideMode({ kind: 'guide' }); show('hosgeldin'); });
+  window.addEventListener(FEATURES_CHANGED, () => {
+    syncFeatureNav();
+    if (!routeEnabled(current)) show('anasayfa');
+  });
 }

@@ -1,7 +1,11 @@
 import { compareVersions, isNewerVersion } from './version';
 
 export type ChangeKind = 'new' | 'improved' | 'fixed' | 'removed';
-export interface ChangeItem { kind: ChangeKind; text: string; /** Rehberde rozet alacak modül kimlikleri. */ features?: readonly string[] }
+export interface ChangeItem {
+  kind: ChangeKind; text: string;
+  /** Eklenti rehberinde rozet alacak modül kimlikleri. */ features?: readonly string[];
+  /** Masaüstü rehberinde rozet alacak özellik kimlikleri (desktop-features.ts). */ desktop?: readonly string[];
+}
 export interface ChangeEntry { version: string; items: readonly ChangeItem[] }
 
 /**
@@ -12,10 +16,11 @@ export const CHANGELOG: readonly ChangeEntry[] = [
   {
     version: '0.8.0',
     items: [
-      { kind: 'new', text: 'Masaüstü uygulaması ilk açılışta karşılama ekranı gösteriyor; daha sonra Ayarlar’dan yeniden açabilirsin.' },
-      { kind: 'improved', features: ['tab-manager'], text: 'Pencere ve sekme grubu kaydetme Sekme Yöneticisi ile aynı ekranda birleşti.' },
-      { kind: 'new', text: 'Piller bölümü desteklenen Bluetooth ve USB alıcılı fare, kulaklık, klavye ve oyun kumandalarının pil bilgisini gösterebiliyor.' },
-      { kind: 'improved', text: 'Masaüstü menüsü Metin şablonları ile Pano geçmişini ayrı bir grupta topluyor.' }
+      { kind: 'new', text: 'Masaüstü uygulamasında da özellik rehberi: ilk kurulumda karşılar, güncellemeden sonra yenilikleri gösterir. İstemediğin özellikleri (ör. Piller, Pano geçmişi) buradan kapatabilirsin; kapalı özellik arka planda da çalışmaz.' },
+      { kind: 'improved', features: ['tab-manager'], text: 'Pencere ve sekme grubu kaydetme Sekme Yöneticisi ile aynı ekranda birleşti; arama kutusunun altındaki site haplarıyla (Tümü · YouTube · X · Diğer) açık sekmeleri süzebilirsin.' },
+      { kind: 'improved', features: ['instagram', 'x-video', 'video-downloader', 'slapmemo', 'currency'], text: 'Rehberde birçok özelliğin altında "Bilmen gerekenler" listesi var (ör. Instagram\'da ← → ile 5 saniye sarma, YouTube\'da listeden video seçip indirme).' },
+      { kind: 'new', desktop: ['piller'], text: 'Piller bölümü desteklenen Bluetooth ve USB alıcılı fare, kulaklık, klavye ve oyun kumandalarının pil bilgisini gösterebiliyor.' },
+      { kind: 'improved', desktop: ['sablonlar', 'pano'], text: 'Masaüstü menüsü Metin şablonları ile Pano geçmişini ayrı bir grupta topluyor.' }
     ]
   },
   {
@@ -46,12 +51,15 @@ export function changesSince(from: string, to: string, log: readonly ChangeEntry
   return log.filter(e => isNewerVersion(e.version, from) && (compareVersions(e.version, to) ?? 1) <= 0);
 }
 
-/** Rehberdeki rozetler: `from`dan sonra eklenen modüle "Yeni", değişene "Güncellendi". */
-export function featureBadges(from: string, to: string, log: readonly ChangeEntry[] = CHANGELOG): Map<string, 'Yeni' | 'Güncellendi'> {
+/**
+ * Rehberdeki rozetler: `from`dan sonra eklenen modüle "Yeni", değişene "Güncellendi".
+ * Varsayılan eklenti modülleridir; masaüstü rehberi `item => item.desktop` verir.
+ */
+export function featureBadges(from: string, to: string, log: readonly ChangeEntry[] = CHANGELOG, ids: (item: ChangeItem) => readonly string[] | undefined = item => item.features): Map<string, 'Yeni' | 'Güncellendi'> {
   const badges = new Map<string, 'Yeni' | 'Güncellendi'>();
   for (const entry of changesSince(from, to, log))
     for (const item of entry.items)
-      for (const id of item.features ?? []) {
+      for (const id of ids(item) ?? []) {
         if (item.kind === 'new') badges.set(id, 'Yeni');
         else if (item.kind === 'improved' && !badges.has(id)) badges.set(id, 'Güncellendi');
       }
