@@ -11,7 +11,7 @@ const toast = (title: string, detail = '', icon = '✓') =>
   `<div class="demo-toast"><span class="demo-check">${icon}</span><span><b>${title}</b>${detail ? `<small>${detail}</small>` : ''}</span></div>`;
 const caret = '<span class="demo-caret"></span>';
 
-const DEMOS: Readonly<Record<string, Demo>> = {
+export const DEMOS: Readonly<Record<string, Demo>> = {
   slapmemo: {
     label: 'Animasyon: bir sayfada cümle seçilir, altında LifeTools baloncuğu çıkar, "Not" düğmesine basılır, "Not kaydedildi" bildirimi çıkar.',
     html: `${bar('ornek-site.com/makale')}

@@ -20,6 +20,36 @@ Yerel çalışan Chrome eklentisi ve masaüstü verimlilik araçları.
 
 Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını açar. Yeni kurulumda modüller varsayılan olarak açıktır. Ek site izni isteyen özellikler izin verildiğinde çalışır; otomatik sekme uyutma ve otomatik oturum kaydı başlangıçta kapalıdır. Kısayolları `chrome://extensions/shortcuts` üzerinden değiştirebilirsin.
 
+### Kısaca nasıl kullanılır
+
+<!-- design/demos/*.svg: `node scripts/readme-demos.mjs` ile src/onboarding/demos.ts'den üretilir. -->
+<table>
+<tr>
+<td width="50%"><img src="design/demos/slapmemo.svg" width="100%" alt="SlapMemo animasyonu"><br><b>SlapMemo:</b> metni seç, baloncukta <b>📝 Not</b>'a bas.</td>
+<td width="50%"><img src="design/demos/link-cleaner.svg" width="100%" alt="Link Temizleyici animasyonu"><br><b>Link Temizleyici:</b> bağlantıyı seç, <b>🔗 Temiz link</b>; takip ekleri silinip kopyalanır.</td>
+</tr>
+<tr>
+<td><img src="design/demos/tab-manager.svg" width="100%" alt="Sekme Yöneticisi animasyonu"><br><b>Sekme Yöneticisi:</b> sekmeleri gruba al, <b>Kaydet ve kapat</b> ile kayıtlı gruplara taşı.</td>
+<td><img src="design/demos/life-browser.svg" width="100%" alt="Pencere Kaydetme animasyonu"><br><b>Pencere Kaydetme:</b> penceredeki tüm sekmeleri tek kayıtlı grup yap.</td>
+</tr>
+<tr>
+<td><img src="design/demos/time-tracker.svg" width="100%" alt="Süre takibi animasyonu"><br><b>Süre takibi:</b> sitelerde ne kadar kaldığını say; limitin %80'inde uyarır.</td>
+<td><img src="design/demos/volume-booster.svg" width="100%" alt="Ses yükseltici animasyonu"><br><b>Ses yükseltici:</b> sekmenin sesini %600'e kadar aç.</td>
+</tr>
+<tr>
+<td><img src="design/demos/pip.svg" width="100%" alt="Resim içinde resim animasyonu"><br><b>Resim içinde resim:</b> videonun köşesindeki ⧉ ile küçük pencerede izle.</td>
+<td><img src="design/demos/video-downloader.svg" width="100%" alt="YouTube indirme animasyonu"><br><b>YouTube indirici:</b> videonun altındaki <b>↓ İndir</b>'den kalite seç <i>(masaüstü uygulaması gerekir)</i>.</td>
+</tr>
+<tr>
+<td><img src="design/demos/x-video.svg" width="100%" alt="X video indirme animasyonu"><br><b>X video indirici:</b> gönderinin altındaki simgeyle tek tıkla indir.</td>
+<td><img src="design/demos/instagram.svg" width="100%" alt="Instagram animasyonu"><br><b>Instagram:</b> videoyu hızlandır, ↓ ile indir.</td>
+</tr>
+<tr>
+<td><img src="design/demos/currency.svg" width="100%" alt="Döviz animasyonu"><br><b>Döviz:</b> Steam fiyatları TL olarak görünür.</td>
+<td></td>
+</tr>
+</table>
+
 ### Chrome eklentisi
 
 - **SlapMemo:** Seçimi, bağlantıyı veya sayfayı not olarak kaydet; sağ tık menüsünü, seçim baloncuğunu veya `Alt+S` kullan. Notları Panel'de ara ve düzenle.
