@@ -1,7 +1,32 @@
 # LifeTools — Kaldığımız Yer
 
-> Son güncelleme: 16 Kasım 2026 · sürüm 0.5.9 · dal master (push edildi; `v0.5.9` Releases'te)
-> Yeni bir sohbete/oturuma başlarken önce bu dosyayı oku. Eski planlar: `../LifeTools_Plan_v3_2026-11-06.md`, `../LifeTools_Arayuz_Plani_2026-11-06.md`, `../LifeTools_Ozellik_Rehberi_2026-11-08.md`.
+> Son güncelleme: 17 Kasım 2026 · sürüm **0.7.0 hazır ama YAYINLANMADI** · dal master, origin'den **6 commit önde** (push edilmedi)
+> Yeni bir sohbete/oturuma başlarken önce bu dosyayı oku. Tasarım ilerlemesi: `design/YENIDEN-TASARIM.md`. Sürüm notları: `release-notes/`. Eski planlar: `../LifeTools_Plan_v3_2026-11-06.md`, `../LifeTools_Arayuz_Plani_2026-11-06.md`, `../LifeTools_Ozellik_Rehberi_2026-11-08.md`.
+
+## 0. Şu an neredeyiz (17 Kasım akşamı)
+
+**Bekleyen karar — özellik rehberine görsel anlatım:** Yeni özellik rehberinde (`welcome.html`) her özellik yazıyla anlatılıyor. Kullanıcı "GIF ile gösterebilir miyiz" diye sordu. İki seçenek sunuldu, **kullanıcı henüz seçmedi**:
+1. **Gerçek ekran kaydı (GIF/WebM):** En gerçekçisi ama kayıtları kullanıcının çekmesi gerekir (önizleme tarayıcısında eklenti yok; kullanıcının Chrome'unda kayıt gerçek verisini değiştirir). 20 özellik GIF ≈ 10–30 MB, WebM ≈ 2–5 MB; arayüz değişince eskir.
+2. **Canlandırılmış mini çizimler (önerilen):** Sayfanın içinde CSS/SVG ile küçük döngülü animasyonlar (ör. SlapMemo: metin seçilir → **Alt+S** belirir → "Not kaydedildi ✓"). Birkaç KB, temaya uyar, arayüz değişince eskimez. Öneri: önce SlapMemo için tek örnek, beğenilirse 6–8 önemli özellik (SlapMemo, Sekme Yöneticisi, Pencere Kaydetme, Süre takibi, Ses yükseltici, Resim içinde resim, video indirme, link temizleme). İkisi karışık da olabilir.
+
+**Yayınlanmayı bekleyen 0.7.0** (6 commit, sürüm dosyaları 0.7.0'a yükseltildi, `release-notes/v0.7.0.md` ve `src/core/whats-new.ts` `CHANGELOG` girişi yazıldı). İçerik:
+- Kayıtlı gruplar tek yerde (Sekme Yöneticisi); paneldeki liste yerine sayı + kısayol; her yerde "oturum" → "kayıtlı grup". Düzeltme: "Etiket ve notlar" bölümü Sekmeler'in diğer sekmelerinde de görünüyordu.
+- Kaldırıldı: Komut Merkezi sayfası (açılır penceredeki arama artık hep açık; arama kodu `src/core/command-search.ts`), Sabit Sekme Koruyucu, Sekme Değiştirici (Alt+Q). "zombiler" komutu ve zombi bildirimi → `panel.html#zombiler` (Sekmeler › Temizlik); "kopyalar" → `panel.html#sekmeler`.
+- Resim içinde resim düğmesi: imleç konumuyla bulunuyor (üstte saydam katman olan sitelerde de çıkıyor), en küçük video 96×54, düğme görünen alanda kalıyor, tıklama oynatıcıyı durdurmuyor, rAF yerine 50 ms zamanlayıcı. YouTube ve küçük videoda gerçek tarayıcıda denendi.
+- Temizlik: masaüstü ana sayfa özetinden Görevler ve ortam sesi kalıntıları; LifeBrowser'ın görünen adı "Pencere Kaydetme".
+- **Özellik rehberi** (`src/onboarding/welcome.*`, `catalog.ts`, `src/core/whats-new.ts`): 3 kip — ilk kurulum (`?setup=1`: sabitle, masaüstünü bağla, özellikleri seç, ilk denemeler), güncelleme sonrası (`?from=0.6.0`: Yenilikler kartı + Yeni/Güncellendi rozetleri; arada `CHANGELOG` girişi varsa güncellemede kendiliğinden açılır, `whatsNewSeenVersion` anahtarı), rehber (`?guide=1`: Panel › Ayarlar › Araçlar'daki düğme ve açılır penceredeki "Özellikler ve yenilikler"). Kısayollar `chrome.commands.getAll()` ile canlı okunur.
+- Yayın: kullanıcı onay verince `git push origin master` + `git tag v0.7.0 && git push origin v0.7.0`, sonra akışı izle, dosyaları ve sürüm notunu doğrula.
+
+**Kurallar (bu oturumda konuşuldu):** sürümler semver (düzeltme = yama, görünür özellik/kaldırma = küçük sürüm; 1.0 kullanıcı "kararlı" deyince). Her yayında `release-notes/vX.Y.Z.md` **ve** `whats-new.ts` `CHANGELOG` girişi (test, üstteki giriş manifest sürümüne eşit değilse kırılır). Commit öncesi Türkçe karakter taraması.
+
+**Önizleme yöntemi (eklenti sayfaları, Chrome olmadan):** masaüstü Vite sunucusu açıkken (`desktop/.claude/launch.json` → `desktop-ui`, port 1420) `http://localhost:1420/@fs/<proje yolu>/dist/<sayfa>.html` açılır, sahte `window.chrome` (Proxy ile eksik API'ler boş döner) konup `await import('./<sayfa>.js?mock=' + Date.now())` çalıştırılır. Proje OneDrive'da olduğu için Vite bazen dosya değişikliğini kaçırır: sunucuyu yeniden başlat.
+
+**Açık işler (öncelik sırası):**
+1. 0.7.0'ı yayınla ve **otomatik güncellemenin bu PC'de gerçekten çalıştığını doğrula** (hiç doğrulanmadı; rehberin güncellemede açılması da ancak böyle görülür).
+2. Rehbere görsel anlatım (yukarıdaki karar).
+3. Sekme Yöneticisi'ne mockup'taki site filtre hapları ("Tümü 14 · YouTube 7 · X 2 · Diğer 5") — kullanıcı en çok bu sayfayı kullanıyor.
+4. Engel sayfası (`blocked.html`) yalnızca renkleri aldı; eklentinin açık teması hiç kontrol edilmedi; masaüstü gerçek pencerede sayfa sayfa gezilmedi.
+5. Kullanımı sorulmamış modüller: Link Temizleyici, Başlık Temizleyici, Site Engelleyici, video indiricilerin üçü, Ses Yükseltici; masaüstünde Ortam sesi, Piller, seçiciler. Akıllı Yanıtlar yeni kurulumlarda zaten kapalı (önerilenlerde değil). Kullanıcının kalsın dedikleri: Pano Yuvaları, Döviz, Site Araç Çubuğu, Etiket/Not, Zombi, Notlar'ın iki ekranı (masaüstü + panel).
 
 ## 1. Durum özeti
 
@@ -9,11 +34,11 @@ LifeTools GitHub'da herkese açık (`slapmemo/LifeTools`); projeye bilerek lisan
 
 | Alan | Durum |
 |---|---|
-| Sürüm | 0.5.9. `v0.5.5`–`v0.5.9` GitHub Actions ile yayımlandı (yükleyici, `.sig`, `latest.json`, eklenti ZIP'i). |
-| Otomatik güncelleme | Yeni. Masaüstü imzalı güncellemeyi kendisi kurar; eklentiyi `%LOCALAPPDATA%\LifeTools\extension` klasöründe güncel tutar; eklenti oradan yüklendiyse kendini yeniden yükler. 0.5.5 → 0.5.6 otomatik güncellemesi henüz bir bilgisayarda doğrulanmadı (0.5.4 ve öncesinde güncelleyici yok, onlar elle kurmalı). |
-| Testler | Eklenti 294 test (`npx vitest run`), masaüstü 87 test + 1 elle donanım testi (`cargo test`; `cargo test live_wireless -- --ignored --nocapture`). |
-| İlk kurulum | Yeni kurulumda karşılama sayfası (`welcome.html`) açılır; önerilen modüller açık gelir (`src/core/onboarding.ts` `RECOMMENDED_MODULES`). Panel › Ayarlar'dan yeniden açılır. Güncellemede açılmaz. |
-| Arayüz | Panel, sekme değiştirici ve popup «yeni» tasarımda (yazılı kenar menüsü, mor vurgu #A69CFF, gerçek LT logosu satır içi SVG). Tasarım tuvali: claude.ai artifact «LifeTools Yeni Arayüz». |
+| Sürüm | Yayında son: **0.6.0** (`v0.5.5`–`v0.6.0` GitHub Actions ile; yükleyici, `.sig`, `latest.json`, eklenti ZIP'i; sayfa metni `release-notes/<etiket>.md`'den). 0.7.0 yerelde hazır. |
+| Otomatik güncelleme | Masaüstü imzalı güncellemeyi kendisi kurar; eklentiyi `%LOCALAPPDATA%\LifeTools\extension` klasöründe güncel tutar; eklenti oradan yüklendiyse kendini yeniden yükler. **Hâlâ hiçbir bilgisayarda doğrulanmadı.** |
+| Testler | Eklenti 306 test (`npx vitest run`), masaüstü 88 test + 1 elle donanım testi (`cargo test`; `cargo test live_wireless -- --ignored --nocapture`). |
+| İlk kurulum / rehber | Yeni kurulumda `welcome.html?setup=1` açılır; önerilen modüller açık gelir (`src/core/onboarding.ts` `RECOMMENDED_MODULES`). 0.7.0'dan itibaren güncellemede de (yenilik varsa) açılır; her zaman Panel › Ayarlar ve açılır pencereden açılır. |
+| Arayüz | 0.5.10'da tasarımcı teslimine göre masaüstü + eklenti yeni tasarımda (ayrıntı `design/YENIDEN-TASARIM.md`). Tepsi ikonu yapraklı logo (0.6.0). |
 
 ### 0.5.9 (16 Kasım) — otomatik güncelleme döngüsü düzeltmesi
 - **Sorun:** 0.5.7 → 0.5.8 otomatik güncellemesi «Error opening file for writing: lifetools-desktop.exe» verip döngüye girdi. Chrome'un native host işlemi (aynı exe) dosyayı kilitli tutuyor; yükleyici yazamıyor, uygulama eski sürümle açılıp aynı sürümü yeniden indiriyordu.
