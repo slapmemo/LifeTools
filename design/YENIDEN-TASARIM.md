@@ -58,7 +58,7 @@ Kaldığımız yerden devam etmek için. Son güncelleme: 2026-11-17.
    - [x] Panel kabuğu (`src/panel/panel.css` sonundaki "Yeni tasarım" bölümü): 216px menü + dalgalar (`build.mjs` artık `design/assets/backgrounds`'u `dist/assets/` içine kopyalıyor), seçili menü çerçevesi, üst çubuk kaldırıldı, sürüm etiketi gerçek sürümü gösteriyor (eskiden sabit "v0.1").
    - [x] Panel bölümleri gözden geçirildi (Metin, Sekmeler, Odak, Medya, Ayarlar zaten yeni stile uyuyordu). Eklenenler: arama kutularına ikon, Süreler listesinde site ikonları + vurgu renginde çubuklar, Medya'da tüm genişliğe yayılan tek düğmeler düzeltildi.
    - [x] Sekme Yöneticisi sayfası (`src/modules/tab-manager/tabs.html` + `tabs.css` sonundaki "Yeni tasarım"): ikonlu başlık + alt yazı, sayaç hapı, tam genişlik arama, seçim çubuğunda kırmızı "Kapat", yuvarlak grup kartları, dalga. Davranış değişmedi (yalnızca id'ler kullanılıyor).
-   - [ ] Mockup'taki site filtresi hapları (Tümü 14 · YouTube 7 · X 2 · Diğer 5) yeni özellik; yapılmadı.
+   - [x] Mockup'taki site filtresi hapları (Tümü 14 · YouTube 7 · X 2 · Diğer 5): arama kutusunun altında, açık sekmeleri süzer (`logic.ts` › `sitePills`, `matchesSitePill`; testler `tests/site-pills.test.ts`).
    - [ ] Diğer eklenti sayfaları (sekme değiştirici, komut merkezi, hoş geldin, engel sayfası) yalnızca renkleri aldı.
    - Önizleme: masaüstü Vite sunucusu açıkken `http://localhost:1420/@fs/<proje>/dist/popup.html` (veya `panel.html`) açılıp sahte `window.chrome` konuyor, sonra `import('./popup.js?mock=…')`.
 5. Gerçek uygulamada (Tauri build) deneme. Şimdiye kadar yalnızca tarayıcıda sahte veriyle bakıldı.
