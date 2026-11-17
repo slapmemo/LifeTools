@@ -26,7 +26,6 @@ await build({
     panel: 'src/panel/panel.ts',
     welcome: 'src/onboarding/welcome.ts',
     blocked: 'src/modules/site-blocker/blocked.ts',
-    switcher: 'src/modules/tab-switcher/switcher.ts',
     tabs: 'src/modules/tab-manager/tabs.ts',
     offscreen: 'src/db/offscreen.ts',
     'db-worker': 'src/db/worker.ts'
@@ -57,8 +56,6 @@ const manifest = JSON.parse(readFileSync('src/manifest.json', 'utf8'));
 if (existsSync('src/manifest.key.txt')) manifest.key = readFileSync('src/manifest.key.txt', 'utf8').trim();
 else console.warn('src/manifest.key.txt bulunamadı; eklenti sabit kimlik olmadan derleniyor.');
 writeFileSync(join(dist, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-copyFileSync('src/modules/tab-switcher/switcher.html', join(dist, 'switcher.html'));
-copyFileSync('src/modules/tab-switcher/switcher.css', join(dist, 'switcher.css'));
 copyFileSync('src/modules/tab-manager/tabs.html', join(dist, 'tabs.html'));
 copyFileSync('src/modules/tab-manager/tabs.css', join(dist, 'tabs.css'));
 copyFileSync('design/tokens.css', join(dist, 'tokens.css'));

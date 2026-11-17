@@ -6,7 +6,6 @@ import { createTabNotesRepo } from '../src/modules/tab-notes/repo';
 import { createNotesRepo } from '../src/modules/slapmemo/repo';
 import { transferTabNote } from '../src/modules/tab-notes/transfer';
 import { cleanTitle } from '../src/modules/title-cleaner/cleaner';
-import { filterTabs } from '../src/modules/tab-switcher/filter';
 import { exportData, restoreData, validateBackup } from '../src/core/backup';
 import { backupSettingKeys } from '../src/core/backup-settings';
 
@@ -28,10 +27,6 @@ test('etiket ve notlar hash yok sayılarak güncellenir ve aktarılır', async (
  expect(await notes.get('https://example.com/a')).not.toBeNull();
  expect(await transferTabNote('https://example.com/a#üç','Başlık',notes,memo)).toBe(true);
  expect(await notes.get('https://example.com/a')).toBeNull(); expect((await memo.listNotes())[0]).toMatchObject({category:'note', text:'son',url:'https://example.com/a',page_title:'Başlık'});
-});
-test('arama Türkçe, etiket ve not eşleşmelerini bulur', () => {
- const tabs = [{ title:'Çalışma',url:'https://a',label:'Önemli',note:'İş planı' }, {title:'Diğer',url:'https://b',label:'',note:''}];
- for (const q of ['calisma','onemli','is plani']) expect(filterTabs(tabs,q)).toEqual([tabs[0]]);
 });
 test('yedeğe sekme tabloları ve ayarlar eklenir', async () => {
  const ex = await createMemoryExecutor(); await runMigrations(ex);

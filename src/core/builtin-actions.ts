@@ -14,7 +14,6 @@ import { LIFE_BROWSER_ID } from '../modules/life-browser/background';
 import { createSessionsRepo } from '../modules/life-browser/repo';
 import { describeTabs, groupWindowBySite } from '../modules/life-browser/browser';
 import { ZOMBIE_TABS_ID } from '../modules/zombie-tabs/background';
-import { TAB_SWITCHER_ID } from '../modules/tab-switcher/background';
 import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
 import { openTabManager } from '../modules/tab-manager/open';
 import { downloadBackup } from './auto-backup-background';
@@ -101,12 +100,7 @@ registerAction({
 
 registerAction({
   id: 'zombie.show', title: 'Zombi sekmeleri göster', keywords: ['zombi', 'eski sekmeler', 'temizle'], moduleId: ZOMBIE_TABS_ID,
-  async run() { await chrome.tabs.create({ url: chrome.runtime.getURL('switcher.html?zombies=1') }); }
-});
-
-registerAction({
-  id: 'switcher.open', title: 'Sekme değiştiriciyi aç', keywords: ['sekme', 'değiştirici', 'geçiş'], moduleId: TAB_SWITCHER_ID,
-  async run() { await chrome.tabs.create({ url: chrome.runtime.getURL('switcher.html') }); }
+  async run() { await chrome.tabs.create({ url: chrome.runtime.getURL('panel.html#zombiler') }); }
 });
 
 registerAction({
@@ -121,7 +115,7 @@ registerAction({
 
 registerAction({ id:'watch.addPage', title:'İzleme listesine ekle (sayfa)', keywords:['izleme','video','sayfa'], moduleId:WATCHLIST_ID, toolbar:true, async run({tab}) { const t=needTab(tab); const url=t.url ?? ''; await createWatchRepo(backgroundDb).add({title:(t.title || url || 'Sayfa').slice(0,300),kind:guessKind(url),url}); return 'İzleme listesine eklendi.'; } });
 registerAction({ id:'watch.add', title:'İzleme listesine ekle: <başlık>', keywords:['izle','izleme'], moduleId:WATCHLIST_ID, takesArg:true, argPrefix:'izle ', async run({arg}) { const title=(arg ?? '').slice(0,300); await createWatchRepo(backgroundDb).add({title,kind:'diger'}); return `İzleme listesine eklendi: ${title}`; } });
-registerAction({ id:'duplicates.show', title:'Kopya sekmeleri göster', keywords:['kopyalar','sekme'], moduleId:LIFE_BROWSER_ID, toolbar:true, async run() { await chrome.tabs.create({url:chrome.runtime.getURL('switcher.html?duplicates=1')}); } });
+registerAction({ id:'duplicates.show', title:'Kopya sekmeleri göster', keywords:['kopyalar','sekme'], moduleId:LIFE_BROWSER_ID, toolbar:true, async run() { await chrome.tabs.create({url:chrome.runtime.getURL('panel.html#sekmeler')}); } });
 registerAction({ id:'tabmanager.open', title:'Sekme yöneticisi', keywords:['sekmeler','onetab','yönetici'], moduleId:'tab-manager', toolbar:true, async run({tab}) { await openTabManager(tab?.windowId); } });
 registerAction({ id:'pip.toggle', title:'Resim içinde resim', keywords:['video','pip'], moduleId:PIP_ID, toolbar:true, async run({tab}) { return togglePip(needTab(tab).id); } });
 SLOT_IDS.forEach((slot,i)=>registerAction({id:'clip.copy'+slot,title:`Yuva ${slot}'yı kopyala`,keywords:['pano','yuva','kopyala',slot],moduleId:CLIP_SLOTS_ID,toolbar:true,async run(){const text=(await getSlots())[i].text; if(!text) throw new Error('Yuva boş.'); if(!await copyOffscreen(text)) throw new Error('Panoya kopyalanamadı.'); return `Yuva ${slot} kopyalandı.`;}}));

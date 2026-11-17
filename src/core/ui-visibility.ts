@@ -9,7 +9,7 @@ export const groups = [
     label: 'Sekmeler',
     icon: 'layout-grid',
     star: false,
-    modules: ['life-browser', 'zombie-tabs', 'tab-labels', 'tab-notes', 'title-cleaner', 'tab-switcher', 'site-toolbar']
+    modules: ['life-browser', 'zombie-tabs', 'tab-labels', 'tab-notes', 'title-cleaner', 'site-toolbar']
   },
   { id: 'odak', label: 'Odak', icon: 'timer', star: false, modules: ['site-blocker', 'time-tracker'] },
   { id: 'medya', label: 'Medya', icon: 'clapperboard', star: false, modules: ['x-video', 'instagram', 'pip', 'video-downloader'] },
@@ -61,8 +61,7 @@ export function sekmelerTabs(flags: unknown): SekmelerSubTab[] {
   if (
     resolveEnabled(flags, 'tab-labels') ||
     resolveEnabled(flags, 'tab-notes') ||
-    resolveEnabled(flags, 'title-cleaner') ||
-    resolveEnabled(flags, 'tab-switcher')
+    resolveEnabled(flags, 'title-cleaner')
   ) {
     out.push('etiket-notlar');
   }

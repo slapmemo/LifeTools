@@ -37,12 +37,6 @@
       },
       "description": "Seçimi veya sayfayı SlapMemo'ya kaydet"
     },
-    "open-switcher": {
-      "suggested_key": {
-        "default": "Alt+Q"
-      },
-      "description": "Görsel sekme değiştiriciyi aç"
-    },
     "save-tab-to-group": {
       "description": "Sekmeyi kayıtlı gruba kaydet ve kapat"
     },

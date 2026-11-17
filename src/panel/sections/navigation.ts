@@ -61,7 +61,7 @@ export function initNavigation(memoSection: HTMLElement, smartSection: HTMLEleme
     const flags = (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
     const visible = categories(flags);
     const rawHash = location.hash.replace(/^#/, '');
-    const normalizedHash = AYARLAR_ANCHORS.has(rawHash) ? '#ayarlar' : location.hash;
+    const normalizedHash = AYARLAR_ANCHORS.has(rawHash) ? '#ayarlar' : rawHash === 'zombiler' ? '#sekmeler' : location.hash;
     const active = routeCategory(normalizedHash, visible);
     activeCategory = active;
     nav.replaceChildren();

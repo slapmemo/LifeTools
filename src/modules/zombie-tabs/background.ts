@@ -88,7 +88,7 @@ async function noticeClick(index: number): Promise<void> {
       await moveTabsToSession(createSessionsRepo(backgroundDb), name, tabs);
     }
   } else if ((notice.move && index === 1) || (!notice.move && index === 0)) {
-    if (await isModuleEnabled('tab-switcher')) await chrome.tabs.create({ url: chrome.runtime.getURL('switcher.html?zombies=1') });
+    await chrome.tabs.create({ url: chrome.runtime.getURL('panel.html#zombiler') });
   } else return;
   await chrome.notifications.clear(NOTICE);
   await chrome.storage.local.remove(NOTICE_KEY);

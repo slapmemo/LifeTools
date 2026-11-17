@@ -35,7 +35,9 @@ export function initSubTabs(): SubTabsHandle {
 
   let notlarTab: NotlarSubTab = 'slapmemo';
   let metinTab: MetinSubTab = 'smart-replies';
-  let sekmelerTab: SekmelerSubTab = 'oturumlar';
+  // panel.html#zombiler (zombi bildirimi / "zombiler" komutu) doğrudan Temizlik sekmesini açar.
+  let sekmelerTab: SekmelerSubTab = location.hash === '#zombiler' ? 'temizlik' : 'oturumlar';
+  window.addEventListener('hashchange', () => { if (location.hash === '#zombiler') { sekmelerTab = 'temizlik'; void updateSubTabs(); } });
   let odakTab: OdakSubTab = 'engelleyici';
 
   const notlarTabsWrap = document.getElementById('notlar-tabs')!;

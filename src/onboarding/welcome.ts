@@ -6,7 +6,7 @@ import { applyTheme } from '../core/theme';
 const groups: readonly [string, readonly string[]][] = [
   ['Alışveriş', ['currency']],
   ['Video ve medya', ['video-downloader', 'instagram', 'x-video', 'pip', 'volume-booster', 'watchlist']],
-  ['Sekmeler', ['tab-switcher', 'tab-manager', 'life-browser', 'tab-notes', 'tab-labels', 'zombie-tabs', 'title-cleaner']],
+  ['Sekmeler', ['tab-manager', 'life-browser', 'tab-notes', 'tab-labels', 'zombie-tabs', 'title-cleaner']],
   ['Notlar ve verimlilik', ['slapmemo', 'clip-slots', 'smart-replies', 'link-cleaner', 'shortcuts']],
   ['Odak ve takip', ['site-blocker', 'time-tracker', 'site-toolbar']]
 ];

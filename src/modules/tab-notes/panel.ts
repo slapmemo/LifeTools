@@ -10,7 +10,6 @@ import {
 } from '../../panel/ui';
 import { LABEL_TITLE_KEY, PRESET_TAB_LABELS, TAB_LABELS_ID } from '../tab-labels/background';
 import { createTabLabelsRepo, type TabLabel } from '../tab-labels/repo';
-import { TAB_SWITCHER_ID } from '../tab-switcher/background';
 import { TITLE_CLEANER_ID } from '../title-cleaner';
 import { TITLE_RULES_KEY, type TitleRules } from '../title-cleaner/cleaner';
 import { SHOW_NOTE_KEY, TAB_NOTES_ID, TRANSFER_KEY } from './background';
@@ -259,11 +258,10 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
       currentUrlEl.textContent = tab?.title ? `${tab.title} (${activeHost || url})` : url || 'Etkin sekme bulunamadı';
     }
 
-    const [le, ne, ce, se, data] = await Promise.all([
+    const [le, ne, ce, data] = await Promise.all([
       isModuleEnabled(TAB_LABELS_ID),
       isModuleEnabled(TAB_NOTES_ID),
       isModuleEnabled(TITLE_CLEANER_ID),
-      isModuleEnabled(TAB_SWITCHER_ID),
       chrome.storage.local.get({ [TRANSFER_KEY]: true, [LABEL_TITLE_KEY]: true, [SHOW_NOTE_KEY]: true, [TITLE_RULES_KEY]: {} })
     ]);
 
@@ -273,7 +271,6 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
     if (currentCard) currentCard.hidden = !(le || ne);
     if (savedCard) savedCard.hidden = !(le || ne);
     get<HTMLElement>('title-cleaner-controls').hidden = !ce;
-    get<HTMLElement>('open-switcher').hidden = !se;
 
     const currentLabel = url && le ? (await labels.get(url))?.label || '' : '';
     labelInput.value = currentLabel;
@@ -356,10 +353,6 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
       await render();
     })
   );
-
-  get('open-switcher').addEventListener('click', () => {
-    void chrome.tabs.create({ url: chrome.runtime.getURL('switcher.html') });
-  });
 
   return { render };
 }

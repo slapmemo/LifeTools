@@ -25,4 +25,4 @@ void (async () => {
 })().catch(() => {});
 // Sabit Sekme Koruyucu ve Komut Merkezi 0.7.0'da kaldırıldı: kalan küçük ayar/kayıtları temizle.
 void chrome.storage.local.remove(['pinnedGuardClosed']).catch(() => {});
-void chrome.storage.session.remove(['pinnedGuardTabs', 'commandCenterTarget']).catch(() => {});
+void chrome.storage.session.remove(['pinnedGuardTabs', 'commandCenterTarget', 'tabSwitcherMru']).catch(() => {});

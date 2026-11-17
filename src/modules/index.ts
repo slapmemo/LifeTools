@@ -6,7 +6,6 @@ import { pipModule } from './pip';
 import { clipSlotsModule } from './clip-slots';
 import { tabLabelsModule } from './tab-labels';
 import { tabNotesModule } from './tab-notes';
-import { tabSwitcherModule } from './tab-switcher';
 import { titleCleanerModule } from './title-cleaner';
 import { timeTrackerModule } from './time-tracker';
 import { smartRepliesModule } from './smart-replies';
@@ -23,4 +22,4 @@ import { videoDownloaderModule } from './video-downloader';
 import { currencyModule } from './currency';
 
 /** Tüm araçların kaydı. Yeni araç buraya eklenir. */
-export const modules: readonly LifeModule[] = [currencyModule, videoDownloaderModule, volumeBoosterModule, xVideoModule, instagramModule, watchlistModule, pipModule, clipSlotsModule, timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, lifeBrowserModule, zombieTabsModule, tabLabelsModule, tabNotesModule, tabSwitcherModule, tabManagerModule, titleCleanerModule, shortcutsModule, siteToolbarModule];
+export const modules: readonly LifeModule[] = [currencyModule, videoDownloaderModule, volumeBoosterModule, xVideoModule, instagramModule, watchlistModule, pipModule, clipSlotsModule, timeTrackerModule, siteBlockerModule, slapMemoModule, linkCleanerModule, smartRepliesModule, lifeBrowserModule, zombieTabsModule, tabLabelsModule, tabNotesModule, tabManagerModule, titleCleanerModule, shortcutsModule, siteToolbarModule];
