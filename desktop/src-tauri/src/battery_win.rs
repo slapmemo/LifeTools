@@ -68,3 +68,19 @@ pub fn read_all() -> Vec<DeviceBattery> {
     readings.extend(read_supported_devices());
     battery::dedupe(readings)
 }
+
+#[cfg(test)]
+mod tests {
+    /// Elle donanım denemesi (bağlı aygıtları gerçekten yoklar):
+    /// `cargo test live_wireless -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn live_wireless() {
+        let start = std::time::Instant::now();
+        let all = super::read_all();
+        for d in &all {
+            println!("{} | {} | {:?}% | şarj {:?} | {:?}", d.name, d.kind, d.percent, d.charging, d.via);
+        }
+        println!("{} aygıt, {} ms", all.len(), start.elapsed().as_millis());
+    }
+}

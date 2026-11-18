@@ -89,6 +89,17 @@ private:
     Mode mode_ = Unknown;
 };
 
+// Devices seen behind a receiver, identified by the product ID they report (property 12).
+struct PairedModel { USHORT pid; const wchar_t* name; DeviceKind kind; };
+const PairedModel kPairedModels[] = {
+    { 0x1B7E, L"Corsair Dark Core RGB Pro SE", DeviceKind::Mouse },  // tested on Slipstream receiver 1BDC
+};
+
+const PairedModel* FindPaired(unsigned pid) {
+    for (const auto& m : kPairedModels) if (m.pid == pid) return &m;
+    return nullptr;
+}
+
 }  // namespace
 
 void PollCorsair(PollContext& ctx) {
@@ -124,10 +135,18 @@ void PollCorsair(PollContext& ctx) {
                 // A receiver names itself, not the device behind it, and has mouse collections of its own.
                 // Property 12 is the paired device's product id (read-only); Corsair headsets use 0Axx.
                 unsigned devPid = 0;
-                if (target != 0x08 && b.Get(target, 0x12, devPid) && (devPid >> 8) == 0x0A) {
-                    s.kind = DeviceKind::Headset;
-                    if (product.find(L"Receiver") != std::wstring::npos) s.name = L"Corsair wireless headset";
+                if (target != 0x08 && b.Get(target, 0x12, devPid)) {
+                    if (const PairedModel* m = FindPaired(devPid)) {
+                        s.name = m->name;
+                        s.kind = m->kind;
+                    } else if ((devPid >> 8) == 0x0A) {
+                        s.kind = DeviceKind::Headset;
+                        if (product.find(L"Receiver") != std::wstring::npos) s.name = L"Corsair wireless headset";
+                    }
                 }
+                // Corsair headsets and their receivers use product ids 0Axx (HS80 RGB receiver 0A6B names
+                // itself "... Wireless Gaming Receiver", and its collections look like a keyboard).
+                if (s.kind == DeviceKind::Other && (pid >> 8) == 0x0A) s.kind = DeviceKind::Headset;
                 if (s.kind == DeviceKind::Other) s.kind = KindFromCollections(ctx.colls, vid, pid);
                 s.via = target == 0x08 ? L"USB / Bluetooth" : L"Corsair receiver";
                 s.percent = Clamp100((int)(level + 5) / 10);

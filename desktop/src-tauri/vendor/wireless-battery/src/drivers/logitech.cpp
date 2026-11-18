@@ -11,12 +11,18 @@
 // github.com/Sapd/HeadsetControl (headset voltage calibration).
 #include "drivers.h"
 
+#include <algorithm>
 #include <cwctype>
 #include <optional>
 
 namespace {
 
 constexpr BYTE kSwId = 0x0D;  // our software id; replies to other apps (G HUB, Options+) carry theirs
+
+// LIGHTSPEED dongles that speak only HID++ 2.0 and relay a single paired device: the dongle itself
+// answers the ping on index 0xFF (it has no battery feature) and the mouse is on index 1.
+// 046D:C54F = PRO X3 SUPERSTRIKE dongle (Solaar PR #3352, "PASSTHROUGH_DONGLE_IDS").
+bool IsPassthroughDongle(USHORT pid) { return pid == 0xC54F; }
 
 class Hidpp {
 public:
@@ -211,68 +217,116 @@ bool ReadBattery10(Hidpp& h, BYTE idx, DeviceStatus& s) {
     return false;
 }
 
+// Identifies the physical device a HID collection belongs to, so two receivers with the same
+// product id (e.g. two LIGHTSPEED C547 dongles) are polled separately. A collection path looks like
+//   \\?\hid#vid_046d&pid_c547&mi_02&col01#8&2a2b3c4d&0&0000#{guid}
+// and the collections of one interface differ only in "&colNN" and the last "&NNNN" of the
+// instance part. Returns an empty string for a path of another shape (all such paths then share
+// one group, which is how they were polled before).
+std::wstring PhysicalKey(const HidColl& c) {
+    std::wstring p = c.path;
+    for (auto& ch : p) ch = towlower(ch);
+    size_t a = p.find(L'#');
+    size_t b = a == std::wstring::npos ? a : p.find(L'#', a + 1);
+    size_t e = b == std::wstring::npos ? b : p.find(L'#', b + 1);
+    if (e == std::wstring::npos) return L"";
+    std::wstring hw = p.substr(a + 1, b - a - 1), inst = p.substr(b + 1, e - b - 1);
+    size_t col = hw.find(L"&col");
+    if (col != std::wstring::npos) hw.erase(col, 6);
+    size_t amp = inst.rfind(L'&');
+    if (amp != std::wstring::npos) inst.erase(amp);
+    return hw + L"#" + inst;
+}
+
+// Polls one physical device (receiver, cable or Bluetooth link) given its HID++ collections.
+// `suffix` keeps the fallback keys of identical receivers apart. Returns true if it reported a device.
+bool PollLogitechDevice(PollContext& ctx, USHORT pid, const std::vector<const HidColl*>& shorts,
+                        const std::vector<const HidColl*>& longs, const std::wstring& suffix) {
+    if (shorts.empty() && longs.empty()) return false;
+    Hidpp h;
+    if (!h.Open(shorts.empty() ? nullptr : shorts[0], longs.empty() ? nullptr : longs[0])) return false;
+
+    std::wstring product = HidProduct(longs.empty() ? *shorts[0] : *longs[0]);
+    bool isReceiver = product.find(L"Receiver") != std::wstring::npos || product.find(L"USB Receiver") != std::wstring::npos;
+
+    // A device answering a HID++ 2.0 ping at index 0xFF is connected directly (USB cable,
+    // Bluetooth, or a receiver-less headset); otherwise it is a receiver with paired devices.
+    std::vector<BYTE> p;
+    BYTE err = 0;
+    std::vector<BYTE> indices;
+    // A Bluetooth HID path (HOGP service 1812, classic HID 1124) is always a direct link. A sleepy
+    // Bluetooth mouse can miss the 400 ms ping; probing it as a receiver then answers on every
+    // index and lists the same mouse six times.
+    std::wstring path = (longs.empty() ? shorts[0] : longs[0])->path;
+    for (auto& ch : path) ch = towlower(ch);
+    bool bluetooth = path.find(L"{00001812-") != std::wstring::npos || path.find(L"{00001124-") != std::wstring::npos;
+    if (IsPassthroughDongle(pid))
+        indices = { 1 };
+    else if (bluetooth ||
+             (!isReceiver && h.Request(0xFF, 0x00, 0x10 | kSwId, { 0, 0, 0x5A }, p, err, false, 400) == 1 && p.size() >= 3 && p[0] >= 2))
+        indices = { 0xFF };
+    else
+        indices = { 1, 2, 3, 4, 5, 6 };
+
+    bool any = false;
+    for (BYTE idx : indices) {
+        DeviceStatus s;
+        s.key = L"logi:" + Hex4(pid) + suffix + L":" + std::to_wstring(idx);
+        s.name = (idx == 0xFF && !product.empty()) ? product : L"Logitech wireless device";
+        s.via = idx == 0xFF ? L"USB / Bluetooth" : L"Logitech receiver";
+        s.graceSec = idx == 0xFF ? 0 : 1800;  // receiver devices drop off the link while sleeping
+        s.kind = GuessKind(s.name);
+
+        int r = h.Request(idx, 0x00, 0x10 | kSwId, { 0, 0, 0x5A }, p, err, false, 400);
+        bool found = false;
+        if (r == 1 && p.size() >= 3 && p[0] >= 2) {
+            ReadNameAndType20(h, idx, s);
+            found = ReadBattery20(h, idx, pid, s);
+            std::wstring unit = found ? ReadUnitId20(h, idx) : L"";
+            if (!unit.empty()) {
+                s.key = L"logi:unit:" + unit;
+                // Unplugging the cable hands a receiver device back to its receiver; keep the
+                // entry for a minute so it does not blink out while the link comes back.
+                if (idx == 0xFF) s.graceSec = 60;
+            }
+            if (found && s.kind == DeviceKind::Other && longs.size() && longs[0]->page() == 0xFF43) s.kind = DeviceKind::Headset;
+        } else if (r == 0 && err == 0x01) {  // "invalid sub id": a HID++ 1.0 device
+            found = ReadBattery10(h, idx, s);
+        }
+        if (found) {
+            if (s.kind == DeviceKind::Other) s.kind = GuessKind(s.name);
+            ctx.out.push_back(s);
+            any = true;
+        }
+    }
+    return any;
+}
+
 }  // namespace
 
 void PollLogitech(PollContext& ctx) {
     for (auto [vid, pid] : ctx.Products(0x046D)) {
-        auto shorts = ctx.Find(vid, pid, [](const HidColl& c) { return c.page() == 0xFF00 && c.usage() == 0x0001 && c.outLen() == 7; });
-        auto longs = ctx.Find(vid, pid, [](const HidColl& c) {
+        auto allShorts = ctx.Find(vid, pid, [](const HidColl& c) { return c.page() == 0xFF00 && c.usage() == 0x0001 && c.outLen() == 7; });
+        auto allLongs = ctx.Find(vid, pid, [](const HidColl& c) {
             return ((c.page() == 0xFF00 && c.usage() == 0x0002) || (c.page() == 0xFF43 && c.usage() == 0x0202)) && c.outLen() == 20;
         });
-        if (shorts.empty() && longs.empty()) continue;
-        Hidpp h;
-        if (!h.Open(shorts.empty() ? nullptr : shorts[0], longs.empty() ? nullptr : longs[0])) continue;
 
-        std::wstring product = HidProduct(longs.empty() ? *shorts[0] : *longs[0]);
-        bool isReceiver = product.find(L"Receiver") != std::wstring::npos || product.find(L"USB Receiver") != std::wstring::npos;
-
-        // A device answering a HID++ 2.0 ping at index 0xFF is connected directly (USB cable,
-        // Bluetooth, or a receiver-less headset); otherwise it is a receiver with paired devices.
-        std::vector<BYTE> p;
-        BYTE err = 0;
-        std::vector<BYTE> indices;
-        // A Bluetooth HID path (HOGP service 1812, classic HID 1124) is always a direct link. A sleepy
-        // Bluetooth mouse can miss the 400 ms ping; probing it as a receiver then answers on every
-        // index and lists the same mouse six times.
-        std::wstring path = (longs.empty() ? shorts[0] : longs[0])->path;
-        for (auto& ch : path) ch = towlower(ch);
-        bool bluetooth = path.find(L"{00001812-") != std::wstring::npos || path.find(L"{00001124-") != std::wstring::npos;
-        if (bluetooth ||
-            (!isReceiver && h.Request(0xFF, 0x00, 0x10 | kSwId, { 0, 0, 0x5A }, p, err, false, 400) == 1 && p.size() >= 3 && p[0] >= 2))
-            indices = { 0xFF };
-        else
-            indices = { 1, 2, 3, 4, 5, 6 };
+        // One group per physical device: its short and long HID++ collections.
+        std::vector<std::wstring> groups;
+        for (const auto* list : { &allShorts, &allLongs })
+            for (const HidColl* c : *list) {
+                std::wstring k = PhysicalKey(*c);
+                if (std::find(groups.begin(), groups.end(), k) == groups.end()) groups.push_back(k);
+            }
 
         bool any = false;
-        for (BYTE idx : indices) {
-            DeviceStatus s;
-            s.key = L"logi:" + Hex4(pid) + L":" + std::to_wstring(idx);
-            s.name = (idx == 0xFF && !product.empty()) ? product : L"Logitech wireless device";
-            s.via = idx == 0xFF ? L"USB / Bluetooth" : L"Logitech receiver";
-            s.graceSec = idx == 0xFF ? 0 : 1800;  // receiver devices drop off the link while sleeping
-            s.kind = GuessKind(s.name);
-
-            int r = h.Request(idx, 0x00, 0x10 | kSwId, { 0, 0, 0x5A }, p, err, false, 400);
-            bool found = false;
-            if (r == 1 && p.size() >= 3 && p[0] >= 2) {
-                ReadNameAndType20(h, idx, s);
-                found = ReadBattery20(h, idx, pid, s);
-                std::wstring unit = found ? ReadUnitId20(h, idx) : L"";
-                if (!unit.empty()) {
-                    s.key = L"logi:unit:" + unit;
-                    // Unplugging the cable hands a receiver device back to its receiver; keep the
-                    // entry for a minute so it does not blink out while the link comes back.
-                    if (idx == 0xFF) s.graceSec = 60;
-                }
-                if (found && s.kind == DeviceKind::Other && longs.size() && longs[0]->page() == 0xFF43) s.kind = DeviceKind::Headset;
-            } else if (r == 0 && err == 0x01) {  // "invalid sub id": a HID++ 1.0 device
-                found = ReadBattery10(h, idx, s);
-            }
-            if (found) {
-                if (s.kind == DeviceKind::Other) s.kind = GuessKind(s.name);
-                ctx.out.push_back(s);
-                any = true;
-            }
+        for (size_t g = 0; g < groups.size(); ++g) {
+            std::vector<const HidColl*> shorts, longs;
+            for (const HidColl* c : allShorts) if (PhysicalKey(*c) == groups[g]) shorts.push_back(c);
+            for (const HidColl* c : allLongs) if (PhysicalKey(*c) == groups[g]) longs.push_back(c);
+            // Keys of the first device stay as they were; a second identical receiver gets "#2", ...
+            std::wstring suffix = g ? L"#" + std::to_wstring(g + 1) : L"";
+            if (PollLogitechDevice(ctx, pid, shorts, longs, suffix)) any = true;
         }
         if (any) ctx.Claim(vid, pid);
     }

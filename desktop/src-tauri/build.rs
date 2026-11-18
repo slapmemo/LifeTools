@@ -16,9 +16,15 @@ fn compile_wireless_battery() {
     sources.sort();
 
     let mut build = cc::Build::new();
+    // Tanımlar üst kaynağın kendi derlemesiyle aynı (Makefile / build.bat): WIN32_LEAN_AND_MEAN yok,
+    // çünkü sürücüler <windows.h> üzerinden gelen COM yardımcılarını (ör. StringFromGUID2) kullanıyor.
     build.cpp(true).std("c++17").define("UNICODE", None).define("_UNICODE", None)
-        .define("WIN32_LEAN_AND_MEAN", None).define("NOMINMAX", None)
-        .include(root).flag_if_supported("/EHsc").warnings(false);
+        .define("_WIN32_WINNT", "0x0A00").define("WINVER", "0x0A00").define("NOMINMAX", None)
+        // xinput.cpp MinGW'nin WinRT adını kullanıyor; Windows SDK'da (MSVC) aynı tip `__FIReference_1_int`.
+        .define("__FIReference_1_INT32", "__FIReference_1_int")
+        // /Zc:lambda: üst kaynak GCC ile derleniyor; constexpr yerelleri yakalamadan kullanan lambdalar
+        // (ör. razer_headset.cpp) MSVC'nin eski lambda işlemcisinde C3493 verir.
+        .include(root).flag_if_supported("/EHsc").flag_if_supported("/Zc:lambda").warnings(false);
     for source in sources {
         println!("cargo:rerun-if-changed={}", source.display());
         build.file(source);
@@ -35,9 +41,13 @@ fn collect_cpp(dir: &Path, files: &mut Vec<PathBuf>) {
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
+            // Üst kaynağın Linux arka ucu (hidraw) Windows'ta derlenmez.
+            if path.file_name().is_some_and(|name| name == "linux") { continue; }
             collect_cpp(&path, files);
         } else if path.extension().is_some_and(|ext| ext == "cpp")
-            && !matches!(path.file_name().and_then(|name| name.to_str()), Some("main.cpp" | "widget.cpp" | "headsetcontrol.cpp")) {
+            // main/widget/report: üst kaynağın kendi tepsi uygulaması ve "destek iste" penceresi (ağ isteği yapar);
+            // headsetcontrol: dışarıdan exe çalıştırır. LifeTools bunları kullanmaz.
+            && !matches!(path.file_name().and_then(|name| name.to_str()), Some("main.cpp" | "widget.cpp" | "report.cpp" | "headsetcontrol.cpp")) {
             files.push(path);
         }
     }

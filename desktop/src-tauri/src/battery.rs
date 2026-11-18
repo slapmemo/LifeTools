@@ -44,12 +44,17 @@ pub fn parse_system_status(battery_flag: u8, percent: u8) -> Option<DeviceBatter
 
 /// Bağlantı yolu: "2.4 GHz receiver" → "2.4 GHz alıcı", AirPods ayrıntısı "Bluetooth · L 60%  R 55%  case 40%" dahil.
 pub fn tr_via(text: &str) -> String {
-    const PAIRS: [(&str, &str); 10] = [
+    const PAIRS: [(&str, &str); 15] = [
         ("2.4 GHz receiver or USB", "2.4 GHz alıcı ya da USB"),
+        ("2.4 GHz dongle or USB", "2.4 GHz alıcı ya da USB"),
         ("2.4 GHz receiver", "2.4 GHz alıcı"),
         ("2.4 GHz dongle", "2.4 GHz alıcı"),
         ("USB cable", "USB kablosu"),
         ("UWB base station", "UWB baz istasyonu"),
+        ("USB base station", "USB baz istasyonu"),
+        ("Base station", "Baz istasyonu"),
+        ("Wireless adapter", "Kablosuz adaptör"),
+        ("BT600 adapter", "BT600 adaptörü"),
         ("Jabra Link dongle", "Jabra Link alıcısı"),
         (" receiver", " alıcısı"),
         ("\u{00B7} L ", "\u{00B7} Sol "),
@@ -174,6 +179,12 @@ mod tests {
         assert_eq!(tr_via("2.4 GHz receiver"), "2.4 GHz alıcı");
         assert_eq!(tr_via("2.4 GHz receiver or USB"), "2.4 GHz alıcı ya da USB");
         assert_eq!(tr_via("USB cable"), "USB kablosu");
+        assert_eq!(tr_via("2.4 GHz dongle or USB"), "2.4 GHz alıcı ya da USB");
+        assert_eq!(tr_via("2.4 GHz receiver / USB"), "2.4 GHz alıcı / USB");
+        assert_eq!(tr_via("USB base station"), "USB baz istasyonu");
+        assert_eq!(tr_via("Base station"), "Baz istasyonu");
+        assert_eq!(tr_via("Wireless adapter"), "Kablosuz adaptör");
+        assert_eq!(tr_via("BT600 adapter"), "BT600 adaptörü");
         assert_eq!(tr_via("Logitech receiver"), "Logitech alıcısı");
         assert_eq!(tr_via("Bluetooth"), "Bluetooth");
         assert_eq!(tr_via("Bluetooth \u{00B7} L 60%\u{26A1}  R 55%  case 40%"), "Bluetooth \u{00B7} Sol 60%\u{26A1}  Sağ 55%  kutu 40%");

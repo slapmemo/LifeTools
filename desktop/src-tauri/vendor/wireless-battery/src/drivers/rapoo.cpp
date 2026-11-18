@@ -5,7 +5,11 @@
 //    optional mouse PID at 13..14. Connection is the low nibble of byte 1 (0 RF / 1 BT / 2 USB).
 //  * https://github.com/PyFlat/Device-Battery-Info (RapooProtocol.cs): older 7-byte BB B0
 //    reports on FF00:0002, state at byte 5, percent at byte 6; charging can report 7F (unknown).
-// Legacy BB semantics are restricted to VT3 Pro 1215/4415; other Telink firmware differs.
+//  * VT1 Pro Max (receiver 1233, cable 4433): USBPcap captures from the owner in issue #136
+//    show the same passive 7-byte report on interface 1 / FF00:0002, sent without any request:
+//    receiver `BB B0 71 84 03 01 64` every ~3.2 s (Rapoo app: 100%), cable while charging
+//    `BB B0 71 84 03 02 5F` (state 2 = charging, 95%).
+// Legacy BB semantics are restricted to the product IDs above; other Telink firmware differs.
 #include "drivers.h"
 #include "rapoo_protocol.h"
 
@@ -33,6 +37,7 @@ const Model kModels[] = {
     { 0x4614, 0x1414, L"Rapoo VT9" },
     { 0x4618, 0x1418, L"Rapoo VT9 Max" },
     { 0x4415, 0x1215, L"Rapoo VT3 Pro" },
+    { 0x4433, 0x1233, L"Rapoo VT1 Pro Max" },
 };
 
 const Model* FindModel(USHORT pid) {
@@ -41,12 +46,17 @@ const Model* FindModel(USHORT pid) {
     return nullptr;
 }
 
-bool IsLegacyVT3Pro(USHORT pid) { return pid == 0x1215 || pid == 0x4415; }
+// Mice confirmed to send the 7-byte BB B0 status report.
+bool IsLegacyVT3Pro(USHORT pid) {
+    return pid == 0x1215 || pid == 0x4415 ||  // VT3 Pro
+           pid == 0x1233 || pid == 0x4433;    // VT1 Pro Max (issue #136 captures)
+}
 
 bool ReadBattery(HidDev& d, Rapoo::Battery& battery, Rapoo::Profile profile) {
-    // A passive legacy report can take ~3.2 seconds. One deadline includes unrelated reports;
+    // A passive legacy report can take ~3-4 seconds (one VT1 Pro Max gap in #136 was 4.03 s), so
+    // wait 5 s. One deadline includes unrelated reports;
     // do not flush, since a queued status report is already useful.
-    ULONGLONG end = GetTickCount64() + 4000;
+    ULONGLONG end = GetTickCount64() + 5000;
     do {
         int left = (int)((LONGLONG)end - (LONGLONG)GetTickCount64());
         std::vector<BYTE> r;

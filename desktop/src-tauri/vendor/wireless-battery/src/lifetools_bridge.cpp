@@ -45,6 +45,12 @@ const char* Kind(DeviceKind kind) {
 }
 }
 
+// devices.cpp'deki DumpHidCollections (yalnız üst kaynağın `--dump` komutu) report.cpp'deki bu işlevi
+// çağırır. report.cpp ağ isteği yapan bir pencere içerdiği için derlenmez; LifeTools dökümü kullanmaz.
+namespace report {
+std::wstring DumpExtras() { return {}; }
+}  // namespace report
+
 extern "C" __declspec(dllexport) const char* lifetools_battery_poll_json() {
     thread_local std::string json;
     json.clear();

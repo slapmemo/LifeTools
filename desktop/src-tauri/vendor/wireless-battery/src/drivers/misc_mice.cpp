@@ -2,9 +2,11 @@
 //  * Motospeed X6 (Realtek VID 0BDA, receivers FFE0 / FFF2, interface 4): output report B5 [06],
 //    reply report B4, byte 20 = level (+128 while charging). The cable (FFF1) reports no battery.
 //    From github.com/Jacobz888/LGSTrayBattery-MotospeedX6.
-//  * Xenta receivers (Delux M900 Pro, Attack Shark X6 / R1 / X11 / X3 Max / V3 Pro; VID 1D57): the receiver
+//  * Xenta receivers (Delux M900 Pro, Attack Shark X6 / R1 / X11 / X3 Max / V3 Pro / V6; VID 1D57): the receiver
 //    broadcasts input report 03 on usage page 000A every ~2 s: [03][model][40][state][percent],
 //    state 2 = full, 3 = charging (percent frozen). From github.com/AeonArcHQ/omarchy-delux-m900.
+//    The Attack Shark V6 (model 24) sends 41 instead of 40 in byte 2 ("03 24 41 01 64" on battery at
+//    100%, read from a 1D57:FA60 receiver), so both values are accepted.
 //    The collection is push-only (no output or feature report), so it is opened read-only, as BatteryTray
 //    and attackshark-battery-windows do: a read/write open fails while a vendor app holds it without
 //    sharing write access. `--dump` also prints the raw frames it sends, to add models such as the
@@ -35,6 +37,26 @@
 //    are tried last to first. From github.com/OmarK6/Incott-Manager (device.go),
 //    github.com/HeHaoren/incott-mouse-app (docs/protocol.md) and github.com/FelixNg21/MouseBattery
 //    (battery byte layout, verified on a G23 V2 with the 522C dongle).
+//  * Delux M800 Pro (VID 248A, receiver 5B2F, cable 5B2E): 33-byte feature report 0x0C on usage page
+//    FF00 / usage 01. A SET_FEATURE status query [0C][01][20][00][seq...] is answered via
+//    GET_FEATURE 0x0C: bytes [8..11] ASCII model ("M802"), [15] sensor, [18] percent, [19] state
+//    (0 = discharging, 1 = charging, 2 = full). The dongle requires incrementing sequence numbers in byte 4.
+//  * Wraith W1 (Standard / Freestyle) on the same PixArt ids 093A:522C / 622C and collection FF05, but its
+//    firmware uses a different command map: on the W1, 89 reads profile settings, not the status. All
+//    commands are 8-byte feature reports with report id 09. Model check first: SET_FEATURE [09][8F]
+//    (read device info), then GET_FEATURE 09 until it echoes 8F; byte 3 is the model, 18 = W1 Standard,
+//    20 = W1 Freestyle. The Incott models use other codes (1, 2, 3, 6, 8, 9, 14), so a W1 is never read
+//    with the Incott query and vice versa. Status: 86 is a per-button read (SET_FEATURE [09][86][button],
+//    the feature reply holds that button's mapping). The mouse pushes its status input report 09
+//    [09][battery][rate | slot << 4]... in answer to these reads. Each read is done like the web driver's
+//    query helper _i(): SET_FEATURE, wait 150 ms (8 ms for other commands), GET_FEATURE 09, and once more
+//    20 ms later if the reply is still empty; firing the 86s back to back without reading the replies got
+//    no push on the reporter's mouse, not even on the cable. After 8F the sweep over buttons 0, 1, 2, 4, 3
+//    (its Ri()) runs once, then the web driver's 700 ms keep-alive Bi() (one 86 for button 0, read back)
+//    repeats while the status report is awaited. Battery bit 7 = charging, low 7 bits = percent. From the
+//    Wraith web driver at https://www.w1.software/ (assets/index-*.js: READ_INIT 0x8F, READ_STATUS 0x86,
+//    _i() timing, Ri() sweep, Bi() on a 700 ms interval, status input report 09 parsed by its Qr()) and
+//    the W1 Service v0.1.7 binary (8F, 200 ms, 86 sweep, then report-09 reads on the first FF05 collection).
 #include "drivers.h"
 
 #include <algorithm>
@@ -88,7 +110,7 @@ void PollMotospeed(PollContext& ctx) {
 }
 
 // Xenta receiver (1D57:FA60, also FA65; cable FA55 / 2155), used by Delux and Attack Shark mice.
-// The receiver broadcasts [03][model][40][state][level] every ~2 s; nothing is sent to it. The handle
+// The receiver broadcasts [03][model][40 or 41][state][level] every ~2 s; nothing is sent to it. The handle
 // stays open between polls so these frames queue up. A reading counts once two frames agree, because
 // every link-up starts with a false 100% (github.com/qu1ncky/BatteryTray, XentaReceiverProvider).
 struct XentaModel { BYTE code; const wchar_t* name; bool tens; };
@@ -97,6 +119,7 @@ const XentaModel kXentaModels[] = {
     { 0x55, L"Attack Shark X11", false },
     { 0x4E, L"Attack Shark X3 Max", false },
     { 0xE5, L"Attack Shark V3 Pro", false },
+    { 0x24, L"Attack Shark V6", false },
     { 0x10, L"Attack Shark X6 / R1", true },  // level reported in tens (0-10)
 };
 
@@ -128,13 +151,13 @@ void PollXenta(PollContext& ctx) {
                 int wait = fresh && got < 2 ? (int)std::max<LONGLONG>(1, (LONGLONG)until - (LONGLONG)GetTickCount64()) : 30;
                 if (fresh && got < 2 && (LONGLONG)until - (LONGLONG)GetTickCount64() <= 0) break;
                 if (l.dev->Read(r, wait) < 5) break;
-                if (r[0] != 0x03 || r[2] != 0x40) continue;
+                if (r[0] != 0x03 || (r[2] != 0x40 && r[2] != 0x41)) continue;
                 l.prev = l.last;
                 l.last.assign(r.begin(), r.begin() + 5);
                 l.lastFrameAt = GetTickCount64();
                 got++;
             }
-            if (l.last.empty() || GetTickCount64() - l.lastFrameAt > 15000) break;  // mouse off: no frames
+            if (l.last.empty() || GetTickCount64() - l.lastFrameAt > 15000) continue;  // silent receiver: try the next one
             bool cable = pid == 0xFA55 || pid == 0x2155;
             BYTE code = l.last[1], st = l.last[3], level = l.last[4];
             const XentaModel* model = nullptr;
@@ -260,6 +283,101 @@ void PollAjazzAj139(PollContext& ctx) {
     }
 }
 
+// Wraith W1: see the header. Once a dongle has answered as a W1, it stays one for the rest of the run, so
+// a W1 that is asleep (no device-info reply) is not handed to the Incott driver.
+void PollWraithW1(PollContext& ctx) {
+    static int knownModel[2] = { 0, 0 };  // 522C, 622C: last W1 model code seen (0 = not a W1 yet)
+    for (USHORT pid : { (USHORT)0x522C, (USHORT)0x622C }) {
+        if (ctx.IsClaimed(0x093A, pid)) continue;
+        int& model = knownModel[pid == 0x622C];
+        auto colls = ctx.Find(0x093A, pid, [](const HidColl& c) { return c.page() == 0xFF05 && c.featLen() >= 9; });
+        if (colls.empty()) continue;
+        std::reverse(colls.begin(), colls.end());  // on the cable the first FF05 collection rejects SET_FEATURE
+        HidDev d;
+        int replied = 0;  // model code from the device-info read, -1 = answered but not a W1
+        for (const HidColl* c : colls) {
+            if (!d.OpenFeatureOnly(*c)) continue;
+            if (!d.SetFeature({ 0x09, 0x8F })) { d.Close(); continue; }
+            std::vector<BYTE> r;
+            for (int i = 0; i < 10 && !replied; i++) {
+                Sleep(50);
+                if (!d.GetFeature(0x09, r)) break;
+                if (r.size() >= 4 && r[0] == 0x09 && r[1] == 0x8F) replied = (r[3] == 18 || r[3] == 20) ? r[3] : -1;
+            }
+            if (replied) break;
+            d.Close();
+        }
+        if (replied < 0) { model = 0; continue; }  // another PixArt mouse (Incott): leave it to PollIncott
+        if (replied) model = replied;
+        if (!model) continue;  // no answer and never seen as a W1
+
+        bool cable = pid == 0x622C;
+        DeviceStatus s;
+        s.key = L"wraithw1:" + Hex4(pid);
+        s.name = model == 20 ? L"Wraith W1 Freestyle" : L"Wraith W1";
+        s.kind = DeviceKind::Mouse;
+        s.via = cable ? L"USB cable" : L"2.4 GHz receiver";
+        if (!cable) s.graceSec = 1800;  // keep the last value if a sleeping mouse stops answering
+        s.connected = false;
+        if (d.ok()) {
+            // Listen on every FF05 collection with an input report: the status push may arrive on any of them.
+            std::vector<std::unique_ptr<HidDev>> ins;
+            for (const HidColl* c : ctx.Find(0x093A, pid, [](const HidColl& c) { return c.page() == 0xFF05 && c.inLen() >= 2; })) {
+                auto in = std::make_unique<HidDev>();
+                if (!in->OpenReadOnly(*c)) continue;
+                in->Flush();
+                ins.push_back(std::move(in));
+            }
+            std::vector<BYTE> r;
+            bool got = false;
+            // One 86 (per-button read) the way the web driver's _i() does it: SET_FEATURE, 150 ms, GET_FEATURE,
+            // and a second GET 20 ms later if the reply is still empty. Input reports that arrive meanwhile
+            // stay queued by Windows and are read afterwards.
+            auto readButton = [&d](BYTE button) {
+                if (!d.SetFeature({ 0x09, 0x86, button })) return false;
+                std::vector<BYTE> f;
+                for (int t = 0; t < 2; t++) {
+                    Sleep(t == 0 ? 150 : 20);
+                    if (!d.GetFeature(0x09, f)) return true;
+                    if (f.size() >= 4 && f[1] == 0x86) break;
+                }
+                return true;
+            };
+            auto listen = [&](int ms) {
+                ULONGLONG end = GetTickCount64() + ms;
+                while (!got && (LONGLONG)end - (LONGLONG)GetTickCount64() > 0) {
+                    for (auto& in : ins) {
+                        if (in->Read(r, 50) >= 2 && r[0] == 0x09 && (r[1] & 0x7F) <= 100) { got = true; break; }
+                    }
+                }
+            };
+            if (!ins.empty()) {
+                Sleep(200);  // the W1 Service waits 200 ms after 8F before its next request
+                // Read-only sweep of 86 over buttons 0, 1, 2, 4, 3 (the web driver's Ri()), then its 700 ms
+                // keep-alive Bi() (86 for button 0, read back) while waiting for the status input report.
+                bool sent = false;
+                for (BYTE b : { (BYTE)0, (BYTE)1, (BYTE)2, (BYTE)4, (BYTE)3 }) {
+                    if (readButton(b)) sent = true;
+                }
+                if (sent) {
+                    listen(400);
+                    for (int beat = 0; beat < 4 && !got; beat++) {
+                        if (!readButton(0)) break;
+                        listen(550);  // ~700 ms per beat including the 150 ms read
+                    }
+                }
+            }
+            if (got) {
+                int pct = r[1] & 0x7F;
+                s.charging = (r[1] & 0x80) != 0;
+                s.connected = cable || pct > 0 || s.charging;  // 0 from the dongle: the mouse is off
+                if (s.connected) s.percent = pct;
+            }
+        }
+        ctx.Add(s, 0x093A, pid);  // claimed even when asleep, so PollIncott never queries a W1
+    }
+}
+
 void PollIncott(PollContext& ctx) {
     for (USHORT pid : { (USHORT)0x522C, (USHORT)0x622C }) {
         if (ctx.IsClaimed(0x093A, pid)) continue;
@@ -290,6 +408,65 @@ void PollIncott(PollContext& ctx) {
             if (s.connected) s.percent = pct;
             if (!cable) s.graceSec = 1800;  // keep the last value if a sleeping mouse stops answering
             ctx.Add(s, 0x093A, pid);
+            break;
+        }
+    }
+}
+
+void PollDeluxM800(PollContext& ctx) {
+    static BYTE s_deluxSeq = 0;
+    for (USHORT pid : { (USHORT)0x5B2E, (USHORT)0x5B2F }) {
+        if (ctx.IsClaimed(0x248A, pid)) continue;
+        for (const HidColl* c : ctx.Find(0x248A, pid, [](const HidColl& c) {
+                 return c.page() == 0xFF00 && c.usage() == 0x0001 && c.featLen() >= 33;
+             })) {
+            HidDev d;
+            if (!d.OpenFeatureOnly(*c)) continue;
+            bool receiver = pid == 0x5B2F;
+            std::vector<BYTE> req(c->featLen(), 0);
+            req[0] = 0x0C;
+            req[1] = 0x01;
+            req[2] = 0x20;
+            req[4] = ++s_deluxSeq;
+            if (!d.SetFeature(req)) continue;
+            Sleep(20);
+            std::vector<BYTE> r;
+            if (!d.GetFeature(0x0C, r) || r.size() < 20) continue;
+            if (r[0] != 0x0C || r[2] != 0x20) continue;
+
+            if (receiver && r[6] == 0) {
+                req[4] = ++s_deluxSeq;
+                if (d.SetFeature(req)) {
+                    Sleep(20);
+                    std::vector<BYTE> r2;
+                    if (d.GetFeature(0x0C, r2) && r2.size() >= 20 && r2[0] == 0x0C && r2[2] == 0x20) {
+                        r = std::move(r2);
+                    }
+                }
+            }
+
+            int pct = r[18];
+            if (pct > 100) continue;
+            BYTE st = r[19];
+            DeviceStatus s;
+            s.key = L"delux:m800";
+            s.name = L"Delux M800 Pro";
+            s.kind = DeviceKind::Mouse;
+            s.via = receiver ? L"2.4 GHz receiver" : L"USB cable";
+            s.connected = (r[6] != 0 || pct > 0);
+            if (st == 2) {
+                s.percent = 100;
+                s.charging = true;
+            } else if (st == 1) {
+                s.charging = true;
+                if (s.connected && pct > 0) s.percent = Clamp100(pct);
+            } else if (s.connected && pct > 0) {
+                s.percent = Clamp100(pct);
+            }
+            if (!receiver && s.connected) {
+                ctx.Claim(0x248A, 0x5B2F);
+            }
+            ctx.Add(s, 0x248A, pid);
             break;
         }
     }
@@ -333,8 +510,10 @@ std::wstring DumpXentaFrames() {
 void PollMiscMice(PollContext& ctx) {
     PollMotospeed(ctx);
     PollXenta(ctx);
+    PollDeluxM800(ctx);
     PollAjazz(ctx);
     PollAjazzAjSeries(ctx);
     PollAjazzAj139(ctx);
+    PollWraithW1(ctx);  // before PollIncott: same ids, different commands
     PollIncott(ctx);
 }

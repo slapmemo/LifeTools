@@ -3,6 +3,7 @@
 // (other EC-CW commands reboot the receiver and unpair the mouse).
 //  * EC-CW series (EC1/EC2/EC3-CW): receiver 8006, cable 8005. Unnumbered 64-byte output report
 //    [A5 03]; reply [mV lo][mV hi][percent]... mV = 0 when the mouse is not linked.
+//    The Enhanced Receiver declares this collection on usage page 00FF instead of FFxx.
 //    From github.com/yleshchuk/zowie-battery.
 //  * DW series (U2-DW, S2-DW ...): receiver 800A. Output report 08 [B4 15] on usage page FF03,
 //    reply input report 09 on usage page FF04: mV = ([1] * 256 + [2]) * 10, [4] == C8.
@@ -51,7 +52,9 @@ struct ChargeTrend {
 std::map<USHORT, ChargeTrend> g_trend;
 
 bool PollCw(PollContext& ctx, USHORT pid) {
-    for (const HidColl* c : ctx.Find(0x04A5, pid, [](const HidColl& c) { return c.page() >= 0xFF00 && c.outLen() == 65; })) {
+    for (const HidColl* c : ctx.Find(0x04A5, pid, [](const HidColl& c) {
+             return (c.page() >= 0xFF00 || c.page() == 0x00FF) && c.outLen() == 65;
+         })) {
         HidDev d;
         if (!d.Open(*c)) continue;
         d.Flush();

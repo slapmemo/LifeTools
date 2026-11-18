@@ -3,6 +3,12 @@
 //     Bluetooth) with a real battery report (remaining / full mWh -> %).
 //  2. XInput fallback: coarse levels (empty / low / medium / full) shown as text, also covering
 //     headsets plugged into a controller.
+#ifndef ____FIReference_1_boolean_INTERFACE_DEFINED__
+// Recent MinGW headers add an IReference<boolean> specialisation next to IReference<BYTE>,
+// but BYTE and boolean are both unsigned char, so the second one is a redefinition. Nothing
+// here uses IReference<boolean> (only INT32), so keep the BYTE one and skip that block.
+#define ____FIReference_1_boolean_INTERFACE_DEFINED__
+#endif
 #include "drivers.h"
 
 #include <roapi.h>
@@ -69,7 +75,7 @@ int PollWgi(PollContext& ctx, int& thirdParty) {
         IBatteryReport* report = nullptr;
         if (WgiVendor(vid) && SUCCEEDED(raw->QueryInterface(__uuidof(IGameControllerBatteryInfo), (void**)&info)) && info &&
             SUCCEEDED(info->TryGetBatteryReport(&report)) && report) {
-            __FIReference_1_int *rem = nullptr, *full = nullptr;
+            __FIReference_1_INT32 *rem = nullptr, *full = nullptr;
             report->get_RemainingCapacityInMilliwattHours(&rem);
             report->get_FullChargeCapacityInMilliwattHours(&full);
             INT32 r = 0, f = 0;

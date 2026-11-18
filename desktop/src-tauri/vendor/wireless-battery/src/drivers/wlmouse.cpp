@@ -1,6 +1,8 @@
 // WLMouse (VID 36A7): Beast X 8K, Beast X Mini / Mini Pro, Beast X Pro, Beast MAX, Sword X 8K and their
 // receivers. The Sword X 8K ids (A878 receiver, A879 cable) and its FFFF:0000 collection come from an
-// owner's --dump (issue #75).
+// owner's --dump (issue #75). The Beast X V2 8K receiver (A856) comes from an owner's --dump (issue #121): it
+// exposes the same 65-byte FFFF:0000 collection on interface 2 as the other 8K receivers, so it gets the same
+// query (HaloBattery sends it to every 36A7 product id). Its cable id is not known yet.
 // Read-only status query on the vendor collection (usage page FFFF, 65-byte feature report 0):
 //   SET_FEATURE [00][00][00][02][02][00][83][00 ...], then GET_FEATURE report 0 until
 //   [00][status][00][02][02][00][83][charging][battery%]; status A1 / A2 = answered, A0 = mouse asleep.
@@ -26,6 +28,7 @@ const Model kModels[] = {
     { 0xA860, false, L"WLMouse mouse", 0 },
     { 0xA866, false, L"WLMouse mouse", 0 },
     { 0xA867, false, L"WLMouse mouse", 0 },
+    { 0xA856, true, L"WLMouse Beast X V2", 0 },  // 8K receiver; seen with a Beast X V2 Max
     { 0xA868, true, L"WLMouse Beast X Mini Pro", 0 },
     { 0xA870, true, L"WLMouse Beast X Pro", 0 },
     { 0xA878, true, L"WLMouse Sword X 8K", 0 },

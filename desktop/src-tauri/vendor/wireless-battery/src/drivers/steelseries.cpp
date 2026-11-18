@@ -138,9 +138,11 @@ bool Aerox(HidDev& d, USHORT pid, DeviceStatus& s) {
                                                       : L"SteelSeries Prime Wireless";
     s = Mouse(pid, name, wired);
     int raw = r[1] & 0x7F;
-    s.charging = (r[1] & 0x80) != 0;
     if (raw == 0) s.connected = false;  // mouse off / out of range
-    else s.percent = Clamp100((raw - 1) * 5);
+    else if (raw <= 21) {  // only levels 1..21 represent 0..100%; invalid levels stay unknown
+        s.percent = (raw - 1) * 5;
+        s.charging = (r[1] & 0x80) != 0;
+    }
     return true;
 }
 
@@ -194,7 +196,7 @@ const Model kModels[] = {
     { { 0x1260, 0x12AD, 0x1252 }, PageFF43, Arctis7 },
     { { 0x12C2 }, Iface0, Arctis9 },
     { { 0x1290 }, Iface0, ArctisProWireless },
-    { { 0x12E0 }, Iface4, NovaProWireless },
+    { { 0x12E0, 0x225D }, Iface4, NovaProWireless },
     { { 0x220E, 0x2212, 0x2216, 0x2236, 0x2269, 0x226D, 0x2232, 0x2253, 0x230A, 0x2202, 0x22A1, 0x227E, 0x2206, 0x2258, 0x229E,
         0x22AD, 0x223A, 0x22A9, 0x227A, 0x22A4, 0x22A5, 0x220A, 0x22A7 },
       PageFFC0, NovaFamily },
