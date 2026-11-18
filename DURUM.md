@@ -1,6 +1,6 @@
 # LifeTools — Kaldığımız Yer
 
-> Son güncelleme: 18 Kasım 2026 · sürüm **0.8.1 YAYINLANIYOR** (v0.8.1 etiketi; önceki: 0.8.0, 0.7.0) · dal master
+> Son güncelleme: 18 Kasım 2026 · sürüm **0.8.1 YAYINLANDI** (18 Kasım, v0.8.1 etiketi; iş akışı başarılı, zip/kurulum/latest.json yüklendi; önceki: 0.8.0, 0.7.0) · dal master
 > Yeni bir sohbete/oturuma başlarken önce bu dosyayı oku. Tasarım ilerlemesi: `design/YENIDEN-TASARIM.md`. Sürüm notları: `release-notes/`. Eski planlar: `../LifeTools_Plan_v3_2026-11-06.md`, `../LifeTools_Arayuz_Plani_2026-11-06.md`, `../LifeTools_Ozellik_Rehberi_2026-11-08.md`.
 
 ## 0. Şu an neredeyiz (18 Kasım)
