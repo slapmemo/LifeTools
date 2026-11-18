@@ -28,9 +28,18 @@ fn err<E: ToString>(e: E) -> String {
     e.to_string()
 }
 
+/// Büyük veritabanında okuma ve dosya yazma sürebilir; pencere donmasın diye arka planda çalışır.
 #[tauri::command]
-pub fn backup_export(state: St) -> Result<String, String> {
-    let backup = db::backup_data(&state.db())?;
+pub async fn backup_export(app: AppHandle) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || backup_export_blocking(&app)).await.map_err(err)?
+}
+
+fn backup_export_blocking(app: &AppHandle) -> Result<String, String> {
+    let backup = {
+        let state = app.state::<Arc<AppState>>();
+        let db = state.db();
+        db::backup_data(&db)?
+    };
     let date = &backup["exported_at"].as_str().ok_or("Tarih alınamadı")?[..10];
     let profile = std::env::var_os("USERPROFILE").ok_or("USERPROFILE bulunamadı")?;
     let dir = std::path::PathBuf::from(profile).join("Downloads").join("LifeTools").join("Yedekler");
@@ -396,8 +405,9 @@ pub fn extension_open_folder() -> Result<(), String> {
     Ok(())
 }
 
+/// İlk çağrıda `yt-dlp --version` çalıştırır; ana iş parçacığını bekletmesin.
 #[tauri::command]
-pub fn video_tools_status() -> Result<crate::video_dl::ToolStatus, String> { crate::video_dl::status() }
+pub async fn video_tools_status() -> Result<crate::video_dl::ToolStatus, String> { tauri::async_runtime::spawn_blocking(crate::video_dl::status).await.map_err(|e| e.to_string())? }
 #[tauri::command]
 pub fn video_tools_install() -> Result<(), String> { crate::video_dl::begin_install() }
 #[tauri::command]
@@ -409,6 +419,6 @@ pub fn video_download(url: String, mode: String) -> Result<String, String> { cra
 #[tauri::command]
 pub fn video_job(job_id: String) -> Result<crate::video_dl::JobStatus, String> { crate::video_dl::job_status(&job_id) }
 #[tauri::command]
-pub fn video_jobs() -> Result<Vec<crate::video_dl::JobStatus>, String> { crate::video_dl::list() }
+pub async fn video_jobs() -> Result<Vec<crate::video_dl::JobStatus>, String> { tauri::async_runtime::spawn_blocking(crate::video_dl::list).await.map_err(|e| e.to_string())? }
 #[tauri::command]
 pub fn video_cancel(job_id: String) -> Result<(), String> { crate::video_dl::cancel(&job_id) }

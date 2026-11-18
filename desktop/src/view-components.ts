@@ -58,9 +58,22 @@ export function rowMenu(actions: { label: string; run: () => void | Promise<void
       }
       window.clearTimeout(timer);
       timer = undefined;
+      button.textContent = action.label;
+      button.classList.remove('confirming');
       popover.hidden = true;
       toggle.setAttribute('aria-expanded', 'false');
-      void action.run();
+      void (async () => {
+        try {
+          await action.run();
+        } catch (err) {
+          // Hata sessizce yutulmasın: düğmede kısa süre göster.
+          console.error(err);
+          button.textContent = err instanceof Error && err.message ? err.message : 'İşlem başarısız';
+          window.setTimeout(() => { button.textContent = action.label; }, 3000);
+          popover.hidden = false;
+          toggle.setAttribute('aria-expanded', 'true');
+        }
+      })();
     });
     popover.append(button);
   }

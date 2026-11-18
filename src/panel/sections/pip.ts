@@ -3,6 +3,7 @@ import { resolveEnabled } from '../../core/module-state';
 import { PIP_ID } from '../../modules/pip/background';
 import { PIP_HOVER_ENABLED_KEY, PIP_HOVER_ORIGINS } from '../../modules/pip/hover-logic';
 import { showToast } from '../ui';
+import { getPanelTargetTab } from '../../core/panel-target-tab';
 
 /** PiP ayar bölümünü bağlar; refresh sırasında çağrılacak güncelleme fonksiyonunu döndürür. */
 export function initPipSettings(): (flags: unknown) => Promise<void> {
@@ -22,7 +23,8 @@ export function initPipSettings(): (flags: unknown) => Promise<void> {
 
   document.querySelector('#pip-toggle')!.addEventListener('click', () => {
     void (async () => {
-      const tab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
+      const tab = await getPanelTargetTab();
+      if (!tab?.id) { pipFeedback.textContent = 'Önce videonun olduğu sekmeye geç, sonra panele dön.'; pipFeedback.hidden = false; return; }
       const result = await requestRunAction('pip.toggle', undefined, tab?.id);
       const msg = result.message ?? (result.ok ? 'İşlem tamamlandı.' : 'İşlem başarısız.');
       pipFeedback.textContent = msg;

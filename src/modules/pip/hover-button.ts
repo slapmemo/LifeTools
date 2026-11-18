@@ -1,7 +1,9 @@
 import { pageToast } from '../../core/page-toast';
-import { PAGE_THEME } from '../../core/page-theme';
+import { livePageTheme } from '../../core/page-theme';
 import { MODULE_FLAGS_KEY, resolveEnabled } from '../../core/module-state';
 import { bigEnough, PIP_HOVER_ENABLED_KEY, pickVideoAt, pipButtonPosition } from './hover-logic';
+// Tema ayarını erken okumaya başla; kutular oluşturulurken hazır olsun.
+livePageTheme();
 
 let enabled = false;
 let video: HTMLVideoElement | undefined;
@@ -35,7 +37,7 @@ function show(v: HTMLVideoElement): void {
   host = document.createElement('div');
   const shadow = host.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
-  style.textContent = PAGE_THEME + ':host{position:fixed;z-index:2147483647}button{width:28px;height:28px;border:1px solid var(--lt-border);border-radius:8px;background:var(--lt-surface);color:var(--lt-text);font:20px/1 system-ui;cursor:pointer;box-shadow:var(--lt-shadow)}button:hover{background:var(--lt-accent-soft);color:var(--lt-accent)}';
+  style.textContent = livePageTheme() + ':host{position:fixed;z-index:2147483647}button{width:28px;height:28px;border:1px solid var(--lt-border);border-radius:8px;background:var(--lt-surface);color:var(--lt-text);font:20px/1 system-ui;cursor:pointer;box-shadow:var(--lt-shadow)}button:hover{background:var(--lt-accent-soft);color:var(--lt-accent)}';
   const button = document.createElement('button'); button.type = 'button'; button.title = 'Resim içinde resim'; button.setAttribute('aria-label', button.title); button.textContent = '⧉';
   button.addEventListener('click', event => {
     // Oynatıcının kendi tıklama işleyicisi (oynat/duraklat) tetiklenmesin.

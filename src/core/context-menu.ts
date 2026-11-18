@@ -153,6 +153,7 @@ export function listContextMenuContributions(): ContextMenuContribution[] {
 
 export function clearContextMenuContributions(): void {
   sourceContributions.clear();
+  appliedTree = null;
   refreshLoaders.clear();
   if (debounceTimer) {
     clearTimeout(debounceTimer);
@@ -203,10 +204,11 @@ function removeAllMenus(): Promise<void> {
   });
 }
 
-function createMenuItem(spec: ContextMenuItemSpec): Promise<void> {
+/** Öğeyi oluşturur; Chrome reddederse (lastError) false döner. */
+function createMenuItem(spec: ContextMenuItemSpec): Promise<boolean> {
   return new Promise(resolve => {
     if (typeof chrome === 'undefined' || !chrome.contextMenus?.create) {
-      resolve();
+      resolve(false);
       return;
     }
     const props: chrome.contextMenus.CreateProperties = {
@@ -218,9 +220,38 @@ function createMenuItem(spec: ContextMenuItemSpec): Promise<void> {
       ...(spec.parentId ? { parentId: spec.parentId } : {})
     };
     chrome.contextMenus.create(props, () => {
-      void chrome.runtime?.lastError;
-      resolve();
+      resolve(!chrome.runtime?.lastError);
     });
+  });
+}
+
+export type MenuPlan =
+  | { kind: 'rebuild' }
+  | { kind: 'update'; updates: Array<{ id: string; title: string; enabled: boolean }> };
+
+const sameList = (a?: readonly string[], b?: readonly string[]): boolean =>
+  (a?.length ?? 0) === (b?.length ?? 0) && (a ?? []).every((v, i) => v === (b ?? [])[i]);
+
+/**
+ * Önceki ve yeni menü ağacını karşılaştırır. Yapı (id, üst öğe, tür, bağlam) aynıysa yalnız başlık/etkinlik
+ * değişen öğeler `update` ile güncellenir; böylece her sekme geçişinde menü silinip baştan kurulmaz.
+ */
+export function planMenuUpdate(prev: readonly ContextMenuItemSpec[] | null, next: readonly ContextMenuItemSpec[]): MenuPlan {
+  if (!prev || prev.length !== next.length) return { kind: 'rebuild' };
+  const updates: Array<{ id: string; title: string; enabled: boolean }> = [];
+  for (let i = 0; i < next.length; i++) {
+    const a = prev[i], b = next[i];
+    if (a.id !== b.id || a.parentId !== b.parentId || a.type !== b.type || !sameList(a.contexts, b.contexts) || !sameList(a.targetUrlPatterns, b.targetUrlPatterns)) return { kind: 'rebuild' };
+    if (a.title !== b.title || Boolean(a.disabled) !== Boolean(b.disabled)) updates.push({ id: b.id, title: b.title, enabled: !b.disabled });
+  }
+  return { kind: 'update', updates };
+}
+
+let appliedTree: ContextMenuItemSpec[] | null = null;
+
+function updateMenuItem(id: string, props: chrome.contextMenus.UpdateProperties): Promise<boolean> {
+  return new Promise(resolve => {
+    chrome.contextMenus.update(id, props, () => { resolve(!chrome.runtime?.lastError); });
   });
 }
 
@@ -236,10 +267,23 @@ async function performRebuild(): Promise<void> {
   const data = await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} });
   const flags = data[MODULE_FLAGS_KEY];
   const tree = buildContextMenuTree(listContextMenuContributions(), flags);
-  await removeAllMenus();
-  for (const item of tree) {
-    await createMenuItem(item);
+  const plan = planMenuUpdate(appliedTree, tree);
+  if (plan.kind === 'update') {
+    let ok = true;
+    for (const u of plan.updates) {
+      const item = tree.find(t => t.id === u.id);
+      ok = (await updateMenuItem(u.id, item?.type === 'separator' ? { enabled: u.enabled } : { title: u.title, enabled: u.enabled })) && ok;
+    }
+    if (ok) { appliedTree = tree; return; }
   }
+  appliedTree = null;
+  await removeAllMenus();
+  let allCreated = true;
+  for (const item of tree) {
+    allCreated = (await createMenuItem(item)) && allCreated;
+  }
+  // Bir öğe kurulamadıysa ağacı "uygulandı" sayma; sonraki kurulum yerinde güncelleme yerine baştan kursun.
+  appliedTree = allCreated ? tree : null;
 }
 
 /** Sağ tık menüsü ağacını hemen (sıraya alarak) yeniden kurar. */

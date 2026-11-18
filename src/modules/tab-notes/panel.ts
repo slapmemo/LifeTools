@@ -14,6 +14,7 @@ import { TITLE_CLEANER_ID } from '../title-cleaner';
 import { TITLE_RULES_KEY, type TitleRules } from '../title-cleaner/cleaner';
 import { SHOW_NOTE_KEY, TAB_NOTES_ID, TRANSFER_KEY } from './background';
 import { createTabNotesRepo, type TabNote } from './repo';
+import { getPanelTargetTab } from '../../core/panel-target-tab';
 
 const get = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -240,7 +241,7 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
   }
 
   async function render(): Promise<void> {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = await getPanelTargetTab();
     url = tab?.url || '';
     let activeHost = '';
     try {
@@ -255,7 +256,7 @@ export function initTabToolsPanel(): { render(): Promise<void> } {
       ruleHostInput.value = host;
     }
     if (currentUrlEl) {
-      currentUrlEl.textContent = tab?.title ? `${tab.title} (${activeHost || url})` : url || 'Etkin sekme bulunamadı';
+      currentUrlEl.textContent = tab?.title ? `${tab.title} (${activeHost || url})` : url || 'Panel dışında açık sekme yok. Bir sayfa aç, sonra panele dön.';
     }
 
     const [le, ne, ce, data] = await Promise.all([

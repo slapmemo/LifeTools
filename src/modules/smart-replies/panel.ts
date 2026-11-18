@@ -1,4 +1,4 @@
-import { originFromInput } from '../../core/site-scripts';
+import { originFromInput, releaseOrigin } from '../../core/site-scripts';
 import { popupDb } from '../../db/client';
 import {
   createEmptyState,
@@ -220,7 +220,7 @@ export function initSmartRepliesPanel(): { render(): Promise<void> } {
               await chrome.storage.local.set({
                 [SITES_KEY]: (currentData[SITES_KEY] as string[]).filter(x => x !== origin)
               });
-              await chrome.permissions.remove({ origins: [origin] });
+              await releaseOrigin(origin);
               await render();
               message('Site kaldırıldı.');
             })().catch(() => message('Site kaldırılamadı.', true));

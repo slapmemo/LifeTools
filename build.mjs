@@ -1,9 +1,12 @@
 // esbuild ile src/ -> dist/ (yüklenebilir, paketlenmemiş eklenti).
 import { build } from 'esbuild';
-import { cpSync, copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, copyFileSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const dist = 'dist';
+// Chrome eklentiyi doğrudan dist/'ten yüklüyor. Derleme önce dist.tmp/'ye yapılır; yalnız her adım
+// başarılı olursa dist/ ile yer değiştirir. Yarıda kalan derleme günlük eklentiyi bozmaz.
+const finalDist = 'dist';
+const dist = 'dist.tmp';
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 
@@ -90,5 +93,27 @@ const pkgDir = 'node_modules/@sqlite.org/sqlite-wasm';
 const wasm = existsSync(pkgDir) ? findFile(pkgDir, 'sqlite3.wasm') : null;
 if (!wasm) throw new Error('sqlite3.wasm bulunamadı. Önce `npm install` çalıştırın.');
 copyFileSync(wasm, join(dist, 'sqlite3.wasm'));
+
+const old = 'dist.old';
+rmSync(old, { recursive: true, force: true });
+let movedOld = false;
+try {
+  if (existsSync(finalDist)) { renameSync(finalDist, old); movedOld = true; }
+  renameSync(dist, finalDist);
+} catch {
+  // Yeni klasör yerine konamadıysa eskisini geri getir (Chrome'un okuduğu dist hiç boş kalmasın).
+  if (movedOld && !existsSync(finalDist)) {
+    try { renameSync(old, finalDist); movedOld = false; } catch { /* aşağıda kopyalanır */ }
+  }
+  // Klasör kilitliyse (OneDrive, açık dosya) içeriği yerinde değiştir: önce yeni dosyaları üzerine yaz,
+  // ancak kopyalama başarılı olunca yeni derlemede olmayan eski dosyaları sil. Kopyalama hata verirse
+  // derleme durur, dist eski hâliyle (ya da üzerine yazılmış dosyalarla) kalır, hiçbir dosya silinmez.
+  if (!existsSync(finalDist)) mkdirSync(finalDist, { recursive: true });
+  cpSync(dist, finalDist, { recursive: true, force: true });
+  const fresh = new Set(readdirSync(dist));
+  for (const entry of readdirSync(finalDist)) if (!fresh.has(entry)) rmSync(join(finalDist, entry), { recursive: true, force: true });
+}
+rmSync(dist, { recursive: true, force: true });
+rmSync(old, { recursive: true, force: true });
 
 console.log('dist/ hazır.');

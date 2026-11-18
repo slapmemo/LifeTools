@@ -145,3 +145,15 @@ test('boş metin reddedilir', async () => {
   const { repo } = await setup();
   await assert.rejects(() => repo.addNote({ category: 'note', text: '   ' }), /boş/);
 });
+
+test('notesForUrl yalnız aynı sayfanın notlarını döndürür (sondaki /, # farkı yok sayılır)', async () => {
+  const { repo } = await setup();
+  await repo.addNote({ category: 'note', text: 'bir', url: 'https://a.test/yol' });
+  await repo.addNote({ category: 'note', text: 'iki', url: 'https://a.test/yol/#bolum' });
+  await repo.addNote({ category: 'note', text: 'sorgulu', url: 'https://a.test/yol?x=1' });
+  await repo.addNote({ category: 'note', text: 'başka', url: 'https://a.test/yolculuk' });
+  await repo.addNote({ category: 'note', text: 'adressiz' });
+  const found = await repo.notesForUrl('https://a.test/yol/');
+  assert.deepEqual(found.map(n => n.text).sort(), ['bir', 'iki']);
+  assert.deepEqual((await repo.notesForUrl('https://a.test/yol?x=1#z')).map(n => n.text), ['sorgulu']);
+});

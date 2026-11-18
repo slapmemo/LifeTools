@@ -2,6 +2,7 @@ import type { VideoMedia, Variant } from './extract';
 import { CHANNEL, X_VIDEO_ID, SETTINGS_KEY, defaults, label, sortVariants, selectVariant, validUrl, type Settings } from './shared';
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
 import { computeMenuPosition } from './menu-position';
+import { capMap } from '../../core/bounded-map';
 
 const media = new Map<string, VideoMedia[]>();
 let enabled = true;
@@ -65,8 +66,15 @@ async function download(m: VideoMedia, v: Variant): Promise<boolean> {
     return response?.ok === true;
   } catch { return false; }
 }
+// Düğmenin asıl ikonu bir kez saklanır; hızlı çift tıklamada ✓ ikonu "eski" sanılıp geri konmasın.
+const originalIcons = new WeakMap<HTMLButtonElement, string>();
+const successTimers = new WeakMap<HTMLButtonElement, ReturnType<typeof setTimeout>>();
 function showSuccess(button: HTMLButtonElement): void {
-  const svg = button.querySelector('svg'); if (svg) { const old = svg.innerHTML; svg.innerHTML = '<path d="m5 12 4 4L19 6"/>'; setTimeout(() => { svg.innerHTML = old; }, 1200); }
+  const svg = button.querySelector('svg'); if (!svg) return;
+  if (!originalIcons.has(button)) originalIcons.set(button, svg.innerHTML);
+  clearTimeout(successTimers.get(button));
+  svg.innerHTML = '<path d="m5 12 4 4L19 6"/>';
+  successTimers.set(button, setTimeout(() => { const current = button.querySelector('svg'); if (current) current.innerHTML = originalIcons.get(button) ?? current.innerHTML; }, 1200));
 }
 async function downloadGif(button: HTMLButtonElement, m: VideoMedia, v: Variant): Promise<void> {
   const original = button.innerHTML; const id = crypto.randomUUID(); gifJobs.set(id, button); button.disabled = true;
@@ -156,8 +164,10 @@ function makeButton(bar: HTMLElement, id: string, color: string): void {
     if (!settings.askQuality && items.length) {
       const variant = selectVariant(items[0].variants, 'highest');
       if (variant) {
-        closeMenu(); void download(items[0], variant);
-        showSuccess(button);
+        closeMenu();
+        void download(items[0], variant).then(ok => {
+          if (ok) { button.title = 'İndir'; showSuccess(button); } else { button.title = 'İndirilemedi'; openMenu(button, items); }
+        });
       } else button.title = 'Bu video indirilemiyor (yalnızca akış)';
       return;
     }
@@ -189,7 +199,7 @@ window.addEventListener('message', e => {
   const m = e.data.media as VideoMedia; if (!m || !/^\d+$/.test(m.tweetId) || !Array.isArray(m.variants)) return;
   m.variants = m.variants.filter(v => v && v.contentType === 'video/mp4' && typeof v.url === 'string' && validUrl(v.url));
   const list = media.get(m.tweetId) ?? []; const index = list.findIndex(x => x.mediaKey === m.mediaKey);
-  if (index < 0) list.push(m); else list[index] = m; list.sort((a, b) => (a.mediaIndex ?? 0) - (b.mediaIndex ?? 0)); media.set(m.tweetId, list); schedule();
+  if (index < 0) list.push(m); else list[index] = m; list.sort((a, b) => (a.mediaIndex ?? 0) - (b.mediaIndex ?? 0)); media.set(m.tweetId, list); capMap(media, 500); schedule();
 });
 document.addEventListener('click', e => { if (openButton && !e.composedPath().includes(host) && !e.composedPath().includes(openButton)) closeMenu(); }, true);
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && openButton) { e.preventDefault(); closeMenu(true); } }, true);

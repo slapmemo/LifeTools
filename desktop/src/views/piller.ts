@@ -36,7 +36,8 @@ export function batteriesView(): View {
       return;
     }
     for (const d of items) {
-      const low = d.percent !== null && d.percent <= 20;
+      // Bildirim kuralıyla aynı: %20 altı (battery.rs `percent < threshold`).
+      const low = d.percent !== null && d.percent < 20;
       const fill = h('div', { class: 'bar-fill' + (low ? ' low' : '') });
       if (d.percent !== null) fill.style.width = `${d.percent}%`;
       const level = d.percent === null ? (d.level_text || 'Pil seviyesi bilinmiyor') : `%${d.percent}`;

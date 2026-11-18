@@ -1,8 +1,8 @@
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import type { Executor } from './migrations';
 import { readVersion, runMigrations } from './migrations';
-import type { DbRequest, DbResponse, SqlParam } from './protocol';
-import { TRANSACTION_LOST } from './protocol';
+import type { DbRequest, DbResponse } from './protocol';
+import { createWasmExecutor, type WasmDb } from './wasm-executor';
 
 // Bu dosya dedicated Worker olarak çalışır (offscreen belge tarafından başlatılır).
 const ctx = self as unknown as {
@@ -10,10 +10,6 @@ const ctx = self as unknown as {
   onmessage: ((event: MessageEvent<{ id: number; req: DbRequest }>) => void) | null;
 };
 
-interface WasmDb {
-  exec(opts: Record<string, unknown>): unknown;
-  pointer: number;
-}
 
 const DB_PATH = '/lifetools.db';
 
@@ -28,31 +24,7 @@ async function init(): Promise<Executor> {
   // session_tabs -> sessions için ON DELETE CASCADE çalışsın diye (bağlantı başına ayarlanır).
   db.exec({ sql: 'PRAGMA foreign_keys=ON' });
 
-  const executor: Executor = {
-    async exec(sql: string, params?: SqlParam[]) {
-      db.exec({ sql, bind: params && params.length > 0 ? params : undefined });
-    },
-    async batch(statements, opts) {
-      const nested = (sqlite3 as any).capi.sqlite3_get_autocommit(db.pointer) === 0;
-      if (opts?.requireTransaction && !nested) throw new Error(TRANSACTION_LOST);
-      db.exec({ sql: nested ? 'SAVEPOINT lt_batch' : 'BEGIN IMMEDIATE' });
-      try {
-        for (const { sql, params } of statements) db.exec({ sql, bind: params?.length ? params : undefined });
-        db.exec({ sql: nested ? 'RELEASE lt_batch' : 'COMMIT' });
-      } catch (err) {
-        try { db.exec({ sql: nested ? 'ROLLBACK TO lt_batch; RELEASE lt_batch' : 'ROLLBACK' }); } catch { /* işlem bitmiş olabilir */ }
-        throw err;
-      }
-    },
-    async query<T>(sql: string, params?: SqlParam[]) {
-      return db.exec({
-        sql,
-        bind: params && params.length > 0 ? params : undefined,
-        rowMode: 'object',
-        returnValue: 'resultRows'
-      }) as T[];
-    }
-  };
+  const executor = createWasmExecutor((sqlite3 as any), db);
 
   await runMigrations(executor);
   return executor;

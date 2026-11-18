@@ -132,13 +132,13 @@
     fn migrations_apply_and_are_idempotent() {
         let mut d = Connection::open_in_memory().unwrap();
         assert_eq!(read_version(&d).unwrap(), 0);
-        assert_eq!(migrate(&mut d).unwrap(), vec![1, 2, 3, 4]);
-        assert_eq!(read_version(&d).unwrap(), 4);
+        assert_eq!(migrate(&mut d).unwrap(), vec![1, 2, 3, 4, 5]);
+        assert_eq!(read_version(&d).unwrap(), 5);
         assert!(migrate(&mut d).unwrap().is_empty());
         let v: String = d
             .query_row("SELECT value FROM meta WHERE key='desktop_schema_version'", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(v, "4");
+        assert_eq!(v, "5");
     }
 
     #[test]
@@ -146,7 +146,7 @@
         let mut d = db();
         d.execute("UPDATE meta SET key='schema_version' WHERE key='desktop_schema_version'", []).unwrap();
         assert!(migrate(&mut d).unwrap().is_empty());
-        assert_eq!(read_version(&d).unwrap(), 4);
+        assert_eq!(read_version(&d).unwrap(), 5);
         let old: i64 = d.query_row("SELECT COUNT(*) FROM meta WHERE key='schema_version'", [], |r| r.get(0)).unwrap();
         assert_eq!(old, 0);
     }
@@ -157,6 +157,24 @@
         d.execute_batch("CREATE TABLE snippets (id INTEGER PRIMARY KEY, trigger TEXT NOT NULL UNIQUE, title TEXT NOT NULL, body TEXT NOT NULL, use_count INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL); INSERT INTO snippets VALUES(1,'/a','a','b',0,1,1);").unwrap();
         migrate(&mut d).unwrap();
         assert_eq!(list_snippets(&d, "").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn snippet_seconds_are_migrated_to_millis() {
+        let mut d = Connection::open_in_memory().unwrap();
+        d.execute_batch(&format!(
+            "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL); {EXT_SNIPPETS};              INSERT INTO snippets VALUES(1,'/s','S','b',0,1700000000,1700000001), (2,'/m','M','b',0,1700000000000,1700000000000);"
+        ))
+        .unwrap();
+        migrate(&mut d).unwrap();
+        let rows: Vec<(i64, i64)> = d
+            .prepare("SELECT created_at, updated_at FROM snippets ORDER BY id").unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap()
+            .collect::<rusqlite::Result<_>>().unwrap();
+        assert_eq!(rows, vec![(1_700_000_000_000, 1_700_000_001_000), (1_700_000_000_000, 1_700_000_000_000)]);
+        let id = save_snippet(&d, None, "/yeni", "Y", "b").unwrap();
+        let created: i64 = d.query_row("SELECT created_at FROM snippets WHERE id=?1", [id], |r| r.get(0)).unwrap();
+        assert!(created > 1_000_000_000_000);
     }
 
     const EXT_SNIPPETS: &str = "CREATE TABLE IF NOT EXISTS snippets (id INTEGER PRIMARY KEY, trigger TEXT NOT NULL UNIQUE, title TEXT NOT NULL, body TEXT NOT NULL, use_count INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)";
@@ -171,12 +189,12 @@
         insert_clip(&d, "eski", 1, 100).unwrap();
         d.execute("UPDATE meta SET key='schema_version' WHERE key='desktop_schema_version'", []).unwrap();
         upgrade_version_key(&mut d).unwrap();
-        assert_eq!(meta_value(&d, "desktop_schema_version").as_deref(), Some("4"));
+        assert_eq!(meta_value(&d, "desktop_schema_version").as_deref(), Some("5"));
         assert_eq!(meta_value(&d, "schema_version"), None);
         assert_eq!(count(&d), 1);
         // İkinci çalıştırma değişiklik yapmaz.
         upgrade_version_key(&mut d).unwrap();
-        assert_eq!(meta_value(&d, "desktop_schema_version").as_deref(), Some("4"));
+        assert_eq!(meta_value(&d, "desktop_schema_version").as_deref(), Some("5"));
     }
 
     #[test]
@@ -198,7 +216,7 @@
         d.execute("INSERT INTO meta(key,value) VALUES('schema_version','8')", []).unwrap();
         assert_eq!(list_snippets(&d, "").unwrap().len(), 1);
         assert!(migrate(&mut d).unwrap().is_empty());
-        assert_eq!(read_version(&d).unwrap(), 4);
+        assert_eq!(read_version(&d).unwrap(), 5);
         assert_eq!(meta_value(&d, "schema_version").as_deref(), Some("8"));
     }
 
@@ -210,10 +228,10 @@
              INSERT INTO snippets VALUES(1,'/e','E','b',0,1,1); INSERT INTO meta VALUES('schema_version','3');"
         ))
         .unwrap();
-        assert_eq!(migrate(&mut d).unwrap(), vec![1, 2, 3, 4]);
+        assert_eq!(migrate(&mut d).unwrap(), vec![1, 2, 3, 4, 5]);
         assert_eq!(list_snippets(&d, "").unwrap().len(), 1);
         assert_eq!(meta_value(&d, "schema_version").as_deref(), Some("3"));
-        assert_eq!(meta_value(&d, "desktop_schema_version").as_deref(), Some("4"));
+        assert_eq!(meta_value(&d, "desktop_schema_version").as_deref(), Some("5"));
     }
 
     #[test]
@@ -239,7 +257,7 @@
             statements: &["CREATE TABLE x (a INTEGER)", "THIS IS NOT SQL"],
         }];
         assert!(migrate_with(&mut d, &bad).is_err());
-        assert_eq!(read_version(&d).unwrap(), 4);
+        assert_eq!(read_version(&d).unwrap(), 5);
         let n: i64 = d
             .query_row("SELECT COUNT(*) FROM sqlite_master WHERE name='x'", [], |r| r.get(0))
             .unwrap();

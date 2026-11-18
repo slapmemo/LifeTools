@@ -139,10 +139,13 @@ export function withExclusiveDb<T>(
 
 const EXCLUSIVE_TIMEOUT_MESSAGE = 'İşlem 120 saniyeyi aştı; geri alındı ve veritabanı kilidi bırakıldı';
 
-/** Tek tutarlı okuma işleminde (BEGIN/COMMIT) dışa aktarır. */
+/**
+ * Tek tutarlı okuma işleminde (BEGIN DEFERRED/COMMIT) dışa aktarır. Yalnız SELECT çalıştığı için işlem
+ * okuyucu olarak kalır; WAL kipinde masaüstü uygulamasının yazmalarını (pano kaydı vb.) engellemez.
+ */
 export function exportBackground(settings: Record<string, unknown>, pageSize: number, backend?: DbBackend): Promise<Backup> {
   return withExclusiveDb(async ex => {
-    await ex.exec('BEGIN');
+    await ex.exec('BEGIN DEFERRED');
     try {
       return await exportData(ex, settings, pageSize);
     } finally {

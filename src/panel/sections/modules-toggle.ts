@@ -5,7 +5,7 @@ import { modules } from '../../modules';
 import { showToast } from '../ui';
 
 /** Modül aç/kapa listesini hazırlar; render fonksiyonunu döndürür. */
-export function initModulesToggle(refresh: () => Promise<void>): (rawFlags?: unknown) => Promise<void> {
+export function initModulesToggle(): (rawFlags?: unknown) => Promise<void> {
   const modulesList = document.querySelector('#modules-list') as HTMLElement;
 
   return async function renderModules(rawFlags?: unknown): Promise<void> {
@@ -49,9 +49,9 @@ export function initModulesToggle(refresh: () => Promise<void>): (rawFlags?: unk
         input.type = 'checkbox';
         input.checked = enabled;
         input.addEventListener('change', () => {
+          // Panel, modül bayrakları değişince storage.onChanged ile kendini yeniler.
           void setModuleEnabled(module.id, input.checked).then(() => {
             showToast(`${module.name} ${input.checked ? 'açıldı' : 'kapatıldı'}.`, 'info');
-            return refresh();
           });
         });
         const track = document.createElement('span');

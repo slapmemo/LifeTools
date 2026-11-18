@@ -20,16 +20,21 @@ worker.onerror = event => {
   pending.clear();
 };
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (!msg || msg.channel !== OFFSCREEN_CHANNEL) return false;
+// Savunma katmanı: DB ve pano isteklerini yalnız eklentinin service worker'ı gönderebilir
+// (sayfalar köprüden, service worker üzerinden gelir).
+const fromServiceWorker = (sender: chrome.runtime.MessageSender): boolean =>
+  sender.id === chrome.runtime.id && !sender.tab && sender.url === chrome.runtime.getURL('background.js');
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!msg || msg.channel !== OFFSCREEN_CHANNEL || !fromServiceWorker(sender)) return false;
   const id = nextId++;
   pending.set(id, sendResponse);
   worker.postMessage({ id, req: msg.req as DbRequest });
   return true;
 });
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (!msg || msg.channel !== 'lifetools:clipboard' || typeof msg.text !== 'string') return false;
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!msg || msg.channel !== 'lifetools:clipboard' || typeof msg.text !== 'string' || !fromServiceWorker(sender)) return false;
   const textarea = document.createElement('textarea');
   textarea.value = msg.text;
   document.body.append(textarea);

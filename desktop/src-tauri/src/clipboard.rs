@@ -153,7 +153,23 @@ fn handle_update(app: &AppHandle, state: &Arc<AppState>, hwnd: HWND) {
     if state.is_programmatic(&text) {
         return;
     }
-    let inserted = db::insert_clip(&state.db(), &text, db::now_secs(), settings.max_items).unwrap_or(false);
+    // Başka bir bağlantı (ör. eklentinin native host'u) kısa süre yazma kilidi tutuyorsa 5 sn'lik
+    // busy_timeout dolabilir; kopyalanan metin kaybolmasın diye kilidi bırakıp birkaç kez yeniden dene.
+    let mut inserted = false;
+    for attempt in 0..3 {
+        match db::insert_clip(&state.db(), &text, db::now_secs(), settings.max_items) {
+            Ok(v) => {
+                inserted = v;
+                break;
+            }
+            Err(rusqlite::Error::SqliteFailure(e, _))
+                if attempt < 2 && matches!(e.code, rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked) =>
+            {
+                std::thread::sleep(Duration::from_millis(500));
+            }
+            Err(_) => break,
+        }
+    }
     if inserted {
         let _ = app.emit("clipboard-changed", ());
     }

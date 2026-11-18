@@ -1,5 +1,4 @@
 ﻿import { describe, expect, it, vi } from 'vitest';
-import { CHANNEL_IDS, defaultConfig, parseConfig } from '../desktop/src/ambient';
 import { defaults as videoDefaults } from '../src/modules/x-video/shared';
 
 describe('feature defaults', () => {

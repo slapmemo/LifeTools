@@ -29,4 +29,10 @@
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL
+  ; Kenara alınan exe hâlâ çalışıyor olabilir; silinemezse Windows yeniden başlarken siler.
+  ; Chrome native messaging kaydı burada silinmez: güncelleme sırasında kaldırıcı çalışırsa
+  ; eklenti bağlantısı kopardı. Kayıt Ayarlar'daki "Bağlantıyı kaldır" ile silinir.
+  Delete /REBOOTOK "$INSTDIR\lifetools-desktop.old.exe"
+  Delete /REBOOTOK "$INSTDIR\lifetools-desktop.old2.exe"
+  Delete /REBOOTOK "$INSTDIR\lifetools-desktop.old3.exe"
 !macroend

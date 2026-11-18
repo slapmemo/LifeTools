@@ -2,11 +2,11 @@ import { isModuleEnabled } from '../../core/module-state';
 import { backgroundDb } from '../../db/host';
 import { createNotesRepo } from '../slapmemo/repo';
 import { createTabNotesRepo } from './repo';
-import { transferTabNote } from './transfer';
+import { isUrlStillOpen, transferTabNote } from './transfer';
 import { canInjectTabPage } from '../../core/tab-page-permission';
 import { normalizeUrl } from '../life-browser/tabs';
 import { showTabNote } from './note-page';
-import { PAGE_THEME } from '../../core/page-theme';
+import { storedPageTheme } from '../../core/page-theme';
 export const TAB_NOTES_ID = 'tab-notes';
 export const TRANSFER_KEY = 'tabNotesTransferOnClose';
 export const SHOW_NOTE_KEY = 'tabNotesShowOnRevisit';
@@ -21,7 +21,7 @@ async function showNote(tab: chrome.tabs.Tab): Promise<void> {
   if (tab.id === undefined || !tab.url || !(await isModuleEnabled(TAB_NOTES_ID)) || !(await chrome.storage.local.get({ [SHOW_NOTE_KEY]: true }))[SHOW_NOTE_KEY] || !(await canInjectTabPage(tab.url))) return;
   const note = await createTabNotesRepo(backgroundDb).get(tab.url);
   if (!note) return;
-  try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: showTabNote, args: [tab.url, note.note, PAGE_THEME] }); } catch { /* Sekme kapanmış veya kısıtlı olabilir. */ }
+  try { await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: showTabNote, args: [tab.url, note.note, await storedPageTheme()] }); } catch { /* Sekme kapanmış veya kısıtlı olabilir. */ }
 }
 export function initTabNotesBackground(): void {
   chrome.tabs.onCreated.addListener(tab => schedule(() => remember(tab)));
@@ -36,7 +36,7 @@ export function initTabNotesBackground(): void {
     return true;
   });
   chrome.tabs.onReplaced.addListener((added, removed) => schedule(async () => { const m = await map(); if (m[removed]) { m[added] = m[removed]; delete m[removed]; await chrome.storage.session.set({ [MAP_KEY]: m }); } }));
-  chrome.tabs.onRemoved.addListener(id => schedule(async () => { const m = await map(); const entry = m[id]; delete m[id]; await chrome.storage.session.set({ [MAP_KEY]: m }); if (entry && await isModuleEnabled(TAB_NOTES_ID) && (await chrome.storage.local.get({ [TRANSFER_KEY]: true }))[TRANSFER_KEY]) await transferTabNote(entry.url, entry.title, createTabNotesRepo(backgroundDb), createNotesRepo(backgroundDb)); }));
+  chrome.tabs.onRemoved.addListener(id => schedule(async () => { const m = await map(); const entry = m[id]; delete m[id]; await chrome.storage.session.set({ [MAP_KEY]: m }); if (entry && !isUrlStillOpen(entry.url, Object.values(m).map(e => e.url)) && await isModuleEnabled(TAB_NOTES_ID) && (await chrome.storage.local.get({ [TRANSFER_KEY]: true }))[TRANSFER_KEY]) await transferTabNote(entry.url, entry.title, createTabNotesRepo(backgroundDb), createNotesRepo(backgroundDb)); }));
   chrome.runtime.onStartup.addListener(() => schedule(seed)); chrome.runtime.onInstalled.addListener(() => schedule(seed));
   schedule(seed);
 }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { TRACKING_PARAMS } from '../src/modules/link-cleaner/clean';
+import { cleanUrl, TRACKING_PARAMS } from '../src/modules/link-cleaner/clean';
 import { buildCleaningRules, updateCleaningRules } from '../src/modules/link-cleaner/rules';
 
 describe('automatic link cleaning rules', () => {
@@ -23,5 +23,14 @@ describe('automatic link cleaning rules', () => {
     vi.stubGlobal('chrome', { declarativeNetRequest: { getDynamicRules: vi.fn().mockResolvedValue([{ id: 1 }, { id: 9000 }, { id: 9099 }, { id: 9100 }]), updateDynamicRules } });
     await updateCleaningRules(false);
     expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [9000, 9099], addRules: [] });
+  });
+});
+
+describe('automatic vs manual utm handling', () => {
+  it('automatic rules remove only listed utm names; manual cleaning removes any utm_ prefix', () => {
+    const removed = buildCleaningRules()[0].action.redirect?.transform?.queryTransform?.removeParams ?? [];
+    expect(removed).toContain('utm_source');
+    expect(removed).not.toContain('utm_foo');
+    expect(cleanUrl('https://a.test/?utm_foo=1&x=2')?.url).toBe('https://a.test/?x=2');
   });
 });

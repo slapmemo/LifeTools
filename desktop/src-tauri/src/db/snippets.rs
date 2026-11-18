@@ -1,6 +1,6 @@
 use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::{Deserialize, Serialize};
-use super::{fold, now_secs, MAX_TEXT_CHARS};
+use super::{fold, notes::now_millis, MAX_TEXT_CHARS};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Snippet {
@@ -41,7 +41,8 @@ pub fn save_snippet(db: &Connection, id: Option<i64>, trigger: &str, title: &str
     if title.is_empty() || body.is_empty() { return Err("Başlık ve içerik gerekli.".into()); }
     if title.chars().count() > 80 { return Err("Başlık en fazla 80 karakter olmalı.".into()); }
     if body.chars().count() > MAX_TEXT_CHARS { return Err("İçerik en fazla 10 000 karakter olmalı.".into()); }
-    let now = now_secs();
+    // Eklentiyle aynı birim: milisaniye.
+    let now = now_millis();
     if let Some(id) = id {
         let n = db.execute("UPDATE snippets SET trigger=?1,title=?2,body=?3,updated_at=?4 WHERE id=?5", params![trigger,title,body,now,id]).map_err(snippet_err)?;
         if n == 0 { return Err("Şablon bulunamadı.".into()); }

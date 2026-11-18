@@ -62,6 +62,7 @@ jobs:
       - name: Build and test extension
         run: |
           npm ci
+          npm run typecheck
           npm test
           npm run build
 
@@ -72,6 +73,10 @@ jobs:
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci
+
+      - name: Typecheck desktop UI
+        working-directory: desktop
+        run: npm run typecheck
 
       - name: Test desktop
         working-directory: desktop/src-tauri

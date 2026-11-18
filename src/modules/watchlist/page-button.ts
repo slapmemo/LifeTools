@@ -1,8 +1,10 @@
 import { pageToast } from '../../core/page-toast';
-import { PAGE_THEME } from '../../core/page-theme';
+import { livePageTheme } from '../../core/page-theme';
 import { MODULE_FLAGS_KEY, resolveEnabled } from '../../core/module-state';
 import { detectPageKind, normalizePageUrl, PAGE_BUTTON_KEY, STATUS_TEXT } from './page-logic';
 import type { Status } from './repo';
+// Tema ayarını erken okumaya başla; kutular oluşturulurken hazır olsun.
+livePageTheme();
 
 let enabled = false;
 let route = '';
@@ -30,7 +32,7 @@ async function render(): Promise<void> {
   wrapper.style.cssText = 'display:inline-flex;vertical-align:middle;margin:4px 8px';
   const shadow = wrapper.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
-  style.textContent = PAGE_THEME + 'button{font:inherit;font-weight:600;min-height:28px;border:1px solid var(--lt-accent);border-radius:8px;padding:3px 10px;background:var(--lt-accent);color:var(--lt-on-accent);cursor:pointer;white-space:nowrap}button:hover{opacity:.88}button:disabled{opacity:.5;cursor:default}';
+  style.textContent = livePageTheme() + 'button{font:inherit;font-weight:600;min-height:28px;border:1px solid var(--lt-accent);border-radius:8px;padding:3px 10px;background:var(--lt-accent);color:var(--lt-on-accent);cursor:pointer;white-space:nowrap}button:hover{opacity:.88}button:disabled{opacity:.5;cursor:default}';
   const button = document.createElement('button'); button.type = 'button'; button.textContent = '＋ İzle'; button.disabled = true;
   shadow.append(style, button); anchor.insertAdjacentElement('afterend', wrapper); host = wrapper;
   let id: number | undefined;

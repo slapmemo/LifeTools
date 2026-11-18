@@ -11,18 +11,21 @@ import { PIN_MANAGER_KEY } from './settings';
 import { migrateStoredSessions } from './workspace-migration';
 import { appendToSavedGroup } from './saved-group-append';
 import { TAB_MANAGER_ID } from './id';
+import { isManagerTabUrl, managerTabs } from './manager-tab';
 
 const timers = new Map<number, ReturnType<typeof setTimeout>>();
 let queue = Promise.resolve();
 
-async function reconcile(windowId: number): Promise<void> {
+/** `onlyDedupe`: sekme olaylarından gelen tur; ayar kapalıyken kullanıcının kendi açtığı Yönetici sekmesini kapatmaz. */
+async function reconcile(windowId: number, onlyDedupe = false): Promise<void> {
   try {
     const win = await chrome.windows.get(windowId);
     if (win.type !== 'normal' || win.incognito) return;
     const url = chrome.runtime.getURL('tabs.html');
-    const tabs = (await chrome.tabs.query({ windowId })).filter(t => (t.url || t.pendingUrl) === url).sort((a, b) => a.index - b.index);
+    const tabs = managerTabs(await chrome.tabs.query({ windowId }), url);
     const enabled = await isModuleEnabled(TAB_MANAGER_ID) && (await chrome.storage.local.get({ [PIN_MANAGER_KEY]: true }))[PIN_MANAGER_KEY] === true;
     if (!enabled) {
+      if (onlyDedupe) return;
       const ids = tabs.flatMap(t => t.id === undefined ? [] : [t.id]);
       if (ids.length) await chrome.tabs.remove(ids);
       return;
@@ -30,6 +33,8 @@ async function reconcile(windowId: number): Promise<void> {
     const [first, ...duplicates] = tabs;
     const ids = duplicates.flatMap(t => t.id === undefined ? [] : [t.id]);
     if (ids.length) await chrome.tabs.remove(ids);
+    // Kullanıcı kapatılan kopyadaysa tutulan Yönetici sekmesine geç.
+    if (first?.id !== undefined && duplicates.some(t => t.active)) await chrome.tabs.update(first.id, { active: true });
     if (!first) await chrome.tabs.create({ windowId, url, pinned: true, index: 0, active: false });
     else if (first.id !== undefined) {
       if (!first.pinned) await chrome.tabs.update(first.id, { pinned: true });
@@ -37,9 +42,15 @@ async function reconcile(windowId: number): Promise<void> {
     }
   } catch { /* Window may have closed. */ }
 }
-function schedule(id: number): void {
+const fullPass = new Set<number>();
+function schedule(id: number, onlyDedupe = false): void {
+  if (!onlyDedupe) fullPass.add(id);
   clearTimeout(timers.get(id));
-  timers.set(id, setTimeout(() => { timers.delete(id); queue = queue.then(() => reconcile(id)).catch(console.error); }, 1000));
+  timers.set(id, setTimeout(() => {
+    timers.delete(id);
+    const dedupeOnly = !fullPass.delete(id);
+    queue = queue.then(() => reconcile(id, dedupeOnly)).catch(console.error);
+  }, 1000));
 }
 function scheduleAll(): void {
   void chrome.windows.getAll({ windowTypes: ['normal'] }).then(wins => wins.forEach(w => { if (w.id !== undefined && !w.incognito) schedule(w.id); }));
@@ -138,9 +149,18 @@ export function initTabManagerBackground(): void {
   void migrateStoredSessions();
   chrome.runtime.onStartup.addListener(() => { void migrateStoredSessions(); });
   chrome.runtime.onInstalled.addListener(() => { void migrateStoredSessions(); });
-  chrome.runtime.onStartup.addListener(scheduleAll);
+  // Oturum geri yüklenirken sabit Yönetici sekmesi 1 sn'den geç gelebilir; ikinci tur fazlalığı kapatır.
+  chrome.runtime.onStartup.addListener(() => { scheduleAll(); setTimeout(scheduleAll, 15000); });
   chrome.runtime.onInstalled.addListener(scheduleAll);
   chrome.windows.onCreated.addListener(win => { if (win.id !== undefined && win.type === 'normal' && !win.incognito) schedule(win.id); });
-  chrome.windows.onRemoved.addListener(id => { clearTimeout(timers.get(id)); timers.delete(id); });
+  // Bir Yönetici sekmesi açılınca, yüklenince ya da pencereye taşınınca o pencereyi hemen toparla
+  // (panel düğmesi, oturum geri yükleme, eklenti yeniden yüklenmesi sonrası birikmesin).
+  const managerUrl = chrome.runtime.getURL('tabs.html');
+  chrome.tabs.onCreated.addListener(tab => { if (isManagerTabUrl(tab.url || tab.pendingUrl, managerUrl)) schedule(tab.windowId, true); });
+  chrome.tabs.onUpdated.addListener((_id, change, tab) => { if (change.url && isManagerTabUrl(change.url, managerUrl)) schedule(tab.windowId, true); });
+  chrome.tabs.onAttached.addListener((_id, info) => { schedule(info.newWindowId, true); });
+  // Sekmenin çıktığı pencere de toparlansın (orada kalan kopyalar).
+  chrome.tabs.onDetached.addListener((_id, info) => { schedule(info.oldWindowId, true); });
+  chrome.windows.onRemoved.addListener(id => { clearTimeout(timers.get(id)); timers.delete(id); fullPass.delete(id); });
   chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && (changes[PIN_MANAGER_KEY] || changes[MODULE_FLAGS_KEY])) scheduleAll(); });
 }

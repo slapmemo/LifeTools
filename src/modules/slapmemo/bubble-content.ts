@@ -1,10 +1,12 @@
 import { MODULE_FLAGS_KEY, resolveEnabled } from '../../core/module-state';
 import { pageToast } from '../../core/page-toast';
-import { PAGE_THEME } from '../../core/page-theme';
+import { livePageTheme } from '../../core/page-theme';
 import { cleanUrl } from '../link-cleaner/clean';
 import { BUBBLE_ENABLED_KEY, BUBBLE_HIDDEN_KEY, bubbleButtons, bubblePosition, selectionUrl, shouldShowBubble, languageName, translationText } from './bubble-logic';
 import { looksLikeAddress } from './bubble-logic';
 import { convert, findPriceAt, formatTry, parsePrice, type Rates } from '../currency/rates';
+// Tema ayarını erken okumaya başla; kutular oluşturulurken hazır olsun.
+livePageTheme();
 
 let enabled = false;
 let hiddenSites: string[] = [];
@@ -53,7 +55,7 @@ function show(): void {
   const bubbleHost = host;
   const shadow = host.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
-  style.textContent = PAGE_THEME + `:host{position:fixed;z-index:2147483647} .pill{display:flex;align-items:center;white-space:nowrap;background:var(--lt-surface);color:var(--lt-text);border:1px solid var(--lt-border);border-radius:10px;box-shadow:var(--lt-shadow);padding:3px} button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;min-height:28px;padding:3px 8px;border-radius:8px} button:hover{background:var(--lt-sub)} button.primary{background:var(--lt-accent);color:var(--lt-on-accent)} button.primary:hover{opacity:.88} .close{font-size:16px;padding:2px 7px;color:var(--lt-muted)} @media(max-width:600px){.label{display:none}button{padding:3px 5px}}`;
+  style.textContent = livePageTheme() + `:host{position:fixed;z-index:2147483647} .pill{display:flex;align-items:center;white-space:nowrap;background:var(--lt-surface);color:var(--lt-text);border:1px solid var(--lt-border);border-radius:10px;box-shadow:var(--lt-shadow);padding:3px} button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;min-height:28px;padding:3px 8px;border-radius:8px} button:hover{background:var(--lt-sub)} button.primary{background:var(--lt-accent);color:var(--lt-on-accent)} button.primary:hover{opacity:.88} .close{font-size:16px;padding:2px 7px;color:var(--lt-muted)} @media(max-width:600px){.label{display:none}button{padding:3px 5px}}`;
   const pill = document.createElement('div'); pill.className = 'pill';
   style.textContent += `.more-wrap{position:relative}.menu{position:absolute;right:0;top:100%;z-index:1;background:var(--lt-surface);color:var(--lt-text);border:1px solid var(--lt-border);border-radius:8px;box-shadow:var(--lt-shadow);padding:3px}.menu button{height:28px;white-space:nowrap}`;
   style.textContent += `.fx{font-weight:700;padding:3px 8px;border-radius:8px;background:var(--lt-accent-soft);color:var(--lt-text);cursor:pointer}`;

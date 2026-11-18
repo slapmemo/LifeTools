@@ -206,6 +206,11 @@ export function createKebabMenu(items: readonly KebabMenuItem[], ariaLabel = 'İ
         return;
       }
       if (timer) clearTimeout(timer);
+      // Onaydan sonra silahı indir: işlem hata verirse ya da satır yeniden çizilmezse menü bir dahaki
+      // açılışta tek tıklamayla çalışmasın.
+      btn.dataset.armed = 'false';
+      span.textContent = item.label;
+      btn.classList.remove('confirming');
       closeAllKebabMenus();
       void item.onSelect();
     });

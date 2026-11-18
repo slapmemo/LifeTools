@@ -9,3 +9,22 @@ describe('page theme', () => {
     expect(PAGE_THEME.match(/:host\s*\{/g)).toHaveLength(2);
   });
 });
+
+import { pageTheme, toPageThemeMode } from '../src/core/page-theme';
+
+describe('page theme follows the extension choice', () => {
+  it('forces dark or light without the system media query', () => {
+    const dark = pageTheme('dark');
+    expect(dark).toContain('--lt-accent: #a69cff');
+    expect(dark).not.toContain('#6258da');
+    expect(dark).not.toContain('prefers-color-scheme');
+    const light = pageTheme('light');
+    expect(light).toContain('--lt-accent: #6258da');
+    expect(light).not.toContain('#a69cff');
+  });
+  it('treats unknown values as system', () => {
+    expect(toPageThemeMode('dark')).toBe('dark');
+    expect(toPageThemeMode('weird')).toBe('system');
+    expect(toPageThemeMode(undefined)).toBe('system');
+  });
+});

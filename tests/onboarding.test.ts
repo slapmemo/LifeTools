@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { RECOMMENDED_MODULES, recommendedFlags } from '../src/core/onboarding';
+import { modules } from '../src/modules';
 
-const ids = ['clip-slots', 'currency', 'instagram', 'link-cleaner', 'pip', 'shortcuts', 'site-blocker', 'site-toolbar', 'slapmemo', 'smart-replies', 'tab-labels', 'tab-manager', 'tab-notes', 'time-tracker', 'title-cleaner', 'video-downloader', 'volume-booster', 'watchlist', 'x-video', 'zombie-tabs'];
+// Kaynak gerçek modül kaydı; yeni modül eklenince liste kendiliğinden güncellenir.
+const ids = modules.map(m => m.id);
 
 describe('onboarding recommendations', () => {
   it('enables recommended modules and disables other and unknown ids', () => {

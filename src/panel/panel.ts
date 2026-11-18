@@ -14,6 +14,7 @@ import { initSlapMemoPanel } from '../modules/slapmemo/panel';
 import { SMART_REPLIES_ID } from '../modules/smart-replies/background';
 import { initSmartRepliesPanel } from '../modules/smart-replies/panel';
 import { initTabToolsPanel } from '../modules/tab-notes/panel';
+import { openTabManager } from '../modules/tab-manager/open';
 import { TIME_TRACKER_ID } from '../modules/time-tracker/background';
 import { initTimeTrackerPanel } from '../modules/time-tracker/panel';
 import { WATCHLIST_ID } from '../modules/watchlist/background';
@@ -45,12 +46,13 @@ const shortcutsSection = document.querySelector('#shortcuts-panel') as HTMLEleme
 const shortcuts = initShortcutsPanel();
 const siteToolbar = initSiteToolbarPanel();
 const tabTools = initTabToolsPanel();
-document.querySelector('#open-tab-manager')?.addEventListener('click', () => { void chrome.tabs.create({ url: chrome.runtime.getURL('tabs.html') }); });
+// Açık bir Yönetici sekmesi varsa ona geç; her tıklamada yeni sekme açılmasın.
+document.querySelector('#open-tab-manager')?.addEventListener('click', () => { void openTabManager(); });
 const zombies = initZombieTabsPanel();
 
 const timeTracker = initTimeTrackerPanel();
 
-const renderModules = initModulesToggle(refresh);
+const renderModules = initModulesToggle();
 
 const smart = initSmartRepliesPanel();
 const cleaner = initLinkCleanerPanel();
@@ -60,36 +62,54 @@ const memo = initSlapMemoPanel();
 const { updateSubTabs, memoSection, smartSection } = initSubTabs();
 const refreshMedia = initMediaSettings(videoPanel);
 
+/** Bir bölüm hata verirse (ör. masaüstü kapalıyken) diğer bölümler yine çizilsin. */
+async function safe(name: string, fn: () => Promise<unknown> | unknown): Promise<void> {
+  try {
+    await fn();
+  } catch (err) {
+    console.debug(`[LifeTools] panel bölümü çizilemedi: ${name}`, err);
+  }
+}
+
 async function refresh(): Promise<void> {
   const flags = (await chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }))[MODULE_FLAGS_KEY];
-  await refreshMedia(flags);
-  await currencyPanel.render(flags);
+  await safe('media', () => refreshMedia(flags));
+  await safe('currency', () => currencyPanel.render(flags));
 
-  await renderModules(flags);
-  await updateSubTabs(flags);
+  await safe('modules', () => renderModules(flags));
+  await safe('subtabs', () => updateSubTabs(flags));
 
-  if (resolveEnabled(flags, WATCHLIST_ID)) await watch.render();
-  if (resolveEnabled(flags, CLIP_SLOTS_ID)) await clip.render();
-  await refreshPip(flags);
-  await tabTools.render();
-  if (resolveEnabled(flags, TIME_TRACKER_ID)) await timeTracker.render();
-  if (resolveEnabled(flags, SMART_REPLIES_ID)) await smart.render();
-  if (resolveEnabled(flags, SITE_BLOCKER_ID)) await blocker.render();
-  if (resolveEnabled(flags, SLAPMEMO_ID)) await memo.render();
-  if (resolveEnabled(flags, LINK_CLEANER_ID)) await cleaner.render();
-  if (resolveEnabled(flags, ZOMBIE_TABS_ID)) await zombies.render();
+  if (resolveEnabled(flags, WATCHLIST_ID)) await safe('watchlist', () => watch.render());
+  if (resolveEnabled(flags, CLIP_SLOTS_ID)) await safe('clip-slots', () => clip.render());
+  await safe('pip', () => refreshPip(flags));
+  await safe('tab-tools', () => tabTools.render());
+  if (resolveEnabled(flags, TIME_TRACKER_ID)) await safe('time-tracker', () => timeTracker.render());
+  if (resolveEnabled(flags, SMART_REPLIES_ID)) await safe('smart-replies', () => smart.render());
+  if (resolveEnabled(flags, SITE_BLOCKER_ID)) await safe('site-blocker', () => blocker.render());
+  if (resolveEnabled(flags, SLAPMEMO_ID)) await safe('slapmemo', () => memo.render());
+  if (resolveEnabled(flags, LINK_CLEANER_ID)) await safe('link-cleaner', () => cleaner.render());
+  if (resolveEnabled(flags, ZOMBIE_TABS_ID)) await safe('zombies', () => zombies.render());
   const shortcutsOn = resolveEnabled(flags, SHORTCUTS_ID);
   shortcutsSection.hidden = !shortcutsOn;
   const shortcutsAnchor = document.querySelector<HTMLElement>('[data-ayarlar-anchor="shortcuts-panel"]');
   if (shortcutsAnchor) shortcutsAnchor.hidden = !shortcutsOn;
-  if (shortcutsOn) await shortcuts.render();
-  if (resolveEnabled(flags, SITE_TOOLBAR_ID)) await siteToolbar.render();
+  if (shortcutsOn) await safe('shortcuts', () => shortcuts.render());
+  if (resolveEnabled(flags, SITE_TOOLBAR_ID)) await safe('site-toolbar', () => siteToolbar.render());
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && (changes.enabled || changes.blockedHandles || changes[MODULE_FLAGS_KEY])) {
     void refresh();
   }
+});
+
+// Kullanıcı başka sekmeye geçip panele dönünce "bu sayfa" bölümleri o sekmeye göre tazelensin.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  void safe('tab-tools', () => tabTools.render());
+  void chrome.storage.local.get({ [MODULE_FLAGS_KEY]: {} }).then(data => {
+    if (resolveEnabled(data[MODULE_FLAGS_KEY], LINK_CLEANER_ID)) void safe('link-cleaner', () => cleaner.render());
+  });
 });
 
 initAyarlarAnchors();

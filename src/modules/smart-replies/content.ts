@@ -3,6 +3,12 @@ import type { Snippet } from './repo';
 let snippets: Snippet[] = [];
 function refresh(): void { void chrome.runtime.sendMessage({ channel: 'smart-replies', action: 'list' }).then((value: Snippet[]) => { snippets = Array.isArray(value) ? value : []; }).catch(() => { snippets = []; }); }
 refresh();
+// Masaüstünden değiştirilen şablonlar storage olayı üretmez; sayfaya dönünce ya da bir alana odaklanınca
+// (en fazla dakikada bir) listeyi yeniden iste.
+let lastRefresh = Date.now();
+function refreshIfStale(): void { if (Date.now() - lastRefresh < 60_000) return; lastRefresh = Date.now(); refresh(); }
+document.addEventListener('focusin', refreshIfStale, true);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshIfStale(); });
 chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && (changes.smartReplyChanged || changes.moduleEnabled || changes.smartReplySites)) refresh(); });
 document.addEventListener('keydown', event => {
   if (!snippets.length || (event.key !== ' ' && event.key !== 'Tab') || event.isComposing || event.ctrlKey || event.altKey || event.metaKey) return;

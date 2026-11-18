@@ -5,6 +5,12 @@ export const AUTO_CLEAN_ORIGINS = ['https://*/*', 'http://*/*'];
 export const RULE_MIN = 9000;
 export const RULE_MAX = 9099;
 
+/**
+ * Bilinçli fark: DNR `removeParams` yalnız tam adları siler, önek desteği yoktur. Bu yüzden otomatik temizleme
+ * `TRACKING_PARAMS` listesindeki utm_* adlarını siler; elle temizleme (`cleanUrl`) ise `utm_` ile başlayan her
+ * parametreyi siler. `regexSubstitution` ile önek silmek mümkün ama sorgu yeniden yazımı URL'leri bozabilir.
+ * `tests/link-cleaner-rules.test.ts` bu farkı sabitler.
+ */
 export function buildCleaningRules(params: readonly string[] = TRACKING_PARAMS): chrome.declarativeNetRequest.Rule[] {
   if (!params.length) return [];
   const globalRule: chrome.declarativeNetRequest.Rule = {

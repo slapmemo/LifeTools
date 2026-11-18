@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { parsePrefix, parseTurkishDue, rankActions } from '../src/core/command-search';
+import { readFileSync } from 'node:fs';
+import { parsePrefix, PREFIX_ARG_COMMANDS, PREFIX_COMMANDS, rankActions } from '../src/core/command-search';
 import { duplicateBindings } from '../src/modules/shortcuts/duplicates';
 import { normalizeToolbarSettings } from '../src/modules/site-toolbar/settings';
 describe('command center', () => {
+  it('every prefix command points at a registered action', () => {
+    const source = readFileSync('src/core/builtin-actions.ts', 'utf8');
+    for (const id of [...Object.values(PREFIX_ARG_COMMANDS), ...Object.values(PREFIX_COMMANDS), 'session.save', 'link.copyPage']) {
+      expect(source.includes(`id: '${id}'`) || source.includes(`id:'${id}'`), id).toBe(true);
+    }
+  });
   it('parses Turkish prefixes without altering arguments', () => {
     expect(parsePrefix(' GÖREV  Çalışma ')).toBeNull();
     expect(parsePrefix('not ')).toBeNull();
@@ -11,12 +18,8 @@ describe('command center', () => {
     const actions = [{ title: 'Bir çalışma', keywords: [] }, { title: 'Çalışma ekle', keywords: [] }];
     expect(rankActions(actions, 'calisma')).toEqual([actions[1], actions[0]]);
   });
-  it('parses dates, times and Turkish command forms', () => {
+  it('parses Turkish command forms', () => {
     const now = new Date(2026, 10, 8, 12);
-    expect(parseTurkishDue('Faturayı öde yarın 09:30', now)).toEqual({ title: 'Faturayı öde', due: '2026-11-09 09:30' });
-    expect(parseTurkishDue('Ara pazartesi', now)).toEqual({ title: 'Ara', due: '2026-11-09' });
-    expect(parseTurkishDue('Ara 01.01', now)).toEqual({ title: 'Ara', due: '2027-01-01' });
-    expect(parseTurkishDue('Ara 31.02', now)).toEqual({ title: 'Ara 31.02', due: null });
     expect(parsePrefix('IZLE Film')).toEqual({ id: 'watch.add', arg: 'Film' });
     expect(parsePrefix('SÜRE')).toEqual({ id: 'time.today', arg: '' });
     expect(parsePrefix('oturum kaydet İş')).toEqual({ id: 'session.save', arg: 'İş' });

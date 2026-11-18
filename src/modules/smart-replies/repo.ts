@@ -1,5 +1,6 @@
 import type { Executor } from '../../db/migrations';
 export interface Snippet { id: number; trigger: string; title: string; body: string; use_count: number; created_at: number; updated_at: number }
+export const SNIPPET_TITLE_MAX = 80;
 export interface SnippetInput { trigger: string; title: string; body: string }
 export function validateTrigger(value: string): string {
   const trigger = value.trim().toLowerCase();
@@ -13,6 +14,8 @@ export function createSnippetsRepo(ex: Executor, now: () => number = Date.now) {
   async function prepare(input: SnippetInput, id?: number) {
     const trigger = validateTrigger(input.trigger);
     if (!input.title.trim() || !input.body.trim()) throw new Error('Başlık ve metin boş olamaz.');
+    // Masaüstü şablon formu da 80 karakterle sınırlı; iki taraf aynı kuralı kullanır.
+    if (input.title.trim().length > SNIPPET_TITLE_MAX) throw new Error(`Başlık en fazla ${SNIPPET_TITLE_MAX} karakter olabilir.`);
     const existing = await getByTrigger(trigger);
     if (existing && existing.id !== id) throw new Error('Bu tetikleyici zaten kullanılıyor.');
     return [trigger, input.title.trim(), input.body] as const;

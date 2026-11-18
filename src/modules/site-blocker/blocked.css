@@ -1,6 +1,6 @@
 body { margin: 0; display: grid; min-height: 100vh; place-items: center; padding: var(--space-24); }
 main { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-8); padding: var(--space-24); }
-h1 { margin: 0 0 var(--space-12); font-size: var(--font-size-18); }
+h1 { margin: 0 0 var(--space-12); font-size: var(--font-size-20); }
 p { color: var(--muted); line-height: 1.5; }
 main > div { display: flex; flex-wrap: wrap; gap: var(--space-8); }
 #allow { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }

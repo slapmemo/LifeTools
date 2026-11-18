@@ -1,5 +1,5 @@
 import { requestActions, requestAllActions } from '../../core/actions';
-import { originFromInput } from '../../core/site-scripts';
+import { originFromInput, releaseOrigin } from '../../core/site-scripts';
 import {
   createEmptyState,
   createKebabMenu,
@@ -98,7 +98,7 @@ export function initSiteToolbarPanel(): { render(): Promise<void> } {
             onSelect: () => {
               void (async () => {
                 await save((await load()).filter(s => s.origin !== site.origin));
-                await chrome.permissions.remove({ origins: [site.origin] });
+                await releaseOrigin(site.origin);
                 await render();
                 say('Site kaldırıldı.');
               })().catch(() => say('Site kaldırılamadı.', true));

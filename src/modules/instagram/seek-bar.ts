@@ -1,6 +1,8 @@
-import { PAGE_THEME } from '../../core/page-theme';
+import { livePageTheme } from '../../core/page-theme';
 import { visibleVideoRect } from './visibility';
 import { getInstagramPointer, scheduleInstagram, subscribeInstagram } from './scheduler';
+// Tema ayarını erken okumaya başla; kutular oluşturulurken hazır olsun.
+livePageTheme();
 
 export function formatTime(value: number): string {
   const seconds = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
@@ -36,7 +38,7 @@ function createBar(video: HTMLVideoElement): Bar {
   host.style.cssText = 'position:fixed;z-index:2147483647;height:36px;pointer-events:none';
   const root = host.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
-  style.textContent = `${PAGE_THEME}
+  style.textContent = `${livePageTheme()}
     .wrap{position:relative;width:100%;height:36px;pointer-events:none}
     .label,.tip{position:absolute;bottom:13px;color:white;background:#000a;border-radius:3px;padding:1px 4px;font:12px/1.3 sans-serif;white-space:nowrap}
     .label{left:4px}.tip{display:none;transform:translateX(-50%)}

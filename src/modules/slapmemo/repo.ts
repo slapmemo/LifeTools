@@ -79,9 +79,16 @@ export function createNotesRepo(ex: Executor, now: () => number = Date.now) {
       const placeholders = ids.map(() => '?').join(',');
       return ex.query(`SELECT note_id, 'page' AS kind FROM note_pages WHERE note_id IN (${placeholders}) UNION ALL SELECT note_id, 'image' AS kind FROM note_images WHERE note_id IN (${placeholders})`, [...ids, ...ids]);
     },
-    async notesForUrl(url: string): Promise<Note[]> {
-      const notes = await ex.query<Note>('SELECT * FROM notes WHERE url IS NOT NULL ORDER BY created_at DESC, id DESC');
+    async notesForUrl(url: string): Promise<Array<Pick<Note, 'id' | 'url' | 'text' | 'created_at'>>> {
+      // Tüm notları her sayfa yüklemesinde çekmemek için önce SQL'de adresin yol kısmıyla süz
+      // (sondaki "/", sorgu ve "#" farkları hâlâ eşleşir), kesin karşılaştırmayı sonra JS'te yap.
       const normalized = normalizeNoteUrl(url);
+      const query = normalized.indexOf('?');
+      const prefix = query < 0 ? normalized : normalized.slice(0, query);
+      const notes = await ex.query<Pick<Note, 'id' | 'url' | 'text' | 'created_at'>>(
+        'SELECT id, url, text, created_at FROM notes WHERE url IS NOT NULL AND substr(url, 1, length(?)) = ? ORDER BY created_at DESC, id DESC',
+        [prefix, prefix]
+      );
       return notes.filter(note => note.url !== null && normalizeNoteUrl(note.url) === normalized);
     },
     async addNote(input: NewNote): Promise<AddResult> {

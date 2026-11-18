@@ -22,6 +22,10 @@ describe('currency', () => {
   it('reads Steam final amounts', () => {
     expect(steamFinalAmount('647', '$6.47 USD')).toEqual({ currency: 'USD', amount: 6.47 });
     expect(steamFinalAmount(null, '$5.79 USD')).toEqual({ currency: 'USD', amount: 5.79 });
+    // Paket fiyatı sahip olunan oyuna göre düşünce metin değişir, öznitelik düz fiyatta kalır: metin esas.
+    expect(steamFinalAmount('602', '$4.75 USD')).toEqual({ currency: 'USD', amount: 4.75 });
+    // Metin okunamazsa öznitelik kullanılır.
+    expect(steamFinalAmount('475', 'USD')).toEqual({ currency: 'USD', amount: 4.75 });
     expect(steamFinalAmount('0', '$0.00 USD')).toBeNull();
     expect(steamFinalAmount('5000', '₺50')).toBeNull();
   });

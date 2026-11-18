@@ -105,7 +105,7 @@ export function initSiteBlockerBackground(): void {
 
   // Engelleme etkinleştirildiğinde veya liste değiştiğinde açık sekmeleri de kontrol et.
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && (changes.enabled || changes[MODULE_FLAGS_KEY])) {
+    if (area === 'local' && (changes.enabled || changes.blockedHandles || changes[MODULE_FLAGS_KEY])) {
       void inspectOpenTabs();
     }
   });

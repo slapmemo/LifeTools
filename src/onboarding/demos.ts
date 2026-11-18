@@ -243,7 +243,10 @@ function buildDemo(demoId: string): HTMLElement | null {
   box.setAttribute('role', 'img');
   box.setAttribute('aria-label', demo.label);
   box.innerHTML = demo.html;
-  new ResizeObserver(() => aim(box)).observe(box);
+  // Ölçüm sınıf değiştirip yerleşimi oynattığı için ResizeObserver geri çağrısının dışında, sonraki karede yapılır
+  // ("ResizeObserver loop" uyarısı çıkmasın). Aynı karede birden çok değişim tek ölçüme iner.
+  let pending = 0;
+  new ResizeObserver(() => { if (!pending) pending = requestAnimationFrame(() => { pending = 0; aim(box); }); }).observe(box);
   return box;
 }
 

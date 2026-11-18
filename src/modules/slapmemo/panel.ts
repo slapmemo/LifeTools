@@ -52,6 +52,15 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
   };
 
   let filter: NoteCategory | null = null;
+  // Listede gösterilen not sayısı; "Daha fazla not göster" ile 50'şer artar, kategori/arama değişince sıfırlanır.
+  let shown = LIST_LIMIT;
+  const moreBtn = document.createElement('button');
+  moreBtn.type = 'button';
+  moreBtn.id = 'memo-more';
+  moreBtn.textContent = 'Daha fazla not göster';
+  moreBtn.hidden = true;
+  moreBtn.addEventListener('click', () => { shown += LIST_LIMIT; void render(); });
+  dom.list.after(moreBtn);
   let editingId: number | null = null;
   let renderSeq = 0;
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -145,6 +154,7 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
     button.textContent = label;
     button.addEventListener('click', () => {
       filter = key === 'all' ? null : key;
+      shown = LIST_LIMIT;
       void render();
     });
     tabButtons.set(key, button);
@@ -340,10 +350,13 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
 
     const query = dom.search.value.trim();
     try {
-      const notes = query
+      const fetched = query
         ? await repo.searchNotes(query, filter)
-        : await repo.listNotes({ category: filter, limit: LIST_LIMIT, offset: 0 });
+        : await repo.listNotes({ category: filter, limit: shown + 1, offset: 0 });
       if (seq !== renderSeq) return;
+      const hasMore = !query && fetched.length > shown;
+      const notes = hasMore ? fetched.slice(0, shown) : fetched;
+      moreBtn.hidden = !hasMore;
 
       const attachments = await repo.attachments(notes.map(note => note.id));
       if (seq !== renderSeq) return;
@@ -412,6 +425,7 @@ export function initSlapMemoPanel(db: Executor = popupDb): { render(): Promise<v
   });
 
   dom.search.addEventListener('input', () => {
+    shown = LIST_LIMIT;
     if (searchTimer) clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       void render();

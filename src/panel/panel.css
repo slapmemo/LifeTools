@@ -73,7 +73,7 @@ aside h1 {
 #navigation a:hover .nav-tooltip, #navigation a:focus-visible .nav-tooltip { visibility: visible; }
 
 h2 svg { vertical-align: -3px; color: var(--accent); }
-h2 { font-size: var(--font-size-22); font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+h2 { font-size: var(--font-size-20); font-weight: 600; letter-spacing: -0.02em; margin: 0; }
 h3 { font-size: var(--font-size-15); margin: 0 0 var(--space-8); }
 
 .app {
@@ -482,7 +482,7 @@ input, textarea, select { max-width: 100%; }
 
 .time-total-heading {
   margin: var(--space-4) 0 0;
-  font-size: var(--font-size-18);
+  font-size: var(--font-size-20);
 }
 .time-row {
   align-items: center;

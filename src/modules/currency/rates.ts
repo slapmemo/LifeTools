@@ -88,12 +88,16 @@ export function steamFinalAmount(priceFinalAttr: string | null, text: string | n
   const parsed = parsePrice(text.trim());
   const currency = parsed?.currency ?? (/\$|\bUSD\b/i.test(text) ? 'USD' : undefined);
   if (!currency) return null;
+  // Görünen metin esas: Steam paket fiyatını sahip olunan oyunlara göre sayfada yeniden yazar
+  // ("koleksiyonunu tamamla"), ama `data-price-final` paketin düz fiyatında kalır ($4.75 yerine $6.02).
+  // Öznitelik yalnız metin okunamazsa kullanılır.
+  if (parsed && parsed.amount > 0) return parsed;
   if (priceFinalAttr !== null) {
     if (!/^\d+$/.test(priceFinalAttr)) return null;
     const amount = Number(priceFinalAttr) / 100;
     return Number.isFinite(amount) && amount > 0 ? { currency, amount } : null;
   }
-  return parsed && parsed.amount > 0 ? parsed : null;
+  return null;
 }
 export function formatTry(value: number): string { return `${value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺`; }
 export function convert(price: Price, perTry: Record<string, number>): number | null {

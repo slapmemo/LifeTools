@@ -1,6 +1,6 @@
 //! Masaüstü özelliklerinin aç/kapat ayarı (Özellik rehberi). Değer `settings` tablosunda JSON olarak durur:
 //! `{"piller": false, ...}`. Kayıt yoksa ya da okunamazsa özellik açık sayılır.
-//! Kimlikler desktop/src/features.ts ile aynı olmalı.
+//! Kimlikler src/core/desktop-features.ts ile aynı olmalı.
 use crate::db;
 use crate::state::AppState;
 use std::sync::Arc;

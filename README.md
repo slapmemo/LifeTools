@@ -68,7 +68,7 @@ Eklenti simgesi hızlı işlemleri, **Panel** ise araçları ve ayarlarını aç
 ### Chrome eklentisi
 
 **Notlar**
-- **SlapMemo:** Metni seç, altında çıkan baloncukta **📝 Not**'a bas; ya da sağ tık › "Not olarak kaydet" veya `Alt+S`. Not, sayfanın bağlantısıyla kaydedilir; Panel › Notlar'da ara ve düzenle.
+- **SlapMemo:** Metni seç, yanında çıkan baloncukta **📝 Not**'a bas; ya da sağ tık › "Not olarak kaydet" veya `Alt+S`. Not, sayfanın bağlantısıyla kaydedilir; Panel › Notlar'da ara ve düzenle.
 
 **Metin**
 - **Metin Kısayolları:** "/merhaba" gibi kısaltmalara metin kaydet; seçtiğin sitelerde yazıp Boşluk'a basınca açılır, ya da metin kutusuna sağ tıklayıp ekle.

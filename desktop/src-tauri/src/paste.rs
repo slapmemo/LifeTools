@@ -92,7 +92,10 @@ pub fn insert(app: &AppHandle, state: &Arc<AppState>, id: i64) -> Result<Option<
     if let Some(p) = prev {
         std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(400));
-            let _ = arboard::Clipboard::new().and_then(|mut c| c.set_text(p));
+            // Önceki metin parola olabilir: Windows pano geçmişine ve buluta düşmesin.
+            // Önceki içerik metin değilse (resim vb.) prev zaten boştur; geri yazılmaz.
+            let _ = arboard::Clipboard::new()
+                .and_then(|mut c| c.set().exclude_from_history().exclude_from_cloud().text(p));
         });
     }
     Ok(None)

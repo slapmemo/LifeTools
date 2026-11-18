@@ -98,9 +98,12 @@ export function initZombieTabsBackground(): void {
   chrome.tabs.onActivated.addListener(info => schedule(() => activated(info.tabId, info.windowId)));
   chrome.tabs.onRemoved.addListener(tabId => schedule(async () => {
     const { last, active } = await load();
-    if (!(String(tabId) in last)) return;
-    delete last[String(tabId)];
-    await save(last, active);
+    let changed = false;
+    if (String(tabId) in last) { delete last[String(tabId)]; changed = true; }
+    // Kapanan sekme bir pencerenin "etkin" kaydında kalırsa, sonraki etkinleştirme onu `last`'a geri yazar
+    // ve kapalı sekme kimlikleri birikir.
+    for (const [win, id] of Object.entries(active)) if (id === tabId) { delete active[win]; changed = true; }
+    if (changed) await save(last, active);
   }));
   chrome.windows.onRemoved.addListener(windowId => schedule(async () => {
     const { last, active } = await load();

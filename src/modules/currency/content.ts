@@ -1,8 +1,10 @@
 import { convert, findPriceAt, formatTry, isStandalonePriceText, parsePrice, shouldBlockRewrite, steamFinalAmount, type Price, type Rates } from './rates';
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
-import { PAGE_THEME } from '../../core/page-theme';
+import { livePageTheme } from '../../core/page-theme';
 import { CURRENCY_SETTINGS_KEY, loadCurrencySettings } from './settings';
 import { priceCandidate } from './hover';
+// Tema ayarını erken okumaya başla; kutular oluşturulurken hazır olsun.
+livePageTheme();
 
 const symbolFor = (currency: string): string => ({ USD: '$', EUR: '€', GBP: '£', JPY: '¥', PLN: 'zł' } as Record<string, string>)[currency] ?? currency;
 const dateFor = (date: string): string => date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1');
@@ -55,7 +57,7 @@ export function initHover(): void {
       host.style.cssText = 'position:fixed;z-index:2147483647;pointer-events:none;';
       const shadow = host.attachShadow({ mode: 'closed' });
       const style = document.createElement('style');
-      style.textContent = `${PAGE_THEME} .tip { background:var(--lt-surface); color:var(--lt-text); border:1px solid var(--lt-border); border-radius:8px; box-shadow:var(--lt-shadow); padding:7px 10px; white-space:nowrap; } strong { font-weight:700; } .detail { color:var(--lt-muted); font-size:11px; }`;
+      style.textContent = `${livePageTheme()} .tip { background:var(--lt-surface); color:var(--lt-text); border:1px solid var(--lt-border); border-radius:8px; box-shadow:var(--lt-shadow); padding:7px 10px; white-space:nowrap; } strong { font-weight:700; } .detail { color:var(--lt-muted); font-size:11px; }`;
       const tip = document.createElement('div');
       tip.className = 'tip';
       const amount = document.createElement('strong');

@@ -203,11 +203,22 @@ export function initZombieTabsPanel(db: Executor = popupDb): { render(): Promise
     event.preventDefault();
     void act(saveThreshold);
   });
+  /** Liste çizildikten sonra bu sekmelerden birine geçilmiş olabilir: yalnız hâlâ boşta olan, listede görünen sekmeler. */
+  async function stillZombies(): Promise<chrome.tabs.Tab[]> {
+    const [settings, session, tabs] = await Promise.all([
+      chrome.storage.local.get({ [ZOMBIE_HOURS_KEY]: null }),
+      chrome.storage.session.get({ [LAST_ACTIVE_KEY]: {} }),
+      chrome.tabs.query({ windowType: 'normal' })
+    ]);
+    const shown = new Set(zombies.map(z => z.tab.id));
+    return selectZombies(tabs, session[LAST_ACTIVE_KEY] as Record<string, number>, Date.now(), normalizeHours(settings[ZOMBIE_HOURS_KEY]))
+      .filter(z => shown.has(z.tab.id)).map(z => z.tab);
+  }
   closeAll.addEventListener('click', () => {
-    void act(() => close(zombies.map(z => z.tab)));
+    void act(async () => close(await stillZombies()));
   });
   moveAll.addEventListener('click', () => {
-    void act(() => move(zombies.map(z => z.tab)));
+    void act(async () => move(await stillZombies()));
   });
 
   return { render };

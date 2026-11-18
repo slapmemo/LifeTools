@@ -1,11 +1,14 @@
 import type { InstagramVideo } from './extract';
 import { CHANNEL, INSTAGRAM_ID, SETTINGS_KEY, defaults, validUrl, type Settings } from './shared';
 import { isModuleEnabled, MODULE_FLAGS_KEY } from '../../core/module-state';
-import { PAGE_THEME } from '../../core/page-theme';
+import { livePageTheme } from '../../core/page-theme';
 import { setSeekBarsEnabled } from './seek-bar';
-import { SPEED_KEY, SPEEDS, applyPlaybackSpeed, formatSpeed, nextSpeed, parseSpeed } from './speed';
+import { SPEED_KEY, SPEEDS, applyPlaybackSpeed, createRateGuard, formatSpeed, nextSpeed, parseSpeed } from './speed';
+import { capMap } from '../../core/bounded-map';
 import { visibleVideoRect } from './visibility';
 import { getInstagramPointer, scheduleInstagram as schedule, subscribeInstagram } from './scheduler';
+// Tema ayarını erken okumaya başla; kutular oluşturulurken hazır olsun.
+livePageTheme();
 const byCode = new Map<string, InstagramVideo[]>();
 const byFilename = new Map<string, InstagramVideo>();
 const hosts = new Map<HTMLVideoElement, HTMLElement>();
@@ -31,8 +34,12 @@ function manageVideos(found: Iterable<HTMLVideoElement>): void {
   if (!active) return;
   for (const video of found) if (!managed.has(video)) {
     const apply = () => applySpeed(video);
-    for (const name of ['play', 'loadedmetadata', 'ratechange']) video.addEventListener(name, apply);
-    managed.set(video, () => { for (const name of ['play', 'loadedmetadata', 'ratechange']) video.removeEventListener(name, apply); });
+    // Sayfa hızı geri çekerse kısa sürede en fazla 3 kez düzelt; sonra bırak (sonsuz ratechange döngüsü olmasın).
+    const guard = createRateGuard();
+    const onRate = () => { if (video.playbackRate !== speed && guard(performance.now())) applySpeed(video); };
+    for (const name of ['play', 'loadedmetadata']) video.addEventListener(name, apply);
+    video.addEventListener('ratechange', onRate);
+    managed.set(video, () => { for (const name of ['play', 'loadedmetadata']) video.removeEventListener(name, apply); video.removeEventListener('ratechange', onRate); });
     apply();
   }
 }
@@ -62,7 +69,7 @@ async function download(item: InstagramVideo): Promise<boolean> {
 function create(video: HTMLVideoElement): HTMLElement {
   const host = document.createElement('div'); host.dataset.lifetoolsInstagram = ''; host.style.cssText = 'position:fixed;z-index:2147483647;pointer-events:none';
   const root = host.attachShadow({ mode: 'closed' }); const style = document.createElement('style');
-  style.textContent = `${PAGE_THEME} .wrap{position:relative;pointer-events:auto;display:flex;gap:4px} button{font:inherit;cursor:pointer;color:var(--lt-text);background:var(--lt-surface);border:1px solid var(--lt-border);box-shadow:var(--lt-shadow)} .button{border-radius:50%;width:34px;height:34px;font-size:20px;line-height:1} .speed{border-radius:17px;height:34px;min-width:40px;padding:0 7px;font-size:12px}.menu{position:absolute;right:0;top:38px;white-space:nowrap;border-radius:10px;padding:5px;background:var(--lt-surface);box-shadow:var(--lt-shadow)} .row{display:block;border:0;box-shadow:none;padding:8px;border-radius:6px;width:100%} .row:hover{background:var(--lt-sub)} .feedback{position:absolute;right:0;top:38px;white-space:nowrap;padding:6px 9px;border-radius:8px;background:var(--lt-surface);color:var(--lt-text);box-shadow:var(--lt-shadow)}`;
+  style.textContent = `${livePageTheme()} .wrap{position:relative;pointer-events:auto;display:flex;gap:4px} button{font:inherit;cursor:pointer;color:var(--lt-text);background:var(--lt-surface);border:1px solid var(--lt-border);box-shadow:var(--lt-shadow)} .button{border-radius:50%;width:34px;height:34px;font-size:20px;line-height:1} .speed{border-radius:17px;height:34px;min-width:40px;padding:0 7px;font-size:12px}.menu{position:absolute;right:0;top:38px;white-space:nowrap;border-radius:10px;padding:5px;background:var(--lt-surface);box-shadow:var(--lt-shadow)} .row{display:block;border:0;box-shadow:none;padding:8px;border-radius:6px;width:100%} .row:hover{background:var(--lt-sub)} .feedback{position:absolute;right:0;top:38px;white-space:nowrap;padding:6px 9px;border-radius:8px;background:var(--lt-surface);color:var(--lt-text);box-shadow:var(--lt-shadow)}`;
   const wrap = document.createElement('div'); wrap.className = 'wrap'; const button = document.createElement('button'); button.className = 'button'; button.type = 'button'; button.textContent = '↓'; button.title = 'Videoyu indir'; button.setAttribute('aria-label', 'Videoyu indir'); wrap.append(button); const speedButton = document.createElement('button'); speedButton.className = 'speed'; speedButton.type = 'button'; speedButton.title = 'Hız'; speedButton.setAttribute('aria-label', 'Video hızını değiştir'); speedButton.setAttribute('aria-haspopup', 'menu'); speedButton.setAttribute('aria-expanded', 'false'); wrap.append(speedButton); root.append(style, wrap);
   const closeSpeedMenu = () => { wrap.querySelector('.speed-menu')?.remove(); speedButton.setAttribute('aria-expanded', 'false'); };
   closeSpeedMenus.set(host, closeSpeedMenu);
@@ -104,7 +111,7 @@ function render(found: NodeListOf<HTMLVideoElement>): void {
   for (const [video, host] of hosts) if (!video.isConnected) { host.remove(); hosts.delete(video); }
 }
 window.addEventListener('message', e => { if (e.source !== window || e.origin !== location.origin || e.data?.source !== CHANNEL) return; const m = e.data.media as InstagramVideo; if (!m || typeof m.code !== 'string' || !m.code || typeof m.pk !== 'string' || typeof m.username !== 'string' || typeof m.url !== 'string' || !validUrl(m.url) || !Number.isSafeInteger(m.count) || m.count < 1) return;
-  const list = byCode.get(m.code) ?? []; const index = list.findIndex(x => x.index === m.index && x.pk === m.pk); if (index < 0) list.push(m); else list[index] = m; list.sort((a, b) => (a.index ?? 0) - (b.index ?? 0)); byCode.set(m.code, list); const name = new URL(m.url).pathname.split('/').pop(); if (name) byFilename.set(name, m); schedule(); });
+  const list = byCode.get(m.code) ?? []; const index = list.findIndex(x => x.index === m.index && x.pk === m.pk); if (index < 0) list.push(m); else list[index] = m; list.sort((a, b) => (a.index ?? 0) - (b.index ?? 0)); byCode.set(m.code, list); capMap(byCode, 500); const name = new URL(m.url).pathname.split('/').pop(); if (name) { byFilename.set(name, m); capMap(byFilename, 1000); } schedule(); });
 async function refresh(): Promise<void> { enabled = await isModuleEnabled(INSTAGRAM_ID); const data = await chrome.storage.local.get({ [SETTINGS_KEY]: defaults, [SPEED_KEY]: 1 }); settings = { ...defaults, ...data[SETTINGS_KEY] }; speed = parseSpeed(data[SPEED_KEY]); speedReady = true; window.postMessage({ source: CHANNEL, type: 'hook-enabled', enabled: enabled && settings.downloadButton }, location.origin); for (const host of hosts.values()) host.remove(); hosts.clear(); setSeekBarsEnabled(enabled && settings.seekBar); if (enabled && (settings.downloadButton || settings.speedControl)) { if (!unsubscribe) unsubscribe = subscribeInstagram(render); schedule(); } else { unsubscribe?.(); unsubscribe = undefined; } manageVideos([]); for (const video of managed.keys()) applySpeed(video); }
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;

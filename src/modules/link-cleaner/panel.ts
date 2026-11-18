@@ -2,6 +2,7 @@ import { showToast } from '../../panel/ui';
 import { cleanUrl } from './clean';
 import { AUTO_CLEAN_KEY, AUTO_CLEAN_ORIGINS } from './rules';
 import { SHORT_LINK_KEY, SHORT_LINK_PERMISSION_ORIGINS } from './shorteners';
+import { getPanelTargetTab } from '../../core/panel-target-tab';
 
 type Result = ReturnType<typeof cleanUrl>;
 
@@ -103,7 +104,7 @@ export function initLinkCleanerPanel(): { render(): Promise<void> } {
       autoToggle.checked = settings[AUTO_CLEAN_KEY] !== false && await chrome.permissions.contains({ origins: AUTO_CLEAN_ORIGINS });
       shortToggle.checked = settings[SHORT_LINK_KEY] !== false && await chrome.permissions.contains({ origins: SHORT_LINK_PERMISSION_ORIGINS });
       try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const tab = await getPanelTargetTab();
         active = cleanUrl(tab?.url ?? '');
       } catch {
         active = null;

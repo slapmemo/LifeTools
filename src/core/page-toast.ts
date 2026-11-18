@@ -1,7 +1,7 @@
-import { PAGE_THEME } from './page-theme';
+import { livePageTheme } from './page-theme';
 
 /** When injected with executeScript, pass the theme explicitly. */
-export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolean; category?: string; title?: string; detail?: string; undoType?: string; handle?: string; onUndo?: () => Promise<void> | void }, theme: string = PAGE_THEME): void {
+export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolean; category?: string; title?: string; detail?: string; undoType?: string; handle?: string; onUndo?: () => Promise<void> | void }, theme: string = livePageTheme()): void {
   document.getElementById('lifetools-slapmemo-toast')?.remove();
   const host = document.createElement('div');
   host.id = 'lifetools-slapmemo-toast';

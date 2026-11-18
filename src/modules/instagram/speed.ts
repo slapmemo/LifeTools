@@ -9,6 +9,18 @@ export function applyPlaybackSpeed(video: { playbackRate: number }, speed: numbe
   if (video.playbackRate !== speed) video.playbackRate = speed;
 }
 
+/**
+ * Sayfa hızı sürekli geri çekerse (ratechange ↔ yeniden yazma) sonsuz döngüye girmemek için:
+ * `windowMs` içinde en fazla `limit` kez yeniden uygulamaya izin verir.
+ */
+export function createRateGuard(limit = 3, windowMs = 1000): (now: number) => boolean {
+  let start = -Infinity; let count = 0;
+  return now => {
+    if (now - start > windowMs) { start = now; count = 0; }
+    return ++count <= limit;
+  };
+}
+
 export function parseSpeed(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && SPEEDS.some(speed => speed === value) ? value : 1;
 }

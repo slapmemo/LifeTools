@@ -46,12 +46,12 @@ test('migrasyon 1 yalnızca meta tablosunu oluşturur', () => {
   assert.match(MIGRATIONS[0].statements[0], /CREATE TABLE IF NOT EXISTS meta/);
 });
 
-test('gerçek migrasyon listesi 1 ve 2 sürümlerinden oluşur', () => {
+test('gerçek migrasyon listesi 1–12 sürümlerinden oluşur', () => {
   assert.deepEqual(MIGRATIONS.map(m => m.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   assert.match(MIGRATIONS[1].statements.join('\n'), /CREATE TABLE notes/);
 });
 
-test('boş veritabanı gerçek migrasyonlarla sürüm 2\'ye ulaşır', async () => {
+test('boş veritabanı gerçek migrasyonlarla son sürüme (12) ulaşır', async () => {
   const { ex, getVersion } = fakeExecutor(null);
   const result = await runMigrations(ex);
   assert.deepEqual(result, { from: 0, to: 12, applied: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] });

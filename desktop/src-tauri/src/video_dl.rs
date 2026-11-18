@@ -75,7 +75,67 @@ fn install() -> Result<(), String> {
 static VERSION: OnceLock<Mutex<Option<(SystemTime, String)>>> = OnceLock::new();
 fn version(exe: &Path) -> Option<String> { let modified = fs::metadata(exe).ok()?.modified().ok()?; let mut cache = VERSION.get_or_init(|| Mutex::new(None)).lock().ok()?; if let Some((time, value)) = cache.as_ref() { if *time == modified { return Some(value.clone()); } } let value = Command::new(exe).arg("--version").creation_flags(SPAWN_FLAGS).output().ok().filter(|o| o.status.success()).map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())?; *cache = Some((modified, value.clone())); Some(value) }
 pub fn status() -> Result<ToolStatus, String> { let dir = tools()?; let exe = dir.join("yt-dlp.exe"); let installed = exe.is_file(); let version = if installed { version(&exe) } else { None }; let lock = dir.join("install.lock"); let installing = fs::read_to_string(&lock).ok().and_then(|s| s.parse().ok()).map(process_alive).unwrap_or(false); Ok(ToolStatus { ytdlp: ToolInfo { installed, version }, ffmpeg: dir.join("ffmpeg.exe").is_file() && dir.join("ffprobe.exe").is_file(), installing, folder: folder()?.to_string_lossy().into_owned(), error: fs::read_to_string(dir.join("install-error.txt")).ok() }) }
-pub fn begin_install() -> Result<(), String> { let dir = tools()?; fs::create_dir_all(&dir).map_err(|e| e.to_string())?; let lock = dir.join("install.lock"); if status()?.installing { return Ok(()); } let _ = fs::remove_file(&lock); let mut guard = fs::OpenOptions::new().write(true).create_new(true).open(&lock).map_err(|e| format!("Kurulum başlatılamadı: {e}"))?; use std::io::Write; write!(guard, "{}", std::process::id()).map_err(|e| e.to_string())?; let _ = fs::remove_file(dir.join("install-error.txt")); if let Err(e) = spawn(Command::new(std::env::current_exe().map_err(|e| e.to_string())?).arg("--install-video-tools").stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()), true) { let _ = fs::remove_file(lock); return Err(format!("Kurulum başlatılamadı: {e}")); } Ok(()) }
+/// Kilit dosyası bayat mı: PID'i ölmüş, ya da PID yazılmamış (boş) ve 30 sn'den eski.
+/// Boş ve yeni kilit, başka bir sürecin az önce oluşturup PID'ini henüz yazmadığı kilittir.
+fn lock_is_stale(path: &Path) -> bool {
+    let content = fs::read_to_string(path).unwrap_or_default();
+    match content.trim().parse::<u32>() {
+        Ok(pid) => !process_alive(pid),
+        Err(_) => fs::metadata(path).and_then(|m| m.modified()).ok()
+            .and_then(|t| t.elapsed().ok()).map(|age| age >= std::time::Duration::from_secs(30)).unwrap_or(false),
+    }
+}
+
+/// Kurulum kilidini atomik olarak alır (`create_new`). Kilit başka bir canlı işlemdeyse `None` döner.
+/// Masaüstü penceresi ve eklentinin native host'u ayrı süreçler olduğu için iki kurulum aynı anda istenebilir.
+/// Bayat kilit doğrudan silinmez: önce bu sürece özel bir ada taşınır (yeniden adlandırmayı yalnız bir süreç
+/// kazanır), taşınan dosya hâlâ bayatsa silinir. Arada başka bir süreç yeni kilit oluşturmuşsa taşınan dosya
+/// bayat çıkmaz ve geri konur; böylece canlı bir kilit silinmez.
+fn acquire_install_lock(lock: &Path) -> Result<Option<fs::File>, String> {
+    for attempt in 0..2u32 {
+        match fs::OpenOptions::new().write(true).create_new(true).open(lock) {
+            Ok(file) => return Ok(Some(file)),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                if !lock_is_stale(lock) { return Ok(None); }
+                let claimed = lock.with_extension(format!("lock.stale-{}-{attempt}", std::process::id()));
+                if fs::rename(lock, &claimed).is_err() { return Ok(None); }
+                if lock_is_stale(&claimed) {
+                    let _ = fs::remove_file(&claimed);
+                } else {
+                    if !lock.exists() { let _ = fs::rename(&claimed, lock); } else { let _ = fs::remove_file(&claimed); }
+                    return Ok(None);
+                }
+            }
+            Err(e) => return Err(format!("Kurulum başlatılamadı: {e}")),
+        }
+    }
+    Ok(None)
+}
+
+/// Kilidi her hata yolunda bırakır; yardımcı işlem başlatılınca `keep()` ile kilit ona devredilir.
+struct InstallLockGuard { path: PathBuf, keep: bool }
+impl InstallLockGuard { fn keep(mut self) { self.keep = true; } }
+impl Drop for InstallLockGuard { fn drop(&mut self) { if !self.keep { let _ = fs::remove_file(&self.path); } } }
+
+pub fn begin_install() -> Result<(), String> {
+    let dir = tools()?;
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let lock = dir.join("install.lock");
+    let Some(mut file) = acquire_install_lock(&lock)? else { return Ok(()); };
+    let guard = InstallLockGuard { path: lock.clone(), keep: false };
+    use std::io::Write;
+    write!(file, "{}", std::process::id()).map_err(|e| e.to_string())?;
+    drop(file);
+    let _ = fs::remove_file(dir.join("install-error.txt"));
+    let exe = std::env::current_exe().map_err(|e| format!("Kurulum başlatılamadı: {e}"))?;
+    let child = spawn(Command::new(exe).arg("--install-video-tools").stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()), true)
+        .map_err(|e| format!("Kurulum başlatılamadı: {e}"))?;
+    // Kilide yardımcı işlemin PID'i yazılır: yardımcı kendi PID'ini yazmadan çökerse ana işlem yaşadıkça
+    // "kuruluyor" takılı kalmasın. Bundan sonra kilidi yardımcı işlem bırakır.
+    let _ = fs::write(&lock, child.id().to_string());
+    guard.keep();
+    Ok(())
+}
 pub fn install_helper() { if let Ok(dir) = tools() { let _ = fs::write(dir.join("install.lock"), std::process::id().to_string()); } let result = install(); if let Ok(dir) = tools() { if let Err(e) = result { let _ = fs::write(dir.join("install-error.txt"), format!("Kurulum başarısız: {e}")); } let _ = fs::remove_file(dir.join("install.lock")); } }
 pub fn update() -> Result<(), String> { install()?; run(Command::new(tools()?.join("yt-dlp.exe")).arg("-U")) }
 fn validate(url: &str) -> Result<(), String> { if url.len() > 2048 || url.chars().any(|c| c.is_whitespace() || c.is_control()) { return Err("Geçersiz URL".into()); } let u = tauri::Url::parse(url).map_err(|_| "Geçersiz URL")?; if !matches!(u.scheme(), "http" | "https") || u.host_str().is_none() { return Err("Yalnızca HTTP veya HTTPS adresleri desteklenir".into()); } Ok(()) }
@@ -305,5 +365,46 @@ pub fn open_folder() -> Result<(), String> { let dir = selected_dir()?; Command:
     #[test] fn playlist_progress() {
         assert_eq!(progress("LT_PROGRESS: 45% | 1MiB/s | 2s | 3/24").unwrap().3.as_deref(), Some("3/24"));
         assert_eq!(progress("LT_PROGRESS: 45% | 1MiB/s | 2s").unwrap().3, None);
+    }
+}
+
+#[cfg(test)] mod install_lock_tests {
+    use super::*;
+    fn temp_lock(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("lifetools-lock-{}-{name}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir.join("install.lock")
+    }
+    #[test] fn live_lock_is_not_taken() {
+        let lock = temp_lock("live");
+        fs::write(&lock, std::process::id().to_string()).unwrap();
+        assert!(acquire_install_lock(&lock).unwrap().is_none());
+        assert_eq!(fs::read_to_string(&lock).unwrap(), std::process::id().to_string());
+    }
+    #[test] fn fresh_empty_lock_is_not_taken() {
+        let lock = temp_lock("empty");
+        fs::write(&lock, "").unwrap();
+        assert!(acquire_install_lock(&lock).unwrap().is_none());
+        assert!(lock.exists());
+    }
+    #[test] fn dead_pid_lock_is_replaced() {
+        let lock = temp_lock("dead");
+        // 4294967291 hiçbir canlı işlemin PID'i olamaz (Windows PID'leri 4'ün katı ve çok daha küçük).
+        fs::write(&lock, "4294967291").unwrap();
+        let file = acquire_install_lock(&lock).unwrap();
+        assert!(file.is_some());
+        drop(file);
+        let leftovers = fs::read_dir(lock.parent().unwrap()).unwrap().count();
+        assert_eq!(leftovers, 1, "yalnız yeni kilit kalmalı");
+    }
+    #[test] fn guard_releases_lock_unless_kept() {
+        let lock = temp_lock("guard");
+        fs::write(&lock, "1").unwrap();
+        drop(InstallLockGuard { path: lock.clone(), keep: false });
+        assert!(!lock.exists());
+        fs::write(&lock, "1").unwrap();
+        InstallLockGuard { path: lock.clone(), keep: false }.keep();
+        assert!(lock.exists());
     }
 }

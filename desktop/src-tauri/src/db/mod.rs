@@ -56,6 +56,15 @@ pub const MIGRATIONS: &[Migration] = &[
             "CREATE TABLE ambient_presets (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, config_json TEXT NOT NULL, updated_at INTEGER NOT NULL)",
         ],
     },
+    Migration {
+        // Masaüstü şablon zamanlarını saniye yazıyordu, eklenti milisaniye; aynı tabloda birim tek olsun.
+        // 1e11'den küçük değerler (yıl 5138'e kadar saniye) milisaniyeye çevrilir.
+        version: 5,
+        statements: &[
+            "UPDATE snippets SET created_at = created_at * 1000 WHERE created_at > 0 AND created_at < 100000000000",
+            "UPDATE snippets SET updated_at = updated_at * 1000 WHERE updated_at > 0 AND updated_at < 100000000000",
+        ],
+    },
 ];
 
 pub fn default_path() -> std::result::Result<PathBuf, String> {

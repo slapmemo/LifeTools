@@ -638,8 +638,25 @@ confirmSecondClick(el<HTMLButtonElement>('#close'), () => run(async () => { if (
 el('#clear').addEventListener('click', () => { selected.clear(); render(); });
 confirmSecondClick(el<HTMLButtonElement>('#site'), () => run(async () => { let count = 0; for (const id of new Set(tabs.map(t => t.windowId))) count += await groupWindowBySite(id); message.textContent = `${count} grup oluşturuldu`; await load(); }), 'Tüm pencereler gruplansın mı?');
 search.addEventListener('input', () => { render(); renderSaved(); }); document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (pointerDrag) { e.preventDefault(); void endPointerDrag(pointerDrag, true); } else { selected.clear(); render(); } } });
-const schedule = (): void => { if (drag) { pendingRender = true; return; } if (timer) clearTimeout(timer); timer = setTimeout(() => { void load().catch(report); },150); };
-chrome.tabs.onCreated.addListener(schedule); chrome.tabs.onRemoved.addListener(schedule); chrome.tabs.onUpdated.addListener(schedule); chrome.tabs.onMoved.addListener(schedule); chrome.tabs.onAttached.addListener(schedule); chrome.tabs.onDetached.addListener(schedule);
+// Sayfa gizliyken (her pencerede bir Yönetici sekmesi olabilir) liste kurulmaz, yalnız "kirli" işaretlenir.
+// Bir ad/metin kutusu odaktayken de yenileme ertelenir, yazılan ad kaybolmasın.
+let dirty = false;
+const editing = (): boolean => { const a = document.activeElement; return (a instanceof HTMLInputElement && a !== search && a.type !== 'checkbox' && a.type !== 'radio') || a instanceof HTMLTextAreaElement; };
+const schedule = (): void => {
+  if (drag) { pendingRender = true; return; }
+  if (document.hidden || editing()) { dirty = true; return; }
+  dirty = false;
+  if (timer) clearTimeout(timer);
+  timer = setTimeout(() => {
+    // 150 ms içinde sayfa gizlenmiş ya da bir kutuya yazılmaya başlanmış olabilir: yine ertele.
+    if (document.hidden || editing()) { dirty = true; return; }
+    void load().catch(report);
+  }, 150);
+};
+const RELEVANT_TAB_CHANGES = ['url', 'title', 'favIconUrl', 'pinned', 'groupId', 'audible', 'mutedInfo', 'discarded'] as const;
+document.addEventListener('visibilitychange', () => { if (!document.hidden && dirty) schedule(); });
+document.addEventListener('focusout', () => { setTimeout(() => { if (dirty) schedule(); }, 0); });
+chrome.tabs.onCreated.addListener(schedule); chrome.tabs.onRemoved.addListener(schedule); chrome.tabs.onUpdated.addListener((_id, change) => { if (RELEVANT_TAB_CHANGES.some(key => key in change)) schedule(); }); chrome.tabs.onMoved.addListener(schedule); chrome.tabs.onAttached.addListener(schedule); chrome.tabs.onDetached.addListener(schedule);
 chrome.tabGroups.onCreated.addListener(schedule); chrome.tabGroups.onUpdated.addListener(schedule); chrome.tabGroups.onRemoved.addListener(schedule); chrome.tabGroups.onMoved.addListener(schedule);
 const sortControl = el('#saved-sort');
 function updateSortControl(): void { sortControl.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sort === savedSort))); }

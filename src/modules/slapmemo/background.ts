@@ -4,7 +4,7 @@ import { isModuleEnabled, resolveEnabled, MODULE_FLAGS_KEY } from '../../core/mo
 import { replaceSiteScript } from '../../core/site-scripts';
 import { BUBBLE_ENABLED_KEY, BUBBLE_ORIGINS } from './bubble-logic';
 import { pageToast } from '../../core/page-toast';
-import { PAGE_THEME } from '../../core/page-theme';
+import { storedPageTheme } from '../../core/page-theme';
 import { backgroundDb } from '../../db/host';
 import { isNoteCategory, type NoteCategory } from './categories';
 import { createNotesRepo } from './repo';
@@ -54,7 +54,7 @@ export async function saveScreenshot(tab: chrome.tabs.Tab): Promise<void> {
     try { await repo.saveImage(result.note.id, `data:image/jpeg;base64,${btoa(binary)}`, width, height); }
     catch (err) { await repo.deleteNote(result.note.id); throw err; }
     recent.set(result.note.id, Date.now());
-    try { await chrome.scripting.executeScript({ target: { tabId: active.id! }, func: pageToast, args: [{ ok: true, id: result.note.id, duplicate: false, category: 'note' }, PAGE_THEME] }); }
+    try { await chrome.scripting.executeScript({ target: { tabId: active.id! }, func: pageToast, args: [{ ok: true, id: result.note.id, duplicate: false, category: 'note' }, await storedPageTheme()] }); }
     catch { flashBadge('✓'); }
   } finally { bitmap.close(); }
 }
@@ -83,7 +83,7 @@ async function saveAndNotify(tabId: number | undefined, text: string, url: strin
   catch (err) { console.debug('[SlapMemo] Kaydedilemedi:', err); }
   try {
     if (tabId === undefined) throw new Error('Sekme yok');
-    await chrome.scripting.executeScript({ target: { tabId }, func: pageToast, args: [result ?? { ok: false }, PAGE_THEME] });
+    await chrome.scripting.executeScript({ target: { tabId }, func: pageToast, args: [result ?? { ok: false }, await storedPageTheme()] });
   } catch {
     flashBadge(!result ? '!' : result.duplicate ? '=' : '✓');
   }
@@ -138,7 +138,7 @@ export function initSlapMemoBackground(): void {
       if (!notes.length) return;
       const current = await chrome.tabs.get(tabId);
       if (current.incognito || !current.url || normalizeNoteUrl(current.url) !== normalizeNoteUrl(url)) return;
-      await chrome.scripting.executeScript({ target: { tabId }, func: showNoteHint, args: [{ label: noteCountText(notes.length), notes: notes.slice(0, 5).map(({ text, created_at }) => ({ text, created_at })) }, PAGE_THEME] });
+      await chrome.scripting.executeScript({ target: { tabId }, func: showNoteHint, args: [{ label: noteCountText(notes.length), notes: notes.slice(0, 5).map(({ text, created_at }) => ({ text, created_at })) }, await storedPageTheme()] });
     })().catch(() => {});
   });
   let queue: Promise<void> = Promise.resolve();
