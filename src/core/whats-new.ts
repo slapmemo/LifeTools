@@ -14,6 +14,18 @@ export interface ChangeEntry { version: string; items: readonly ChangeItem[] }
  */
 export const CHANGELOG: readonly ChangeEntry[] = [
   {
+    version: '0.8.1',
+    items: [
+      { kind: 'fixed', features: ['tab-manager'], text: 'Sekme Yöneticisi: pencerede birden çok sabit Yönetici sekmesi birikmiyor; liste bir grup adı yazarken yenilenip yazdığını silmiyor.' },
+      { kind: 'fixed', features: ['currency'], text: 'Steam: "Koleksiyonunu tamamla" paketlerinde TL fiyat, Steam’in sana gösterdiği indirimli fiyattan hesaplanıyor.' },
+      { kind: 'fixed', features: ['tab-notes', 'link-cleaner', 'pip'], text: 'Paneldeki "bu sayfa" işlemleri panelin kendisine değil, son kullandığın sekmeye göre çalışıyor.' },
+      { kind: 'improved', features: ['slapmemo'], text: 'SlapMemo: panelde "Daha fazla not göster"; sayfadaki not ipucu çok notta da hızlı.' },
+      { kind: 'fixed', features: ['x-video'], text: 'X: GIF’ler küçük ve dikey videoda bellek dostu; indir düğmesi başarısızlıkta ✓ göstermiyor.' },
+      { kind: 'fixed', text: 'Sayfadaki LifeTools kutuları seçtiğin açık/koyu temayı izliyor; yedeğe eksik ayarlar eklendi.' },
+      { kind: 'fixed', desktop: ['sablonlar', 'pano'], text: 'Masaüstü: şablon yapıştırınca geri konan eski pano içeriği Windows pano geçmişine düşmüyor; yedek alırken pencere donmuyor.' }
+    ]
+  },
+  {
     version: '0.8.0',
     items: [
       { kind: 'new', text: 'Masaüstü uygulamasında da özellik rehberi: ilk kurulumda karşılar, güncellemeden sonra yenilikleri gösterir. İstemediğin özellikleri (ör. Piller, Pano geçmişi) buradan kapatabilirsin; kapalı özellik arka planda da çalışmaz.' },
