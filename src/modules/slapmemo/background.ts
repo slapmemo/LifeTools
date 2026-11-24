@@ -5,19 +5,21 @@ import { replaceSiteScript } from '../../core/site-scripts';
 import { BUBBLE_ENABLED_KEY, BUBBLE_ORIGINS } from './bubble-logic';
 import { pageToast } from '../../core/page-toast';
 import { storedPageTheme } from '../../core/page-theme';
-import { backgroundDb } from '../../db/host';
-import { isNoteCategory, type NoteCategory } from './categories';
+import { backgroundDb, withExclusiveDb } from '../../db/host';
+import type { NoteCategory } from './categories';
 import { createNotesRepo } from './repo';
+import { createRecentStore } from './recent-notes';
 import { normalizeNoteUrl } from './repo';
-import { NOTE_HINT_ENABLED_KEY, noteCountText, showNoteHint } from './page-hint';
+import { NOTE_HINT_ENABLED_KEY, hideNoteHint, noteCountText, showNoteHint } from './page-hint';
 import { PAGE_COPY_KEY } from './settings';
 import { translateText } from './translate';
 
 export const SLAPMEMO_ID = 'slapmemo';
 const repo = createNotesRepo(backgroundDb);
-const recent = new Map<number, number>();
-const MAX_TEXT = 5000;
-const UNDO_WINDOW = 120_000;
+const recent = createRecentStore(typeof chrome !== 'undefined' ? chrome.storage?.session : undefined);
+const MAX_TEXT = 50_000;
+const TRANSLATE_MAX = 5000;
+const TRASH_PURGE_ALARM = 'slapmemo-trash-purge';
 
 export async function capturePage(id: number, tabId: number | undefined): Promise<void> {
   if (tabId === undefined || (await chrome.storage.local.get({ [PAGE_COPY_KEY]: true }))[PAGE_COPY_KEY] === false) return;
@@ -52,9 +54,9 @@ export async function saveScreenshot(tab: chrome.tabs.Tab): Promise<void> {
     let binary = ''; for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
     const result = await repo.addNote({ category: 'note', text: (active.title || active.url || 'Ekran görüntüsü').slice(0, MAX_TEXT), url: active.url, pageTitle: active.title, allowDuplicate: true });
     try { await repo.saveImage(result.note.id, `data:image/jpeg;base64,${btoa(binary)}`, width, height); }
-    catch (err) { await repo.deleteNote(result.note.id); throw err; }
-    recent.set(result.note.id, Date.now());
-    try { await chrome.scripting.executeScript({ target: { tabId: active.id! }, func: pageToast, args: [{ ok: true, id: result.note.id, duplicate: false, category: 'note' }, await storedPageTheme()] }); }
+    catch (err) { await repo.hardDeleteNote(result.note.id); throw err; }
+    await recent.remember(result.note.id);
+    try { await chrome.scripting.executeScript({ target: { tabId: active.id! }, func: pageToast, args: [{ ok: true, id: result.note.id, duplicate: false, category: 'note', categories: await repo.listCategories().then(rows => rows.map(({ id, label }) => ({ id, label }))).catch(() => undefined) }, await storedPageTheme()] }); }
     catch { flashBadge('✓'); }
   } finally { bitmap.close(); }
 }
@@ -70,11 +72,11 @@ async function save(text: string, url: string | undefined, title: string | undef
   const result = await repo.addNote({ category, text: text.trim().slice(0, MAX_TEXT), url: url || null, pageTitle: title || null });
   if (!result.duplicate) {
     await capturePage(result.note.id, tabId);
-    const now = Date.now();
-    for (const [id, created] of recent) if (now - created > UNDO_WINDOW) recent.delete(id);
-    recent.set(result.note.id, now);
+    await recent.remember(result.note.id);
+    void refreshHint(tabId, url ?? null);
   }
-  return { ok: true as const, id: result.note.id, duplicate: result.duplicate, category: result.note.category };
+  const categories = await repo.listCategories().then(rows => rows.map(({ id, label }) => ({ id, label }))).catch(() => undefined);
+  return { ok: true as const, id: result.note.id, duplicate: result.duplicate, category: result.note.category, categories };
 }
 
 async function saveAndNotify(tabId: number | undefined, text: string, url: string | undefined, title: string | undefined, category: NoteCategory): Promise<void> {
@@ -119,15 +121,39 @@ async function handleCommand(command: string, tab?: chrome.tabs.Tab): Promise<vo
   await saveAndNotify(active.id, picked.text, active.url, active.title, picked.category);
 }
 
-function recentId(id: unknown): id is number {
-  if (!Number.isSafeInteger(id)) return false;
-  const created = recent.get(id as number);
-  if (created === undefined) return false;
-  if (Date.now() - created > UNDO_WINDOW) { recent.delete(id as number); return false; }
-  return true;
+/** Sayfadaki "Bu sayfada N notun var" ipucunu güncel sayıyla yeniler (kayıt/geri alma sonrası); not kalmadıysa kaldırır. */
+async function refreshHint(tabId: number | undefined, noteUrl: string | null): Promise<void> {
+  try {
+    if (tabId === undefined || !noteUrl) return;
+    const settings = await chrome.storage.local.get({ [NOTE_HINT_ENABLED_KEY]: true });
+    if (settings[NOTE_HINT_ENABLED_KEY] === false || !(await isModuleEnabled(SLAPMEMO_ID)) || !(await chrome.permissions.contains({ origins: BUBBLE_ORIGINS }))) return;
+    const notes = await repo.notesForUrl(noteUrl);
+    const theme = await storedPageTheme();
+    if (!notes.length) await chrome.scripting.executeScript({ target: { tabId }, func: hideNoteHint });
+    else await chrome.scripting.executeScript({ target: { tabId }, func: showNoteHint, args: [{ label: noteCountText(notes.length), notes: notes.slice(0, 5).map(({ text, created_at }) => ({ text, created_at })) }, theme] });
+  } catch { /* sayfa kapanmış ya da erişilemez olabilir */ }
+}
+
+/** Elle sıralama: kapsamın tam sırasını okuyup yeniden numaralar; tek işlemde, DB kilidi altında. */
+export function reorderNotesBackground(ids: number[], category: string | null): Promise<void> {
+  return withExclusiveDb(ex => createNotesRepo(ex).reorder(ids, category, { transaction: true }));
+}
+
+/** 15 günü geçen çöp notlarını kalıcı siler (görsel, sayfa kopyası, geçmiş dahil); DB kilidi altında. */
+export async function purgeExpiredTrash(): Promise<number> {
+  if (!(await isModuleEnabled(SLAPMEMO_ID))) return 0;
+  return withExclusiveDb(ex => createNotesRepo(ex).purgeExpired());
+}
+
+async function syncTrashAlarm(): Promise<void> {
+  if (!await chrome.alarms.get(TRASH_PURGE_ALARM)) await chrome.alarms.create(TRASH_PURGE_ALARM, { delayInMinutes: 1, periodInMinutes: 24 * 60 });
 }
 
 export function initSlapMemoBackground(): void {
+  chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === TRASH_PURGE_ALARM) void purgeExpiredTrash().catch(err => { console.debug('[SlapMemo] Çöp temizlenemedi:', err); }); });
+  chrome.runtime.onInstalled.addListener(() => { void syncTrashAlarm().catch(() => {}); });
+  chrome.runtime.onStartup.addListener(() => { void syncTrashAlarm().catch(() => {}); });
+  void syncTrashAlarm().catch(() => {});
   chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
     if (change.status !== 'complete' || tab.incognito || !tab.url || !/^https?:\/\//i.test(tab.url)) return;
     const url = tab.url;
@@ -158,8 +184,16 @@ export function initSlapMemoBackground(): void {
   setContextMenuContributions(SLAPMEMO_ID, slapMemoMenuContributions());
   chrome.commands.onCommand.addListener((command, tab) => { void handleCommand(command, tab); });
   chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+    if (msg?.type === 'slapmemo:reorder') {
+      // Yalnız eklenti sayfalarından (panel).
+      if (sender.id !== chrome.runtime.id || !sender.url?.startsWith(chrome.runtime.getURL(''))) { respond({ ok: false }); return false; }
+      const ids: unknown = msg.ids;
+      if (!Array.isArray(ids) || !ids.every(id => Number.isSafeInteger(id)) || (msg.category !== null && typeof msg.category !== 'string')) { respond({ ok: false }); return false; }
+      void isModuleEnabled(SLAPMEMO_ID).then(enabled => enabled ? reorderNotesBackground(ids as number[], msg.category) : Promise.reject(new Error('kapalı'))).then(() => respond({ ok: true }), () => respond({ ok: false }));
+      return true;
+    }
     if (msg?.type === 'translate:text') {
-      if (!sender.tab || typeof msg.text !== 'string' || !msg.text.trim() || msg.text.length > MAX_TEXT) { respond({ ok: false, error: 'parse' }); return; }
+      if (!sender.tab || typeof msg.text !== 'string' || !msg.text.trim() || msg.text.length > TRANSLATE_MAX) { respond({ ok: false, error: 'parse' }); return; }
       void translateText(msg.text).then(respond);
       return true;
     }
@@ -188,12 +222,18 @@ export function initSlapMemoBackground(): void {
       try {
         if (!(await isModuleEnabled(SLAPMEMO_ID))) return { ok: false };
         if (msg.type === 'slapmemo:save') {
-          if (typeof msg.text !== 'string' || (msg.category !== undefined && !isNoteCategory(msg.category)) || (msg.url !== undefined && typeof msg.url !== 'string') || (msg.title !== undefined && typeof msg.title !== 'string')) return { ok: false };
+          if (typeof msg.text !== 'string' || (msg.category !== undefined && !(typeof msg.category === 'string' && await repo.categoryExists(msg.category))) || (msg.url !== undefined && typeof msg.url !== 'string') || (msg.title !== undefined && typeof msg.title !== 'string')) return { ok: false };
           return await save(msg.text, msg.url, msg.title, msg.category ?? 'note', sender.tab?.id);
         }
-        if (!recentId(msg.id)) return { ok: false };
-        if (msg.type === 'slapmemo:undo') { await repo.deleteNote(msg.id); recent.delete(msg.id); return { ok: true }; }
-        if ((msg.category !== undefined && !isNoteCategory(msg.category)) || (msg.userNote !== undefined && (typeof msg.userNote !== 'string' || msg.userNote.length > 500)) || (msg.category === undefined && msg.userNote === undefined)) return { ok: false };
+        if (!(await recent.isRecent(msg.id))) return { ok: false };
+        if (msg.type === 'slapmemo:undo') {
+          const gone = await repo.getNote(msg.id);
+          await repo.hardDeleteNote(msg.id);
+          await recent.forget(msg.id);
+          void refreshHint(sender.tab?.id, gone?.url ?? null);
+          return { ok: true };
+        }
+        if ((msg.category !== undefined && !(typeof msg.category === 'string' && await repo.categoryExists(msg.category))) || (msg.userNote !== undefined && (typeof msg.userNote !== 'string' || msg.userNote.length > 500)) || (msg.category === undefined && msg.userNote === undefined)) return { ok: false };
         if (msg.category !== undefined && !(await repo.setCategory(msg.id, msg.category))) return { ok: false };
         if (msg.userNote !== undefined && !(await repo.updateUserNote(msg.id, msg.userNote))) return { ok: false };
         return { ok: true };

@@ -1,7 +1,7 @@
 import { livePageTheme } from './page-theme';
 
 /** When injected with executeScript, pass the theme explicitly. */
-export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolean; category?: string; title?: string; detail?: string; undoType?: string; handle?: string; onUndo?: () => Promise<void> | void }, theme: string = livePageTheme()): void {
+export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolean; category?: string; categories?: Array<{ id: string; label: string }>; title?: string; detail?: string; undoType?: string; handle?: string; onUndo?: () => Promise<void> | void }, theme: string = livePageTheme()): void {
   document.getElementById('lifetools-slapmemo-toast')?.remove();
   const host = document.createElement('div');
   host.id = 'lifetools-slapmemo-toast';
@@ -40,7 +40,9 @@ export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolea
   } else if (result.ok && !result.title && !result.duplicate && result.id !== undefined) {
     const actions = document.createElement('div'); actions.className = 'actions';
     const buttons: HTMLButtonElement[] = [];
-    for (const [category, label] of [['read', 'Okunacak'], ['watch', 'İzlenecek'], ['idea', 'Fikir']]) {
+    // Kategoriler veritabanından gelir (arka plan result.categories ile verir); yoksa yerleşik dördü.
+    const list = result.categories?.length ? result.categories : [{ id: 'note', label: 'Notlar' }, { id: 'read', label: 'Okunacaklar' }, { id: 'watch', label: 'İzlenecekler' }, { id: 'idea', label: 'Fikirler' }];
+    for (const { id: category, label } of list) {
       const button = document.createElement('button'); button.textContent = label;
       button.classList.toggle('selected', result.category === category);
       button.addEventListener('click', () => {
@@ -49,11 +51,6 @@ export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolea
         }).catch(() => {});
       });
       buttons.push(button); actions.append(button);
-    }
-    if (result.category === 'note') {
-      const current = document.createElement('button'); current.textContent = 'Not'; current.className = 'selected';
-      current.addEventListener('click', () => { void chrome.runtime.sendMessage({ type: 'slapmemo:update', id: result.id, category: 'note' }).then(response => { if (response?.ok) { buttons.forEach(item => item.classList.remove('selected')); current.classList.add('selected'); } }).catch(() => {}); });
-      buttons.push(current); actions.prepend(current);
     }
     const comment = document.createElement('button'); comment.textContent = '✏️ Yorum';
     comment.addEventListener('click', () => {
@@ -69,8 +66,16 @@ export function pageToast(result: { ok: boolean; id?: number; duplicate?: boolea
       });
     });
     const undo = document.createElement('button'); undo.textContent = 'Geri al';
-    undo.addEventListener('click', () => { void chrome.runtime.sendMessage({ type: 'slapmemo:undo', id: result.id }).then(response => { if (response?.ok) host.remove(); }).catch(() => {}); });
-    actions.append(comment, undo); box.append(actions);
+    undo.addEventListener('click', () => {
+      undo.disabled = true; clearTimeout(timer);
+      void chrome.runtime.sendMessage({ type: 'slapmemo:undo', id: result.id }).then(response => {
+        if (response?.ok) { host.remove(); return; }
+        throw new Error('undo');
+      }).catch(() => { undo.disabled = false; undo.textContent = 'Geri alınamadı'; schedule(); });
+    });
+    // Yorum / Geri al ayrı satırda: kategori sayısı değişse de "Geri al" yeri sabit kalır.
+    const secondRow = document.createElement('div'); secondRow.className = 'actions'; secondRow.style.marginTop = '6px';
+    secondRow.append(comment, undo); box.append(actions, secondRow);
   }
   shadow.append(box); (document.body || document.documentElement).append(host); schedule();
 }

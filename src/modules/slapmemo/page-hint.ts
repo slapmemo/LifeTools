@@ -6,7 +6,10 @@ export function noteCountText(count: number): string {
 
 /** Serialized by executeScript; keep this function self-contained. */
 export function showNoteHint(data: { label: string; notes: Array<{ text: string; created_at: number }> }, theme: string): void {
-  if (document.getElementById('lifetools-note-hint')) return;
+  // Varsa yenile (sayı değişmiş olabilir); açık/kapalı durumu korunur.
+  const previous = document.getElementById('lifetools-note-hint');
+  const wasOpen = previous?.dataset.open === '1';
+  previous?.remove();
   const host = document.createElement('div'); host.id = 'lifetools-note-hint';
   const shadow = host.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
@@ -16,7 +19,8 @@ export function showNoteHint(data: { label: string; notes: Array<{ text: string;
   const toggle = document.createElement('button'); toggle.textContent = data.label; toggle.setAttribute('aria-expanded', 'false');
   const close = document.createElement('button'); close.textContent = '×'; close.className = 'close'; close.setAttribute('aria-label', 'Kapat'); close.onclick = () => host.remove();
   const list = document.createElement('div'); list.className = 'list'; list.hidden = true;
-  toggle.onclick = () => { list.hidden = !list.hidden; toggle.setAttribute('aria-expanded', String(!list.hidden)); };
+  const sync = () => { toggle.setAttribute('aria-expanded', String(!list.hidden)); host.dataset.open = list.hidden ? '0' : '1'; };
+  toggle.onclick = () => { list.hidden = !list.hidden; sync(); };
   for (const note of data.notes) {
     const item = document.createElement('div'); item.className = 'item';
     const text = document.createElement('div'); text.textContent = note.text.slice(0, 120);
@@ -29,4 +33,10 @@ export function showNoteHint(data: { label: string; notes: Array<{ text: string;
   const footer = document.createElement('button'); footer.className = 'footer'; footer.textContent = 'Tümünü panelde gör';
   footer.onclick = () => { void chrome.runtime.sendMessage({ type: 'slapmemo:open-panel' }).catch(() => {}); };
   list.append(footer); head.append(toggle, close); box.append(head, list); shadow.append(style, box); (document.body || document.documentElement).append(host);
+  if (wasOpen) { list.hidden = false; sync(); }
+}
+
+/** Serialized by executeScript; self-contained. */
+export function hideNoteHint(): void {
+  document.getElementById('lifetools-note-hint')?.remove();
 }

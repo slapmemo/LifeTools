@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { MIGRATIONS, readVersion, runMigrations } from '../src/db/migrations';
 import type { NoteCategory } from '../src/modules/slapmemo/categories';
-import { buildFtsQuery, createNotesRepo } from '../src/modules/slapmemo/repo';
+import { buildFtsQuery, createNotesRepo, NoteVersionConflict } from '../src/modules/slapmemo/repo';
 import { createMemoryExecutor } from './sqlite-memory';
 
 async function setup() {
@@ -156,4 +156,37 @@ test('notesForUrl yalnız aynı sayfanın notlarını döndürür (sondaki /, # 
   const found = await repo.notesForUrl('https://a.test/yol/');
   assert.deepEqual(found.map(n => n.text).sort(), ['bir', 'iki']);
   assert.deepEqual((await repo.notesForUrl('https://a.test/yol?x=1#z')).map(n => n.text), ['sorgulu']);
+});
+
+test('updateNoteText beklenen updated_at eşleşirse yazar, eşleşmezse NoteVersionConflict fırlatır', async () => {
+  const { repo } = await setup();
+  const { note } = await repo.addNote({ category: 'note', text: 'ilk' });
+  const saved = await repo.updateNoteText(note.id, 'ikinci', note.updated_at);
+  assert.equal(saved?.text, 'ikinci');
+  // Eski sürümle yazma: çakışma, metin değişmez.
+  await assert.rejects(repo.updateNoteText(note.id, 'üçüncü', note.updated_at), NoteVersionConflict);
+  assert.equal((await repo.getNote(note.id))?.text, 'ikinci');
+  // Beklenen verilmezse eski davranış (zorla yaz).
+  assert.equal((await repo.updateNoteText(note.id, 'dördüncü'))?.text, 'dördüncü');
+});
+
+test('updateNote beklenen updated_at ile çakışmayı "notum"a dokunmadan reddeder', async () => {
+  const { repo } = await setup();
+  const { note } = await repo.addNote({ category: 'note', text: 'a' });
+  const first = await repo.updateNote(note.id, 'b', 'not 1', note.updated_at);
+  await assert.rejects(repo.updateNote(note.id, 'c', 'not 2', note.updated_at), NoteVersionConflict);
+  const current = await repo.getNote(note.id);
+  assert.equal(current?.text, 'b');
+  assert.equal(current?.user_note, 'not 1');
+  assert.equal((await repo.updateNote(note.id, 'c', 'not 2', first!.updated_at))?.text, 'c');
+});
+
+test('countInCategory çöptekiler dahil sayar', async () => {
+  const { repo } = await setup();
+  const cat = await repo.addCategory('Proje');
+  const a = await repo.addNote({ category: cat.id, text: 'x' });
+  await repo.addNote({ category: cat.id, text: 'y' });
+  await repo.deleteNote(a.note.id);
+  assert.equal(await repo.countInCategory(cat.id), 2);
+  assert.equal(await repo.countInCategory('read'), 0);
 });

@@ -20,7 +20,9 @@ export class TargetNotEmptyError extends Error {
 export async function countRows(ex: Executor): Promise<Record<string, number>> {
   const out: Record<string, number> = {};
   for (const table of BACKUP_TABLES) {
-    const rows = await ex.query<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table}`);
+    // Boş veritabanında bile tohumlanan dört yerleşik kategori "veri" sayılmaz; yalnız kullanıcı kategorileri.
+    const where = table === 'note_categories' ? ' WHERE builtin = 0' : '';
+    const rows = await ex.query<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table}${where}`);
     out[table] = Number(rows[0]?.n ?? 0);
   }
   return out;
@@ -43,7 +45,8 @@ export async function transferData(source: Executor, target: Executor, overwrite
   else await restoreData(target, backup);
   const after = await countRows(target);
   for (const table of BACKUP_TABLES) {
-    const expected = backup.tables[table as keyof typeof backup.tables].length;
+    const rows = backup.tables[table as keyof typeof backup.tables];
+    const expected = table === 'note_categories' ? rows.filter(row => Number(row.builtin ?? 0) === 0).length : rows.length;
     if (after[table] !== expected) throw new Error(`Aktarım doğrulanamadı: ${table} (beklenen ${expected}, hedefte ${after[table]})`);
   }
   return after;

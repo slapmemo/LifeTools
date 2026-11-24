@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { extractTags, toggleTaskLine } from '../desktop/src/markdown';
+import { extractTags, toggleTaskLine } from '../shared/notes/render';
 
 test('etiketler: satır başı ve boşluktan sonra, başlıklar ve adres parçaları hariç', () => {
   expect(extractTags('Toplantı #İş ve #film_listesi\n# Başlık değil etiket\nhttps://ornek.com/#bolum a#b')).toEqual(['#iş', '#film_listesi']);
@@ -14,3 +14,5 @@ test('yapılacak kutucuğu yalnız hedef satırda değişir', () => {
   expect(toggleTaskLine(text, 3, true)).toBe(text);
   expect(toggleTaskLine(text, 99, true)).toBe(text);
 });
+
+// Masaüstü Notlar artık shared/notes/render.ts kullanır (desktop/src/markdown.ts kaldırıldı); boş satır kuralı shared-notes.test.ts'te.

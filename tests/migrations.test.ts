@@ -22,10 +22,13 @@ function fakeExecutor(initialVersion: number | null) {
       }
       if (sql.startsWith('INSERT INTO meta')) { version = Number(params?.[1]); return; }
       if (sql === 'FAIL') throw new Error('boom');
+      if (sql.startsWith('PRAGMA schema_version')) return; // migrasyon 13 sonrası çerez artırma (günlüğe girmez)
       log.push(sql);
       if (sql.includes('CREATE TABLE IF NOT EXISTS meta')) hasMeta = true;
     },
     async query(sql) {
+      if (sql === 'PRAGMA schema_version') return [{ schema_version: 1 }] as never[];
+      if (sql === 'PRAGMA quick_check') return [{ quick_check: 'ok' }] as never[];
       if (sql.includes('sqlite_master')) return (hasMeta ? [{ name: 'meta' }] : []) as never[];
       if (sql.includes('FROM meta')) return (hasMeta && version > 0 ? [{ value: String(version) }] : []) as never[];
       return [];
@@ -46,24 +49,24 @@ test('migrasyon 1 yalnızca meta tablosunu oluşturur', () => {
   assert.match(MIGRATIONS[0].statements[0], /CREATE TABLE IF NOT EXISTS meta/);
 });
 
-test('gerçek migrasyon listesi 1–12 sürümlerinden oluşur', () => {
-  assert.deepEqual(MIGRATIONS.map(m => m.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+test('gerçek migrasyon listesi 1–13 sürümlerinden oluşur', () => {
+  assert.deepEqual(MIGRATIONS.map(m => m.version), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
   assert.match(MIGRATIONS[1].statements.join('\n'), /CREATE TABLE notes/);
 });
 
-test('boş veritabanı gerçek migrasyonlarla son sürüme (12) ulaşır', async () => {
+test('boş veritabanı gerçek migrasyonlarla son sürüme (13) ulaşır', async () => {
   const { ex, getVersion } = fakeExecutor(null);
   const result = await runMigrations(ex);
-  assert.deepEqual(result, { from: 0, to: 12, applied: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] });
-  assert.equal(getVersion(), 12);
+  assert.deepEqual(result, { from: 0, to: 13, applied: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] });
+  assert.equal(getVersion(), 13);
 });
 
 test('sürüm 1 veritabanında yalnızca migrasyon 2 uygulanır', async () => {
   const { ex, log, getVersion } = fakeExecutor(1);
   const result = await runMigrations(ex);
-  assert.deepEqual(result, { from: 1, to: 12, applied: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] });
-  assert.deepEqual(log, [...MIGRATIONS[1].statements, ...MIGRATIONS[2].statements, ...MIGRATIONS[3].statements, ...MIGRATIONS[4].statements, ...MIGRATIONS[5].statements, ...MIGRATIONS[6].statements, ...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements]);
-  assert.equal(getVersion(), 12);
+  assert.deepEqual(result, { from: 1, to: 13, applied: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] });
+  assert.deepEqual(log, [...MIGRATIONS[1].statements, ...MIGRATIONS[2].statements, ...MIGRATIONS[3].statements, ...MIGRATIONS[4].statements, ...MIGRATIONS[5].statements, ...MIGRATIONS[6].statements, ...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements, ...MIGRATIONS[12].statements]);
+  assert.equal(getVersion(), 13);
 });
 
 test('boş veritabanında hepsi uygulanır', async () => {
@@ -102,17 +105,17 @@ test('hata olursa sürüm artırılmaz', async () => {
   assert.equal(await readVersion(ex), 2);
 });
 
-test('version 2 database applies migrations 3 and 4', async () => { const {ex, log} = fakeExecutor(2); assert.deepEqual(await runMigrations(ex), {from: 2, to: 12, applied: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}); assert.deepEqual(log, [...MIGRATIONS[2].statements, ...MIGRATIONS[3].statements, ...MIGRATIONS[4].statements, ...MIGRATIONS[5].statements, ...MIGRATIONS[6].statements, ...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements]); });
+test('version 2 database applies migrations 3 and 4', async () => { const {ex, log} = fakeExecutor(2); assert.deepEqual(await runMigrations(ex), {from: 2, to: 13, applied: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]}); assert.deepEqual(log, [...MIGRATIONS[2].statements, ...MIGRATIONS[3].statements, ...MIGRATIONS[4].statements, ...MIGRATIONS[5].statements, ...MIGRATIONS[6].statements, ...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements, ...MIGRATIONS[12].statements]); });
 
-test('sürüm 3 sonrasındaki migrasyonları uygular', async () => { const { ex, log } = fakeExecutor(3); assert.deepEqual(await runMigrations(ex), { from: 3, to: 12, applied: [4, 5, 6, 7, 8, 9, 10, 11, 12] }); assert.deepEqual(log, [...MIGRATIONS[3].statements, ...MIGRATIONS[4].statements, ...MIGRATIONS[5].statements, ...MIGRATIONS[6].statements, ...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements]); });
+test('sürüm 3 sonrasındaki migrasyonları uygular', async () => { const { ex, log } = fakeExecutor(3); assert.deepEqual(await runMigrations(ex), { from: 3, to: 13, applied: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13] }); assert.deepEqual(log, [...MIGRATIONS[3].statements, ...MIGRATIONS[4].statements, ...MIGRATIONS[5].statements, ...MIGRATIONS[6].statements, ...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements, ...MIGRATIONS[12].statements]); });
 
-test('sürüm 4 sonrasındaki migrasyonları uygular', async () => { const {ex, log} = fakeExecutor(4); assert.deepEqual(await runMigrations(ex), {from: 4, to: 12, applied: [5, 6, 7, 8, 9, 10, 11, 12]}); assert.deepEqual(log, [...MIGRATIONS[4].statements, ...MIGRATIONS[5].statements, ...MIGRATIONS[6].statements, ...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements]); });
+test('sürüm 4 sonrasındaki migrasyonları uygular', async () => { const {ex, log} = fakeExecutor(4); assert.deepEqual(await runMigrations(ex), {from: 4, to: 13, applied: [5, 6, 7, 8, 9, 10, 11, 12, 13]}); assert.deepEqual(log, [...MIGRATIONS[4].statements, ...MIGRATIONS[5].statements, ...MIGRATIONS[6].statements, ...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements, ...MIGRATIONS[12].statements]); });
 
 test('sürüm 5 veritabanında yalnızca migrasyon 6 uygulanır', async () => {
   const { ex, log, getVersion } = fakeExecutor(5);
-  assert.deepEqual(await runMigrations(ex), { from: 5, to: 12, applied: [6, 7, 8, 9, 10, 11, 12] });
-  assert.deepEqual(log, [...MIGRATIONS[5].statements, ...MIGRATIONS[6].statements, ...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements]);
-  assert.equal(getVersion(), 12);
+  assert.deepEqual(await runMigrations(ex), { from: 5, to: 13, applied: [6, 7, 8, 9, 10, 11, 12, 13] });
+  assert.deepEqual(log, [...MIGRATIONS[5].statements, ...MIGRATIONS[6].statements, ...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements, ...MIGRATIONS[12].statements]);
+  assert.equal(getVersion(), 13);
 });
 
 test('migrasyon 6 oturum tablolarını oluşturur', () => {
@@ -122,8 +125,8 @@ test('migrasyon 6 oturum tablolarını oluşturur', () => {
   assert.match(sql, /REFERENCES sessions\(id\) ON DELETE CASCADE/);
 });
 
-test('sürüm 6 yalnızca migrasyon 7 uygular', async () => { const { ex, log } = fakeExecutor(6); assert.deepEqual(await runMigrations(ex), { from: 6, to: 12, applied: [7, 8, 9, 10, 11, 12] }); assert.deepEqual(log, [...MIGRATIONS[6].statements, ...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements]); });
+test('sürüm 6 yalnızca migrasyon 7 uygular', async () => { const { ex, log } = fakeExecutor(6); assert.deepEqual(await runMigrations(ex), { from: 6, to: 13, applied: [7, 8, 9, 10, 11, 12, 13] }); assert.deepEqual(log, [...MIGRATIONS[6].statements, ...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements, ...MIGRATIONS[12].statements]); });
 
-test('sürüm 7 yalnızca migrasyon 8 uygular', async () => { const {ex,log}=fakeExecutor(7); assert.deepEqual(await runMigrations(ex), {from:7,to:12,applied:[8, 9, 10, 11, 12]}); assert.deepEqual(log,[...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements]); });
+test('sürüm 7 yalnızca migrasyon 8 uygular', async () => { const {ex,log}=fakeExecutor(7); assert.deepEqual(await runMigrations(ex), {from:7,to:13,applied:[8, 9, 10, 11, 12, 13]}); assert.deepEqual(log,[...MIGRATIONS[7].statements, ...MIGRATIONS[8].statements, ...MIGRATIONS[9].statements, ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements, ...MIGRATIONS[12].statements]); });
 
-test('sürüm 9 sekme notu sütununu ekler', async () => { const { ex, log } = fakeExecutor(9); assert.deepEqual(await runMigrations(ex), { from: 9, to: 12, applied: [10, 11, 12] }); assert.deepEqual(log, ['ALTER TABLE session_tabs ADD COLUMN note TEXT', ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements]); });
+test('sürüm 9 sekme notu sütununu ekler', async () => { const { ex, log } = fakeExecutor(9); assert.deepEqual(await runMigrations(ex), { from: 9, to: 13, applied: [10, 11, 12, 13] }); assert.deepEqual(log, ['ALTER TABLE session_tabs ADD COLUMN note TEXT', ...MIGRATIONS[10].statements, ...MIGRATIONS[11].statements, ...MIGRATIONS[12].statements]); });

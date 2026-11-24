@@ -10,6 +10,15 @@ const dist = 'dist.tmp';
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 
+// Sayfa paketlerinin (ESM) esbuild ayarları; tests/build-options.test.ts metni okur (build.mjs içe aktarılamaz, çalışınca derler).
+// splitting: shared/notes/lazy.ts içindeki dinamik import (TipTap düzenleyicisi) ayrı parçaya (dist/chunks/) çıkar;
+// panel.js yalnız yazmaya başlanınca o parçayı yükler. Parçalar dist/ altında olduğundan sürüm zip'ine de girer.
+const esmPageOptions = {
+  format: 'esm',
+  splitting: true,
+  chunkNames: 'chunks/[name]-[hash]'
+};
+
 const sharedOptions = {
   outdir: dist,
   bundle: true,
@@ -22,7 +31,7 @@ const sharedOptions = {
 
 await build({
   ...sharedOptions,
-  format: 'esm',
+  ...esmPageOptions,
   entryPoints: {
     background: 'src/background.ts',
     popup: 'src/popup/popup.ts',
@@ -63,6 +72,7 @@ copyFileSync('src/modules/tab-manager/tabs.html', join(dist, 'tabs.html'));
 copyFileSync('src/modules/tab-manager/tabs.css', join(dist, 'tabs.css'));
 copyFileSync('design/tokens.css', join(dist, 'tokens.css'));
 copyFileSync('design/components.css', join(dist, 'components.css'));
+copyFileSync('shared/notes/notes.css', join(dist, 'notes.css'));
 copyFileSync('src/panel/panel.html', join(dist, 'panel.html'));
 copyFileSync('src/panel/panel.css', join(dist, 'panel.css'));
 copyFileSync('src/onboarding/welcome.html', join(dist, 'welcome.html'));

@@ -25,10 +25,18 @@ export interface Snippet {
   updated_at: number;
 }
 
-export type NoteCategory = 'note' | 'read' | 'watch' | 'idea';
+/** Kategori kimliği: yerleşik (`note`, `read`, `watch`, `idea`) ya da kullanıcı kategorisi (`noteCategories()`). */
+export type NoteCategory = string;
+export type CategoryId = string;
+
+export interface NoteCategoryInfo { id: string; label: string; color: string | null; position: number; builtin: boolean; created_at: number }
+export const NOTE_COLORS = ['yellow', 'green', 'blue', 'pink', 'purple'] as const;
+export type NoteColor = (typeof NOTE_COLORS)[number];
+export interface NoteHistoryEntry { id: number; note_id: number; text: string; saved_at: number }
 
 export interface Note {
   id: number;
+  /** Çalışma zamanında kullanıcı kategorisi kimliği de olabilir (`CategoryId`); UI geçişi bitince `CategoryId`'e genişletilecek. */
   category: NoteCategory;
   text: string;
   url: string | null;
@@ -42,9 +50,13 @@ export interface Note {
   remind_at: number | null;
   has_page: boolean;
   has_image: boolean;
+  color: NoteColor | null;
+  position: number | null;
+  /** Yalnız çöp listesinde dolu (ms). */
+  deleted_at: number | null;
 }
 
-export interface NoteCounts { all: number; note: number; read: number; watch: number; idea: number; archived: number }
+export interface NoteCounts { all: number; note: number; read: number; watch: number; idea: number; archived: number; trash: number; by_category: Record<string, number> }
 
 export interface NotesPage {
   available: boolean;
@@ -52,7 +64,7 @@ export interface NotesPage {
   counts: NoteCounts;
 }
 
-export type NoteSort = 'new' | 'old' | 'updated';
+export type NoteSort = 'new' | 'old' | 'updated' | 'manual';
 
 export type WatchKind = 'film' | 'dizi' | 'video' | 'diger';
 export type WatchStatus = 'izlenecek' | 'izleniyor' | 'bitti';
@@ -141,21 +153,48 @@ export const api = {
     invoke<void>('watch_update', { id, title, kind, url, note }),
   watchSetStatus: (id: number, status: WatchStatus) => invoke<void>('watch_set_status', { id, status }),
   watchDelete: (id: number) => invoke<void>('watch_delete', { id }),
-  noteSetText: (id: number, text: string) => invoke<void>('note_set_text', { id, text }),
-  noteSetCategory: (id: number, category: NoteCategory) => invoke<void>('note_set_category', { id, category }),
+  /** `expectedUpdatedAt` verilirse not başka yerde değişmişse `NOTE_CONFLICT` hatasıyla reddedilir; yeni updated_at döner. */
+  noteSetText: (id: number, text: string, expectedUpdatedAt?: number | null) => invoke<number>('note_set_text', { id, text, expectedUpdatedAt: expectedUpdatedAt ?? null }),
+  noteGet: (id: number) => invoke<Note | null>('note_get', { id }),
+  noteSetUserNote: (id: number, userNote: string | null) => invoke<void>('note_set_user_note', { id, userNote }),
+  /** Notu çoğaltır (metin, kategori, bağlantı, notum, renk); yeni kimliği döndürür. */
+  noteDuplicate: (id: number) => invoke<number>('note_duplicate', { id }),
+  noteSetCategory: (id: number, category: CategoryId) => invoke<void>('note_set_category', { id, category }),
   noteSetPinned: (id: number, pinned: boolean) => invoke<void>('note_set_pinned', { id, pinned }),
   noteSetDone: (id: number, done: boolean) => invoke<void>('note_set_done', { id, done }),
   noteSetArchived: (id: number, archived: boolean) => invoke<void>('note_set_archived', { id, archived }),
   noteSetReminder: (id: number, remindAt: number | null) => invoke<void>('note_set_reminder', { id, remindAt }),
   noteImage: (id: number) => invoke<string | null>('note_image', { id }),
   notePage: (id: number) => invoke<{ text: string; saved_at: number } | null>('note_page', { id }),
-  quicknoteAdd: (category: NoteCategory, text: string) => invoke<void>('quicknote_add', { category, text }),
+  quicknoteAdd: (category: CategoryId, text: string) => invoke<void>('quicknote_add', { category, text }),
   quicknoteHide: () => invoke<void>('quicknote_hide'),
-  noteAdd: (category: NoteCategory, text: string, url: string | null, userNote: string | null) =>
+  noteAdd: (category: CategoryId, text: string, url: string | null, userNote: string | null) =>
     invoke<number>('note_add', { category, text, url, userNote }),
-  noteUpdate: (id: number, category: NoteCategory, text: string, userNote: string | null) =>
+  noteUpdate: (id: number, category: CategoryId, text: string, userNote: string | null) =>
     invoke<void>('note_update', { id, category, text, userNote }),
+  /** Çöpe taşır (yumuşak silme). */
   noteDelete: (id: number) => invoke<void>('note_delete', { id }),
+  noteTrashList: () => invoke<Note[]>('note_trash_list'),
+  noteRestore: (id: number) => invoke<void>('note_restore', { id }),
+  notePurge: (id: number) => invoke<void>('note_purge', { id }),
+  /** Silinen not sayısını döndürür. */
+  noteTrashEmpty: () => invoke<number>('note_trash_empty'),
+  notePurgeExpired: () => invoke<number>('note_purge_expired'),
+  noteSetColor: (id: number, color: NoteColor | null) => invoke<void>('note_set_color', { id, color }),
+  noteSetPosition: (id: number, position: number) => invoke<void>('note_set_position', { id, position }),
+  /** `category`: listenin kategori filtresi (boş/yok: hepsi); backend tam sırayı okuyup yalnız verilen satırların yuvalarını yeniden dizer. */
+  noteReorder: (ids: number[], category?: string | null) => invoke<void>('note_reorder', { ids, category: category || null }),
+  /** Kategori silinirse Notlar'a taşınacak not sayısı (arşivdekiler dahil). */
+  noteCategoryCount: (id: string) => invoke<number>('note_category_count', { id }),
+  noteHistory: (id: number) => invoke<NoteHistoryEntry[]>('note_history', { id }),
+  noteHistoryRestore: (historyId: number) => invoke<void>('note_history_restore', { historyId }),
+  noteCategories: () => invoke<NoteCategoryInfo[]>('note_categories'),
+  noteCategoryAdd: (label: string, color: string | null) => invoke<NoteCategoryInfo>('note_category_add', { label, color }),
+  noteCategoryRename: (id: string, label: string) => invoke<void>('note_category_rename', { id, label }),
+  noteCategoryRecolor: (id: string, color: string | null) => invoke<void>('note_category_recolor', { id, color }),
+  noteCategoriesReorder: (ids: string[]) => invoke<void>('note_categories_reorder', { ids }),
+  /** Taşınan not sayısını döndürür; notlar "note" kategorisine geçer. */
+  noteCategoryDelete: (id: string) => invoke<number>('note_category_delete', { id }),
   noteOpenUrl: (url: string) => invoke<void>('note_open_url', { url }),
   snippetList: (query: string) => invoke<Snippet[]>('snippet_list', { query }),
   snippetSave: (id: number | null, trigger: string, title: string, body: string) =>
@@ -200,3 +239,7 @@ export const api = {
 export function errText(e: unknown): string {
   return typeof e === 'string' ? e : e instanceof Error ? e.message : String(e);
 }
+
+/** Rust tarafındaki `NOTE_CONFLICT` ile aynı: kayıt sırasında not başka yerde değişmişse. */
+export const NOTE_CONFLICT = 'NOT_CONFLICT';
+export const isNoteConflict = (e: unknown): boolean => errText(e) === NOTE_CONFLICT;

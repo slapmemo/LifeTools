@@ -389,6 +389,71 @@
     }
 
     #[test]
+    fn note_text_conflict_and_duplicate() {
+        let d = notes_db();
+        let id = add_note(&d, "idea", "Başlık\nikinci satır", Some("https://ornek.com"), Some("benim")).unwrap();
+        set_note_color(&d, id, Some("pink")).unwrap();
+        let t0 = get_note(&d, id).unwrap().unwrap().updated_at;
+        // Beklenen değer tutuyorsa kayıt olur ve updated_at ilerler.
+        let t1 = update_note_text_checked(&d, id, "Yeni", Some(t0)).unwrap();
+        assert!(t1 > t0);
+        assert_eq!(get_note(&d, id).unwrap().unwrap().updated_at, t1);
+        // Eski değerle gelen kayıt çakışır ve metne dokunmaz.
+        assert_eq!(update_note_text_checked(&d, id, "Başkası", Some(t0)).unwrap_err(), NOTE_CONFLICT);
+        assert_eq!(get_note(&d, id).unwrap().unwrap().text, "Yeni");
+        // Beklenen değer verilmezse eski davranış.
+        update_note_text_checked(&d, id, "Eski yol", None).unwrap();
+        assert!(update_note_text_checked(&d, 999, "x", None).is_err());
+        set_note_user_note(&d, id, Some(" yeni ")).unwrap();
+        assert_eq!(get_note(&d, id).unwrap().unwrap().user_note.as_deref(), Some("yeni"));
+        // Çoğaltma: ilk satıra " (kopya)", kategori/bağlantı/notum/renk kopyalanır.
+        update_note_text_checked(&d, id, "Başlık\nikinci satır", None).unwrap();
+        let c = duplicate_note(&d, id).unwrap();
+        let n = get_note(&d, c).unwrap().unwrap();
+        assert_eq!((n.text.as_str(), n.category.as_str(), n.url.as_deref(), n.user_note.as_deref(), n.color.as_deref()),
+            ("Başlık (kopya)\nikinci satır", "idea", Some("https://ornek.com"), Some("yeni"), Some("pink")));
+        assert_ne!(c, id);
+        assert!(duplicate_note(&d, 999).is_err());
+    }
+
+    #[test]
+    fn reorder_fixture_cases() {
+        let fx: serde_json::Value = serde_json::from_str(include_str!("../../../../tests/fixtures/note-reorder.json")).unwrap();
+        for c in fx["cases"].as_array().unwrap() {
+            let name = c["name"].as_str().unwrap();
+            let d = notes_db();
+            ensure_note_meta(&d).unwrap();
+            for n in c["notes"].as_array().unwrap() {
+                let id = n["id"].as_i64().unwrap();
+                d.execute("INSERT INTO notes(id,category,text,created_at,updated_at) VALUES(?1,?2,'x',?3,?3)", params![id, n["category"].as_str().unwrap(), n["created_at"].as_i64().unwrap()]).unwrap();
+                if let Some(p) = n["position"].as_i64() { set_note_position(&d, id, p).unwrap(); }
+                if n["pinned"].as_bool().unwrap() { set_note_pinned(&d, id, true).unwrap(); }
+            }
+            let ids: Vec<i64> = c["ids"].as_array().unwrap().iter().map(|v| v.as_i64().unwrap()).collect();
+            let cat = c["category"].as_str();
+            reorder_notes_scoped(&d, &ids, cat).unwrap();
+            let group = c["notes"].as_array().unwrap().iter().find(|n| n["id"].as_i64() == Some(ids[0])).unwrap()["pinned"].as_bool().unwrap();
+            let o = ListOptions { category: cat.unwrap_or(""), query: "", archived: false, show_done: true, sort: "manual" };
+            let got: Vec<i64> = list_notes(&d, &o).unwrap().notes.iter().filter(|n| n.pinned == group).map(|n| n.id).collect();
+            let want: Vec<i64> = c["expected"].as_array().unwrap().iter().map(|v| v.as_i64().unwrap()).collect();
+            assert_eq!(got, want, "{name}");
+            // Konumlar kapsamda 0..n çakışmasız.
+            let mut pos: Vec<i64> = want.iter().map(|id| get_note(&d, *id).unwrap().unwrap().position.unwrap()).collect();
+            pos.sort();
+            assert_eq!(pos, (0..want.len() as i64).collect::<Vec<_>>(), "{name}: konumlar");
+        }
+    }
+
+    #[test]
+    fn category_count_includes_archived() {
+        let d = notes_db();
+        let a = add_note(&d, "idea", "a", None, None).unwrap();
+        add_note(&d, "idea", "b", None, None).unwrap();
+        set_note_archived(&d, a, true).unwrap();
+        assert_eq!(category_note_count(&d, "idea").unwrap(), 2);
+    }
+
+    #[test]
     fn notes_add_list_search_update_delete() {
         let mut d = notes_db();
         let id = add_note(&d, "idea", "  Işık ayarı  ", Some(" "), Some("Çok önemli")).unwrap();
@@ -410,7 +475,7 @@
         assert_eq!((note.category.as_str(), note.text.as_str(), note.user_note), ("note", "Yeni metin", None));
         assert!(update_note(&d, 999, "note", "x", None).is_err());
         d.execute("INSERT INTO note_pages VALUES(?1,'sayfa',1)", [id]).unwrap();
-        delete_note(&mut d, id).unwrap();
+        purge_note(&d, id).unwrap();
         assert!(get_note(&d, id).unwrap().is_none());
         let pages: i64 = d.query_row("SELECT count(*) FROM note_pages", [], |r| r.get(0)).unwrap();
         assert_eq!(pages, 0);
@@ -428,7 +493,7 @@
         let page = ls(&d, "", "").unwrap();
         assert_eq!(page.notes[0].id, a);
         assert!(page.notes[0].pinned);
-        assert_eq!(page.counts, NoteCounts { all: 3, note: 1, read: 2, watch: 0, idea: 0, archived: 0 });
+        assert_eq!((page.counts.all, page.counts.note, page.counts.read, page.counts.watch, page.counts.idea, page.counts.archived, page.counts.trash), (3, 1, 2, 0, 0, 0, 0));
         // Etiket araması metin üzerinden.
         assert_eq!(ls(&d, "", "#iş").unwrap().notes.iter().map(|n| n.id).collect::<Vec<_>>(), vec![a]);
         // Tamamlanan, show_done kapalıyken gizlenir.
@@ -467,9 +532,209 @@
         assert!(get_note(&d, a).unwrap().unwrap().has_page);
         assert_eq!(note_page(&d, a).unwrap().unwrap().text, "sayfa metni");
         assert!(note_image(&d, a).unwrap().is_none());
-        delete_note(&mut d, a).unwrap();
+        purge_note(&d, a).unwrap();
         let metas: i64 = d.query_row("SELECT count(*) FROM note_meta WHERE note_id=?1", [a], |r| r.get(0)).unwrap();
         assert_eq!(metas, 0);
+    }
+
+    fn ids(d: &Connection) -> Vec<i64> {
+        ls(d, "", "").unwrap().notes.iter().map(|n| n.id).collect()
+    }
+
+    #[test]
+    fn migration_both_orders_and_custom_category_check() {
+        // Masaüstü önce: notes (eski CHECK ile) var, eklenti migrasyon 13 henüz çalışmadı.
+        let d = notes_db();
+        assert!(ensure_note_meta(&d).unwrap());
+        for t in ["note_extra", "note_categories", "note_history"] { assert!(d.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)", [t], |r| r.get::<_, bool>(0)).unwrap(), "{t}"); }
+        assert_eq!(list_categories(&d).unwrap().iter().map(|c| c.id.as_str()).collect::<Vec<_>>(), vec!["note", "read", "watch", "idea"]);
+        // Eklenti sonra: aynı ifadeler hata vermez (IF NOT EXISTS, tohum yalnız boşken, kısıt gevşetme etkisiz).
+        for s in NOTE_EXTRA_DDL { d.execute_batch(s).unwrap(); }
+        assert_eq!(list_categories(&d).unwrap().len(), 4);
+        // Kullanıcı kategorisi artık notes CHECK'ine takılmaz.
+        let c = add_category(&d, "  İş Fikirleri ", Some("blue")).unwrap();
+        assert_eq!(c.id, "is-fikirleri");
+        let n = add_note(&d, &c.id, "Özel kategorili", None, None).unwrap();
+        assert_eq!(get_note(&d, n).unwrap().unwrap().category, "is-fikirleri");
+        assert!(add_note(&d, "yok", "x", None, None).is_err());
+        // Silinen yerleşik kategori ensure ile geri gelmez.
+        delete_category(&d, "read").unwrap();
+        ensure_note_meta(&d).unwrap();
+        assert_eq!(list_categories(&d).unwrap().len(), 4); // note, watch, idea, is-fikirleri
+        assert!(list_categories(&d).unwrap().iter().all(|c| c.id != "read"));
+        // Eklenti önce: tablolar zaten var, masaüstü ensure sorunsuz.
+        let e = notes_db();
+        for s in NOTE_META_DDL.iter().chain(NOTE_EXTRA_DDL.iter()) { e.execute_batch(s).unwrap(); }
+        assert!(ensure_note_meta(&e).unwrap());
+        assert!(add_category(&e, "Yeni", None).is_ok());
+        assert_eq!(add_category(&e, "Yeni", None).unwrap().id, "yeni-2");
+    }
+
+    #[test]
+    fn soft_delete_hidden_everywhere_restore_and_purge() {
+        let d = notes_db();
+        let a = add_note(&d, "note", "Birinci", None, None).unwrap();
+        let b = add_note(&d, "note", "İkinci", None, None).unwrap();
+        set_note_reminder(&d, b, Some(1_000)).unwrap();
+        d.execute("INSERT INTO note_pages VALUES(?1,'sayfa',1)", [b]).unwrap();
+        delete_note(&d, b).unwrap();
+        assert_eq!(ids(&d), vec![a]);
+        assert!(ls(&d, "", "İkinci").unwrap().notes.is_empty());
+        let visible = ls(&d, "", "").unwrap();
+        assert_eq!((visible.counts.all, visible.counts.note, visible.counts.trash), (1, 1, 1));
+        assert!(take_due_reminders(&d, 5_000).unwrap().is_empty(), "çöpteki notun hatırlatması çalmaz");
+        assert_eq!(list_trash(&d).unwrap().iter().map(|n| n.id).collect::<Vec<_>>(), vec![b]);
+        assert!(list_trash(&d).unwrap()[0].deleted_at.is_some());
+        restore_note(&d, b).unwrap();
+        assert_eq!(ids(&d).len(), 2);
+        assert!(get_note(&d, b).unwrap().unwrap().deleted_at.is_none());
+        // Kalıcı silme: sayfa/meta/extra/geçmiş hepsi gider.
+        update_note_text(&d, b, "Yeni metin").unwrap();
+        assert_eq!(list_history(&d, b).unwrap().len(), 1);
+        purge_note(&d, b).unwrap();
+        for t in ["note_pages", "note_meta", "note_extra", "note_history"] {
+            let n: i64 = d.query_row(&format!("SELECT count(*) FROM {t} WHERE note_id=?1"), [b], |r| r.get(0)).unwrap();
+            assert_eq!(n, 0, "{t}");
+        }
+        delete_note(&d, a).unwrap();
+        assert_eq!(empty_trash(&d).unwrap(), 1);
+        assert!(get_note(&d, a).unwrap().is_none());
+    }
+
+    #[test]
+    fn purge_expired_by_time() {
+        let d = notes_db();
+        let old = add_note(&d, "note", "Eski", None, None).unwrap();
+        let fresh = add_note(&d, "note", "Yeni", None, None).unwrap();
+        delete_note(&d, old).unwrap();
+        delete_note(&d, fresh).unwrap();
+        let day = 86_400_000;
+        let t0 = now_millis();
+        d.execute("UPDATE note_extra SET deleted_at=?1 WHERE note_id=?2", params![t0 - 16 * day, old]).unwrap();
+        d.execute("UPDATE note_extra SET deleted_at=?1 WHERE note_id=?2", params![t0 - 14 * day, fresh]).unwrap();
+        assert_eq!(purge_expired(&d, t0, 15).unwrap(), 1);
+        assert!(get_note(&d, old).unwrap().is_none());
+        assert!(get_note(&d, fresh).unwrap().is_some());
+        // Zaman ilerleyince ikincisi de gider.
+        assert_eq!(purge_expired(&d, t0 + 2 * day, 15).unwrap(), 1);
+        assert!(get_note(&d, fresh).unwrap().is_none());
+    }
+
+    #[test]
+    fn category_delete_moves_notes_and_note_is_protected() {
+        let d = notes_db();
+        let c = add_category(&d, "Okuma", None).unwrap();
+        let a = add_note(&d, &c.id, "A", None, None).unwrap();
+        let b = add_note(&d, &c.id, "B", None, None).unwrap();
+        delete_note(&d, b).unwrap(); // çöptekiler de taşınır
+        assert!(delete_category(&d, "note").is_err());
+        assert_eq!(delete_category(&d, &c.id).unwrap(), 2);
+        assert_eq!(get_note(&d, a).unwrap().unwrap().category, "note");
+        assert_eq!(get_note(&d, b).unwrap().unwrap().category, "note");
+        assert!(list_categories(&d).unwrap().iter().all(|x| x.id != c.id));
+        assert!(delete_category(&d, &c.id).is_err());
+        rename_category(&d, "read", "Okunacaklar 2").unwrap();
+        recolor_category(&d, "read", Some("green")).unwrap();
+        reorder_categories(&d, &["idea".to_string(), "note".to_string()]).unwrap();
+        let cats = list_categories(&d).unwrap();
+        assert_eq!(cats[0].id, "idea");
+        assert_eq!(cats.iter().find(|x| x.id == "read").map(|x| (x.label.clone(), x.color.clone())), Some(("Okunacaklar 2".to_string(), Some("green".to_string()))));
+        assert!(recolor_category(&d, "read", Some("a b")).is_err());
+    }
+
+    #[test]
+    fn color_position_and_manual_sort() {
+        let d = notes_db();
+        let a = add_note(&d, "note", "A", None, None).unwrap();
+        let b = add_note(&d, "note", "B", None, None).unwrap();
+        let c = add_note(&d, "note", "C", None, None).unwrap();
+        set_note_color(&d, a, Some("pink")).unwrap();
+        assert_eq!(get_note(&d, a).unwrap().unwrap().color.as_deref(), Some("pink"));
+        assert!(set_note_color(&d, a, Some("red")).is_err());
+        set_note_color(&d, a, None).unwrap();
+        assert!(get_note(&d, a).unwrap().unwrap().color.is_none());
+        reorder_notes(&d, &[a, c, b]).unwrap();
+        let manual = |d: &Connection| list_notes(d, &ListOptions { category: "", query: "", archived: false, show_done: true, sort: "manual" }).unwrap();
+        assert_eq!(manual(&d).notes.iter().map(|n| n.id).collect::<Vec<_>>(), vec![a, c, b]);
+        set_note_pinned(&d, b, true).unwrap();
+        assert_eq!(manual(&d).notes[0].id, b, "sabitlenen yine üstte");
+        set_note_position(&d, c, -1).unwrap();
+        assert_eq!(get_note(&d, c).unwrap().unwrap().position, Some(-1));
+        assert!(set_note_position(&d, 999, 1).is_err());
+    }
+
+    #[test]
+    fn history_merges_within_five_minutes_caps_and_restores() {
+        let d = notes_db();
+        let id = add_note(&d, "note", "v0", None, None).unwrap();
+        let min = 60_000;
+        let t0 = 1_800_000_000_000;
+        let set = |text: &str| { d.execute("UPDATE notes SET text=?1 WHERE id=?2", params![text, id]).unwrap(); };
+        let texts = |d: &Connection| list_history(d, id).unwrap().iter().map(|h| h.text.clone()).collect::<Vec<_>>();
+        // İlk kayıtta v0 geçmişe yazılır; 2 dk sonrakiyle birleşir (yeni satır yok).
+        record_history(&d, id, Some("v1"), false, t0).unwrap(); set("v1");
+        record_history(&d, id, Some("v2"), false, t0 + 2 * min).unwrap(); set("v2");
+        assert_eq!(texts(&d), vec!["v0"]);
+        // Metin değişmediyse yazılmaz.
+        record_history(&d, id, Some("v2"), false, t0 + 20 * min).unwrap();
+        assert_eq!(texts(&d).len(), 1);
+        // 6 dk sonra yazılır.
+        record_history(&d, id, Some("v3"), false, t0 + 6 * min).unwrap(); set("v3");
+        assert_eq!(texts(&d), vec!["v2", "v0"]);
+        // Üst sınır: 40 kayıt sonrası en fazla 30.
+        for i in 0..40 {
+            let t = t0 + (10 + i * 6) * min;
+            record_history(&d, id, Some(&format!("x{i}")), false, t).unwrap(); set(&format!("x{i}"));
+        }
+        assert_eq!(texts(&d).len(), 30);
+        // 60 günden eskiler silinir.
+        record_history(&d, id, Some("son"), false, t0 + 61 * 86_400_000).unwrap(); set("son");
+        assert_eq!(texts(&d).len(), 1);
+        // Geri yükleme: mevcut metin önce geçmişe yazılır.
+        let h = list_history(&d, id).unwrap()[0].clone();
+        restore_history(&d, h.id).unwrap();
+        assert_eq!(get_note(&d, id).unwrap().unwrap().text, h.text);
+        assert!(texts(&d).iter().any(|t| t == "son"));
+        assert!(restore_history(&d, 99_999).is_err());
+        // Gerçek güncelleme yolu da geçmişe yazar.
+        let id2 = add_note(&d, "note", "ilk", None, None).unwrap();
+        update_note(&d, id2, "note", "ikinci", None).unwrap();
+        assert_eq!(list_history(&d, id2).unwrap()[0].text, "ilk");
+    }
+
+    #[test]
+    fn category_slug_matches_shared_vectors() {
+        let v: Vec<(String, String)> = serde_json::from_str(include_str!("../../../../tests/fixtures/category-slugs.json")).unwrap();
+        assert!(v.len() >= 10);
+        for (input, expected) in v { assert_eq!(slugify_category_id(&input), expected, "{input}"); }
+    }
+
+    #[test]
+    fn check_relax_is_seen_by_other_open_connection() {
+        let path = std::env::temp_dir().join(format!("lt-relax-{}-{}.db", std::process::id(), now_millis()));
+        let _ = std::fs::remove_file(&path);
+        let a = Connection::open(&path).unwrap();
+        a.execute_batch("CREATE TABLE notes (id INTEGER PRIMARY KEY, category TEXT NOT NULL CHECK(category IN ('note','read','watch','idea')), text TEXT NOT NULL, url TEXT, page_title TEXT, user_note TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);").unwrap();
+        // A bağlantısı şemayı önbelleğe alsın (hazırlanmış ifade + kullanım).
+        a.execute("INSERT INTO notes(category,text,created_at,updated_at) VALUES('note','x',1,1)", []).unwrap();
+        assert!(a.execute("INSERT INTO notes(category,text,created_at,updated_at) VALUES('ozel','y',1,1)", []).is_err());
+        let mut cached = a.prepare_cached("INSERT INTO notes(category,text,created_at,updated_at) VALUES(?1,'z',1,1)").unwrap();
+        assert!(cached.execute(["ozel"]).is_err());
+        drop(cached);
+        // B bağlantısı gevşetmeyi yapar.
+        { let b = Connection::open(&path).unwrap(); assert!(ensure_note_meta(&b).unwrap()); }
+        // A yeniden açılmadan özel kategori ekleyebilmeli.
+        a.execute("INSERT INTO notes(category,text,created_at,updated_at) VALUES('ozel','y',1,1)", []).unwrap();
+        a.prepare_cached("INSERT INTO notes(category,text,created_at,updated_at) VALUES(?1,'z',1,1)").unwrap().execute(["ozel"]).unwrap();
+        drop(a);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn note_limit_is_fifty_thousand() {
+        let d = notes_db();
+        assert!(add_note(&d, "note", &"a".repeat(50_000), None, None).is_ok());
+        assert!(add_note(&d, "note", &"a".repeat(50_001), None, None).is_err());
     }
 
     fn watch_db() -> Connection {

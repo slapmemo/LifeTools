@@ -2248,7 +2248,7 @@ dependencies = [
 
 [[package]]
 name = "lifetools-desktop"
-version = "0.8.1"
+version = "0.10.0"
 dependencies = [
  "arboard",
  "cc",

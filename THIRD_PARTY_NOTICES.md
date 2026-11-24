@@ -9,3 +9,14 @@ Only `src/` is vendored, without the upstream tray app (`main.cpp`, `widget.*`),
 The native battery polling and vendor protocol sources are under GNU GPL version 3 or later. The upstream license is preserved at `desktop/src-tauri/vendor/wireless-battery/LICENSE`.
 
 LifeTools links this code into the desktop application. The combined LifeTools distribution is therefore licensed under GPL-3.0-or-later; the license text is in `LICENSE`. Local integration changes are documented in the vendor source comments and are covered by the same license.
+
+## Note editor (shared/notes)
+
+The shared note editor and Markdown renderer bundle the following MIT-licensed packages (all compatible with GPL-3.0-or-later). Exact versions are pinned in `package.json`.
+
+- [TipTap](https://github.com/ueberdosis/tiptap) 3.32.3 (`@tiptap/core`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extensions`, `@tiptap/extension-highlight`, `@tiptap/extension-list`, `@tiptap/extension-table`, and the extensions they pull in) - MIT, Copyright (c) 2023 Tiptap GmbH.
+- [ProseMirror](https://prosemirror.net/) (`prosemirror-model`, `-state`, `-view`, `-transform`, `-commands`, `-tables`, and others, via `@tiptap/pm`) - MIT, Copyright (C) 2015-2017 by Marijn Haverbeke and others.
+- [prosemirror-markdown](https://github.com/ProseMirror/prosemirror-markdown) 1.13.9 - MIT, Copyright (C) 2015-2017 by Marijn Haverbeke and others. The link and inline-code mark serializers in `shared/notes/markdown.ts` follow its default serializer.
+- [markdown-it](https://github.com/markdown-it/markdown-it) 14.3.3 (with `linkify-it`, `mdurl`, `uc.micro`, `entities`) - MIT, Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin.
+
+Development only (not shipped): `happy-dom` 21.0.2 (MIT), `@types/markdown-it` (MIT).

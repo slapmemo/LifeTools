@@ -345,6 +345,8 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 
 fn run_maintenance(state: &AppState) {
     let db = state.db();
+    // Çöpte 15 günü geçen notlar (açılışta ve saatte bir) kalıcı silinir.
+    if let Err(e) = db::purge_expired(&db, db::now_millis(), db::TRASH_DAYS) { eprintln!("Çöp temizlenemedi: {e}"); }
     if let Ok(s) = db::load_settings(&db) {
         let _ = db::expire_older_than_days(&db, db::now_secs(), s.expire_days);
         let _ = db::enforce_limit(&db, s.max_items);
@@ -438,6 +440,23 @@ fn main() {
             commands::note_add,
             commands::note_update,
             commands::note_delete,
+            commands::note_trash_list,
+            commands::note_restore,
+            commands::note_purge,
+            commands::note_trash_empty,
+            commands::note_purge_expired,
+            commands::note_set_color,
+            commands::note_set_position,
+            commands::note_reorder,
+            commands::note_category_count,
+            commands::note_history,
+            commands::note_history_restore,
+            commands::note_categories,
+            commands::note_category_add,
+            commands::note_category_rename,
+            commands::note_category_recolor,
+            commands::note_categories_reorder,
+            commands::note_category_delete,
             commands::note_open_url,
             commands::watch_list,
             commands::watch_add,
@@ -445,6 +464,9 @@ fn main() {
             commands::watch_set_status,
             commands::watch_delete,
             commands::note_set_text,
+            commands::note_get,
+            commands::note_set_user_note,
+            commands::note_duplicate,
             commands::note_set_category,
             commands::note_set_pinned,
             commands::note_set_done,

@@ -29,7 +29,7 @@ pub fn backup_data(db: &Connection) -> std::result::Result<serde_json::Value, St
     } else { 0 };
     let timestamp: String = tx.query_row("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now')", [], |r| r.get(0)).map_err(|e| e.to_string())?;
     let mut tables = serde_json::Map::new();
-    for name in ["notes", "snippets", "tasks", "site_time", "sessions", "session_tabs", "tab_labels", "tab_notes", "watch_items", "note_pages", "note_images", "note_meta"] {
+    for name in ["notes", "snippets", "tasks", "site_time", "sessions", "session_tabs", "tab_labels", "tab_notes", "watch_items", "note_pages", "note_images", "note_meta", "note_extra", "note_categories", "note_history"] {
         if !table_exists(&tx, name).map_err(|e| e.to_string())? { continue; }
         let mut stmt = tx.prepare(&format!("SELECT * FROM {name} ORDER BY rowid")).map_err(|e| e.to_string())?;
         let columns: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
@@ -61,7 +61,9 @@ pub fn dashboard_summary(db: &Connection, today: &str) -> Result<DashboardSummar
         notes: vec![], sites: vec![], sites_total_seconds: 0, clipboard: vec![], batteries: vec![],
     };
     if out.notes_available {
-        let mut st = db.prepare("SELECT id,coalesce(nullif(trim(page_title),''),text),updated_at/1000 FROM notes ORDER BY updated_at DESC,id DESC LIMIT 5")?;
+        // Çöpteki notlar (note_extra.deleted_at) ana sayfada görünmez.
+        let trashed = if table_exists(db, "note_extra")? { " WHERE NOT EXISTS (SELECT 1 FROM note_extra x WHERE x.note_id=notes.id AND x.deleted_at IS NOT NULL)" } else { "" };
+        let mut st = db.prepare(&format!("SELECT id,coalesce(nullif(trim(page_title),''),text),updated_at/1000 FROM notes{trashed} ORDER BY updated_at DESC,id DESC LIMIT 5"))?;
         out.notes = st.query_map([], |r| { let text: String = r.get(1)?; Ok(DashboardNote { id:r.get(0)?, title:text.lines().next().unwrap_or("").chars().take(100).collect(), updated_at:r.get(2)? }) })?.collect::<Result<_>>()?;
     }
     if out.sites_available {

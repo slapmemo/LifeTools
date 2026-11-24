@@ -1,17 +1,24 @@
 import { icon } from '../../../design/icons';
-import { api, errText, type Note, type NoteCategory, type NoteCounts, type NoteSort } from '../api';
+import '../../../shared/notes/notes.css';
+import { loadNoteEditorUI } from '../../../shared/notes/lazy';
+import { extractTags, renderMarkdown, toggleTaskLine } from '../../../shared/notes/render';
+import type { NoteEditorHandle } from '../../../shared/notes/ui';
+import { api, errText, isNoteConflict, NOTE_COLORS, type Note, type NoteCategory, type NoteCategoryInfo, type NoteColor, type NoteCounts, type NoteHistoryEntry, type NoteSort } from '../api';
 import { debounce, h, type View } from '../dom';
-import { extractTags, renderMarkdown, toggleTaskLine } from '../markdown';
 import { emptyState, rowMenu } from '../view-components';
 
-// Eklentideki slapmemo/categories.ts ile aynı etiketler.
-const CATEGORIES: { id: NoteCategory; label: string }[] = [
-  { id: 'note', label: 'Notlar' },
-  { id: 'read', label: 'Okunacaklar' },
-  { id: 'watch', label: 'İzlenecekler' },
-  { id: 'idea', label: 'Fikirler' }
+/** Veritabanı boşken ya da kategori listesi yüklenene kadar kullanılan yerleşik dört kategori. */
+const FALLBACK_CATEGORIES: NoteCategoryInfo[] = [
+  { id: 'note', label: 'Notlar', color: null, position: 0, builtin: true, created_at: 0 },
+  { id: 'read', label: 'Okunacaklar', color: null, position: 1, builtin: true, created_at: 0 },
+  { id: 'watch', label: 'İzlenecekler', color: null, position: 2, builtin: true, created_at: 0 },
+  { id: 'idea', label: 'Fikirler', color: null, position: 3, builtin: true, created_at: 0 }
 ];
-const labelOf = (id: string): string => CATEGORIES.find((c) => c.id === id)?.label ?? id;
+const COLOR_LABELS: Record<NoteColor, string> = { yellow: 'Sarı', green: 'Yeşil', blue: 'Mavi', pink: 'Pembe', purple: 'Mor' };
+/** Çöpte kalma süresi (gün); backend `TRASH_DAYS` ile aynı. */
+const TRASH_DAYS = 15;
+const DAY_MS = 86_400_000;
+const DEFAULT_CATEGORY = 'note';
 const fmtMs = (ms: number): string => new Date(ms).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' });
 const UNDO_MS = 6000;
 const LONG_LINES = 8;
@@ -20,17 +27,44 @@ const LONG_CHARS = 600;
 const SORTS: { id: NoteSort; label: string }[] = [
   { id: 'new', label: 'En yeni' },
   { id: 'old', label: 'En eski' },
-  { id: 'updated', label: 'Son düzenlenen' }
+  { id: 'updated', label: 'Son düzenlenen' },
+  { id: 'manual', label: 'Elle' }
 ];
 
 function readPref(key: string): string | null { try { return localStorage.getItem(key); } catch { return null; } }
 function writePref(key: string, value: string): void { try { localStorage.setItem(key, value); } catch { /* yoksay */ } }
 
-function categorySelect(value: NoteCategory, cls = ''): HTMLSelectElement {
+function categorySelect(list: NoteCategoryInfo[], value: NoteCategory, cls = ''): HTMLSelectElement {
   const select = h('select', { 'aria-label': 'Kategori', class: cls });
-  for (const c of CATEGORIES) select.append(h('option', { value: c.id }, c.label));
-  select.value = value;
+  fillCategoryOptions(select, list, value);
   return select;
+}
+function fillCategoryOptions(select: HTMLSelectElement, list: NoteCategoryInfo[], value: NoteCategory): void {
+  select.replaceChildren(...list.map((c) => h('option', { value: c.id }, c.label)));
+  // Listede olmayan (silinmiş) kategori görünürse yine de seçili kalsın.
+  if (!list.some((c) => c.id === value)) select.append(h('option', { value }, value));
+  select.value = value;
+}
+function colorSelect(value: string | null): HTMLSelectElement {
+  const select = h('select', { 'aria-label': 'Renk' });
+  select.append(h('option', { value: '' }, 'Renksiz'), ...NOTE_COLORS.map((c) => h('option', { value: c }, COLOR_LABELS[c])));
+  select.value = value ?? '';
+  return select;
+}
+
+/** Ortada açılan basit pencere; `close()` döndürür. Esc ve dışarı tıklama kapatır. */
+function openDialog(title: string, body: HTMLElement, wide = false): () => void {
+  const closeBtn = h('button', { type: 'button', class: 'icon-button', 'aria-label': 'Kapat', title: 'Kapat' }, icon('x', 16));
+  const box = h('div', { class: 'card dialog' + (wide ? ' wide' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+    h('div', { class: 'dialog-head' }, h('h3', { class: 'dialog-title' }, title), closeBtn), body);
+  const overlay = h('div', { class: 'dialog-overlay' }, box);
+  const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
+  const close = (): void => { overlay.remove(); document.removeEventListener('keydown', onKey, true); };
+  overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(); });
+  closeBtn.addEventListener('click', close);
+  document.addEventListener('keydown', onKey, true);
+  document.body.append(overlay);
+  return close;
 }
 
 /** `datetime-local` değeri (yerel saat) ↔ milisaniye. */
@@ -46,7 +80,8 @@ function at(daysFromToday: number, hour: number): number {
   return d.getTime();
 }
 
-type Tab = '' | NoteCategory | 'archive';
+/** '' = Tümü, 'archive', 'trash' ya da bir kategori kimliği. */
+type Tab = string;
 
 export function notesView(): View {
   let tab: Tab = '';
@@ -55,7 +90,9 @@ export function notesView(): View {
   let editing: number | null = null;
   let reminding: number | null = null;
   let notes: Note[] = [];
-  let counts: NoteCounts = { all: 0, note: 0, read: 0, watch: 0, idea: 0, archived: 0 };
+  let counts: NoteCounts = { all: 0, note: 0, read: 0, watch: 0, idea: 0, archived: 0, trash: 0, by_category: {} };
+  let categories: NoteCategoryInfo[] = FALLBACK_CATEGORIES;
+  let coloring: number | null = null;
   const pendingDeletes = new Map<number, number>();
   const expandedPages = new Set<number>();
   const expandedBodies = new Set<number>();
@@ -63,30 +100,37 @@ export function notesView(): View {
   const imageCache = new Map<number, string>();
 
   const status = h('div', { class: 'muted status', role: 'status' });
-  const flash = (text: string): void => { status.textContent = text; window.setTimeout(() => { if (status.textContent === text) status.textContent = ''; }, 3000); };
+  const flash = (text: string, ms = 3000): void => { status.textContent = text; window.setTimeout(() => { if (status.textContent === text) status.textContent = ''; }, ms); };
 
   // ---------- Sekmeler (sayılı) ----------
   const tabs = h('div', { class: 'chip-tabs', role: 'tablist', 'aria-label': 'Kategori' });
-  const tabDefs: { id: Tab; label: string }[] = [{ id: '', label: 'Tümü' }, ...CATEGORIES, { id: 'archive', label: 'Arşiv' }];
-  const tabButtons = tabDefs.map((c) => {
-    const count = h('span', { class: 'tab-count' });
-    const b = h('button', { type: 'button', role: 'tab', 'aria-selected': String(c.id === tab) }, c.label, count);
-    b.addEventListener('click', () => {
-      tab = c.id;
-      tabButtons.forEach((x) => x.b.setAttribute('aria-selected', String(x.b === b)));
-      if (c.id && c.id !== 'archive') addCategory.value = c.id;
-      editing = null; reminding = null;
-      void refresh();
+  let tabButtons: { id: Tab; b: HTMLButtonElement; count: HTMLElement }[] = [];
+  function renderTabs(): void {
+    const defs: { id: Tab; label: string }[] = [{ id: '', label: 'Tümü' }, ...categories.map((c) => ({ id: c.id, label: c.label })), { id: 'archive', label: 'Arşiv' }, { id: 'trash', label: 'Çöp kutusu' }];
+    if (tab && !defs.some((d) => d.id === tab)) tab = '';
+    tabButtons = defs.map((c) => {
+      const count = h('span', { class: 'tab-count' });
+      const b = h('button', { type: 'button', role: 'tab', 'aria-selected': String(c.id === tab) }, c.label, count);
+      b.addEventListener('click', () => {
+        tab = c.id;
+        tabButtons.forEach((x) => x.b.setAttribute('aria-selected', String(x.b === b)));
+        if (c.id && c.id !== 'archive' && c.id !== 'trash') addCategory.value = c.id;
+        editing = null; reminding = null; coloring = null;
+        void refresh();
+      });
+      return { id: c.id, b, count };
     });
-    tabs.append(b);
-    return { id: c.id, b, count };
-  });
+    tabs.replaceChildren(...tabButtons.map((t) => t.b));
+    renderCounts();
+  }
   function renderCounts(): void {
     for (const t of tabButtons) {
-      const n = t.id === '' ? counts.all : t.id === 'archive' ? counts.archived : counts[t.id];
+      const n = t.id === '' ? counts.all : t.id === 'archive' ? counts.archived : t.id === 'trash' ? counts.trash : (counts.by_category[t.id] ?? 0);
       t.count.textContent = n ? String(n) : '';
     }
   }
+  const catBtn = h('button', { type: 'button', class: 'icon-button', title: 'Kategorileri yönet', 'aria-label': 'Kategorileri yönet' }, icon('settings', 16));
+  catBtn.addEventListener('click', () => openCategoryManager());
 
   const search = h('input', { type: 'search', placeholder: 'Notlarda ara… (Ctrl+K)', 'aria-label': 'Notlarda ara (#etiket de olur)' });
   const searchBox = h('label', { class: 'search-field' }, icon('search', 16), search);
@@ -104,34 +148,44 @@ export function notesView(): View {
   const filterBar = h('div', { class: 'toolbar notes-filters' }, showDoneLabel, tagBar, countLabel);
 
   // ---------- Hızlı ekleme ----------
-  const addText = h('textarea', { rows: 4, class: 'grow note-add-text', placeholder: 'Yeni not… (Ctrl+Enter: ekle · Markdown: **kalın**, - [ ] yapılacak, #etiket)', maxLength: 10000 });
-  const addCategory = categorySelect('note');
+  const ADD_DRAFT_KEY = 'lifetools_notes_draft';
+  const addHost = h('div', { class: 'note-add-editor' });
+  const addCategory = categorySelect(categories, DEFAULT_CATEGORY);
   const addUrl = h('input', { type: 'url', class: 'grow', placeholder: 'Bağlantı (isteğe bağlı)' });
   const addBtn = h('button', { type: 'button', class: 'primary' }, 'Ekle');
-  const addForm = h('div', { class: 'card note-add' }, h('div', { class: 'note-add-input' }, icon('pencil', 18), addText), h('div', { class: 'toolbar' }, addCategory, addUrl, addBtn));
+  const addForm = h('div', { class: 'card note-add' }, h('div', { class: 'note-add-input' }, icon('pencil', 18), addHost), h('div', { class: 'toolbar' }, addCategory, addUrl, addBtn));
 
-  // Ekleme kutusu: köşeden elle büyütülebilir (boyut hatırlanır), yazdıkça da kendiliğinden uzar.
-  const ADD_HEIGHT_KEY = 'lifetools_notes_add_height';
-  let manualHeight = Number(readPref(ADD_HEIGHT_KEY)) || 0;
-  const autoGrow = (): void => {
-    addText.style.height = 'auto';
-    const cap = Math.max(manualHeight, Math.round(window.innerHeight * 0.6));
-    addText.style.height = `${Math.min(cap, Math.max(manualHeight, addText.scrollHeight + 2))}px`;
-  };
-  if (manualHeight) addText.style.height = `${manualHeight}px`;
-  addText.addEventListener('input', autoGrow);
-  // Köşeden sürükleyerek boyutlandırma: fare bırakılınca yükseklik değiştiyse hatırla.
-  let heightAtPress = 0;
-  addText.addEventListener('pointerdown', () => { heightAtPress = addText.offsetHeight; });
-  window.addEventListener('pointerup', () => {
-    if (!heightAtPress) return;
-    const now = addText.offsetHeight;
-    if (Math.abs(now - heightAtPress) > 2) { manualHeight = now; writePref(ADD_HEIGHT_KEY, String(now)); }
-    heightAtPress = 0;
-  });
+  // Düzenleyici (TipTap) ilk odakta yüklenir; o zamana kadar hafif bir yer tutucu görünür.
+  let addEditor: NoteEditorHandle | null = null;
+  let addLoading: Promise<NoteEditorHandle | null> | null = null;
+  const addPlaceholder = h('div', { class: 'note-add-ph', tabindex: 0, role: 'textbox', 'aria-label': 'Yeni not' }, 'Yeni not… (Ctrl+Enter: ekle · Markdown ve biçim çubuğu kullanılabilir)');
+  addHost.append(addPlaceholder);
+  function loadAddEditor(focus: boolean): Promise<NoteEditorHandle | null> {
+    if (addEditor) { if (focus) addEditor.focus(); return Promise.resolve(addEditor); }
+    addLoading ??= loadNoteEditorUI().then(({ mountNoteEditor }) => {
+      addHost.replaceChildren();
+      addEditor = mountNoteEditor(addHost, {
+        placeholder: 'Yeni not… (Ctrl+Enter: ekle · Markdown: **kalın**, - [ ] yapılacak, #etiket)',
+        draftKey: ADD_DRAFT_KEY,
+        onFocusMode: setFocusClass
+      });
+      return addEditor;
+    }).catch((e) => { flash(errText(e)); addLoading = null; return null; });
+    return addLoading.then((ed) => { if (focus) ed?.focus(); return ed; });
+  }
+  addPlaceholder.addEventListener('focus', () => void loadAddEditor(true));
+  addPlaceholder.addEventListener('click', () => void loadAddEditor(true));
+  // Kayıtlı taslak varsa düzenleyiciyi hemen yükle ki taslak görünsün.
+  try { if ((localStorage.getItem(ADD_DRAFT_KEY) ?? '').trim()) void loadAddEditor(false); } catch { /* yoksay */ }
+  // Ctrl+Enter: ekle (düzenleyici tuşu görmeden yakala).
+  addHost.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); void add(); }
+  }, true);
+
+  function setFocusClass(on: boolean): void { document.body.classList.toggle('notes-focus', on); }
 
   // ---------- Silmeyi geri al ----------
-  const undoText = h('span', {}, 'Not silindi.');
+  const undoText = h('span', {}, 'Not çöp kutusuna taşındı.');
   const undoBtn = h('button', { type: 'button', class: 'primary' }, 'Geri al');
   const undoBar = h('div', { class: 'card undo-bar', role: 'status', hidden: true }, undoText, undoBtn);
   let undoTarget: number | null = null;
@@ -154,26 +208,38 @@ export function notesView(): View {
   }
   undoBtn.addEventListener('click', () => {
     if (undoTarget === null) return;
-    window.clearTimeout(pendingDeletes.get(undoTarget));
-    pendingDeletes.delete(undoTarget);
+    const id = undoTarget;
     undoTarget = null;
     undoBar.hidden = true;
-    flash('Silme geri alındı.');
-    void refresh();
+    if (pendingDeletes.has(id)) {
+      // Silme henüz uygulanmadı: yalnız iptal et.
+      window.clearTimeout(pendingDeletes.get(id));
+      pendingDeletes.delete(id);
+      flash('Silme geri alındı.');
+      void refresh();
+    } else {
+      // Silme çöpe taşındı: çöpten geri yükle.
+      void act(() => api.noteRestore(id), 'Silme geri alındı.');
+    }
   });
   /** Bekleyen silmeleri hemen uygular (görünümden çıkarken). */
-  function flushDeletes(): void { for (const id of [...pendingDeletes.keys()]) void commitDelete(id); }
+  function flushDeletes(): void {
+    for (const id of [...pendingDeletes.keys()]) void commitDelete(id);
+    // Görünümden çıkarken açık düzenleyiciyi kaydet ve kapat.
+    if (activeEdit) { const a = activeEdit; activeEdit = null; editing = null; void disposeEdit(a); }
+    addEditor?.flush().catch(() => undefined);
+  }
 
   const list = h('div', { class: 'note-list' });
   const newBtn = h('button', { type: 'button', class: 'primary' }, icon('plus', 16), 'Yeni not');
-  newBtn.addEventListener('click', () => { addForm.scrollIntoView({ block: 'nearest' }); addText.focus(); });
+  newBtn.addEventListener('click', () => { addForm.scrollIntoView({ block: 'nearest' }); void loadAddEditor(true); });
   const el = h('section', { class: 'notes-view' },
     h('header', { class: 'page-header page-header-row' },
       h('div', {},
         h('h2', { class: 'page-title page-title-icon' }, icon('notebook-pen', 26), 'Notlar'),
         h('p', { class: 'page-subtitle', title: 'Eklentiyle aynı veritabanı: burada eklediğin not tarayıcıda, tarayıcıda eklediğin not burada görünür.' }, 'Hızlı notlar al, etiketle ve her yerden ulaş.')),
       h('div', { class: 'page-actions' }, searchBox, newBtn)),
-    h('div', { class: 'toolbar notes-tabs' }, tabs, sortSelect),
+    h('div', { class: 'toolbar notes-tabs' }, h('div', { class: 'notes-tabs-main' }, tabs, catBtn), sortSelect),
     addForm,
     filterBar,
     status,
@@ -182,18 +248,21 @@ export function notesView(): View {
   );
 
   async function add(): Promise<void> {
-    const text = addText.value.trim();
-    if (!text) { addText.focus(); return; }
+    const ed = await loadAddEditor(false);
+    if (!ed) return;
+    const text = ed.getMarkdown().trim();
+    if (!text) { ed.focus(); return; }
     const url = addUrl.value.trim();
     if (url && !/^https?:\/\//i.test(url)) { flash('Bağlantı http:// veya https:// ile başlamalı.'); addUrl.focus(); return; }
     addBtn.disabled = true;
     try {
       await api.noteAdd(addCategory.value as NoteCategory, text, url || null, null);
-      addText.value = ''; addUrl.value = '';
-      autoGrow();
+      ed.setMarkdown('');
+      ed.clearDraft();
+      addUrl.value = '';
       flash('Not eklendi.');
       await refresh();
-      addText.focus();
+      ed.focus();
     } catch (e) { flash(errText(e)); } finally { addBtn.disabled = false; }
   }
 
@@ -208,31 +277,117 @@ export function notesView(): View {
     void refresh();
   }
 
-  // ---------- Düzenleyiciler ----------
+  // ---------- Düzenleyici (satır içi, otomatik kaydetme) ----------
+  interface ActiveEdit { id: number; wrapper: HTMLElement; finish: () => Promise<boolean>; dispose: () => void; closing: boolean }
+  let activeEdit: ActiveEdit | null = null;
+
+  /** Açık düzenleyiciyi kaydedip kapatır; kayıt başarısızsa (ör. çakışma) açık bırakır. */
+  async function closeEdit(): Promise<void> {
+    const a = activeEdit;
+    if (!a || a.closing) return;
+    a.closing = true;
+    const ok = await a.finish();
+    a.closing = false;
+    if (!ok || activeEdit !== a) return;
+    a.dispose();
+    activeEdit = null;
+    if (editing === a.id) editing = null;
+    await refresh();
+  }
+
+  /** Düzenleyiciyi sessizce atmaz: kayıt başarısızsa metin kurtarma kaydına yazılır (destroy) ve kullanıcıya söylenir. */
+  async function disposeEdit(a: ActiveEdit): Promise<void> {
+    let ok = false;
+    try { ok = await a.finish(); } catch { ok = false; }
+    a.dispose();
+    if (!ok) flash('Kaydedilemeyen değişiklik saklandı — Geri yükle (notu yeniden açınca çıkar)', 8000);
+  }
+
   function editor(note: Note): HTMLElement {
-    const text = h('textarea', { rows: Math.min(14, Math.max(4, note.text.split('\n').length + 1)), class: 'grow', maxLength: 10000 });
-    text.value = note.text;
+    if (activeEdit?.id === note.id) return activeEdit.wrapper;
+    let expected = note.updated_at;
+    let savedUserNote = note.user_note ?? '';
+    let handle: NoteEditorHandle | null = null;
+    let disposed = false;
+    const host = h('div', { class: 'note-edit-wrap' }, h('span', { class: 'muted' }, 'Düzenleyici yükleniyor…'));
     const userNote = h('input', { type: 'text', class: 'grow', placeholder: 'Notum (isteğe bağlı açıklama)' });
-    userNote.value = note.user_note ?? '';
-    const category = categorySelect(note.category);
-    const save = h('button', { type: 'button', class: 'primary' }, 'Kaydet');
-    const cancel = h('button', { type: 'button' }, 'Vazgeç');
-    const doSave = async (): Promise<void> => {
-      try { await api.noteUpdate(note.id, category.value as NoteCategory, text.value, userNote.value.trim() || null); editing = null; flash('Kaydedildi.'); await refresh(); }
-      catch (e) { flash(errText(e)); }
+    userNote.value = savedUserNote;
+    const category = categorySelect(categories, note.category);
+
+    // Kayıtlar sıraya girer: kategori / "notum" değişikliği updated_at'i değiştirir, otomatik kayıtla yarışmasın.
+    let chain: Promise<unknown> = Promise.resolve();
+    const serial = <T>(fn: () => Promise<T>): Promise<T> => { const p = chain.then(fn); chain = p.catch(() => undefined); return p; };
+    const syncExpected = async (): Promise<void> => { const fresh = await api.noteGet(note.id); if (fresh) expected = fresh.updated_at; };
+
+    category.addEventListener('change', () => void serial(async () => {
+      try { await api.noteSetCategory(note.id, category.value as NoteCategory); await syncExpected(); } catch (e) { flash(errText(e)); }
+    }));
+    const saveUserNote = (): Promise<void> => serial(async () => {
+      const v = userNote.value.trim();
+      if (v === savedUserNote) return;
+      await api.noteSetUserNote(note.id, v || null);
+      savedUserNote = v;
+      await syncExpected();
+    });
+    userNote.addEventListener('change', () => void saveUserNote().catch((e) => flash(errText(e))));
+
+    const wrapper = h('div', { class: 'list-row note-edit' }, h('div', { class: 'list-row-content' },
+      host,
+      h('div', { class: 'toolbar' }, category, userNote),
+      h('p', { class: 'hint note-saved-hint' }, 'Kendiliğinden kaydedilir · Esc: kapat · Ctrl+F: bul · Ctrl+H: değiştir')));
+
+    const finish = async (): Promise<boolean> => {
+      try { await saveUserNote(); } catch (e) { flash(errText(e)); return false; }
+      return handle ? await handle.flush() : true;
     };
-    save.addEventListener('click', () => void doSave());
-    cancel.addEventListener('click', () => { editing = null; render(); });
-    const keys = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') { e.preventDefault(); editing = null; render(); }
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void doSave(); }
+    const onOutside = (e: Event): void => {
+      const t = e.target as Node | null;
+      if (!t || wrapper.contains(t) || !t.isConnected) return;
+      if ((t as Element).closest?.('.ctx-menu, .bubble, .lightbox, .dialog-overlay')) return;
+      void closeEdit();
     };
-    text.addEventListener('keydown', keys); userNote.addEventListener('keydown', keys);
-    queueMicrotask(() => text.focus());
-    return h('div', { class: 'list-row note-edit' }, h('div', { class: 'list-row-content' },
-      text,
-      h('div', { class: 'toolbar' }, category, userNote, save, cancel),
-      h('p', { class: 'hint' }, 'Ctrl+Enter: kaydet · Esc: vazgeç · # Başlık, - liste, - [ ] yapılacak, **kalın**, *eğik*, `kod`, #etiket')));
+    document.addEventListener('pointerdown', onOutside, true);
+    wrapper.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) { e.preventDefault(); void closeEdit(); }
+    });
+    const dispose = (): void => {
+      if (disposed) return;
+      disposed = true;
+      document.removeEventListener('pointerdown', onOutside, true);
+      if (handle?.isFocusMode()) handle.setFocusMode(false);
+      handle?.destroy();
+      setFocusClass(false);
+    };
+    const self: ActiveEdit = {
+      id: note.id, wrapper, finish, dispose, closing: false
+    };
+    activeEdit = self;
+
+    void loadNoteEditorUI().then(({ mountNoteEditor, NoteConflictError }) => {
+      if (disposed || activeEdit !== self) return;
+      host.replaceChildren();
+      handle = mountNoteEditor(host, {
+        markdown: note.text,
+        autosave: true,
+        // Kayıt başarısız / çakışmalıysa ve düzenleyici yine de kapanırsa metin burada saklanır; açılışta "Geri yükle" çıkar.
+        recoveryKey: `lifetools_note_recovery_${note.id}`,
+        onFocusMode: setFocusClass,
+        onSave: (md, ctx) => serial(async () => {
+          try { expected = await api.noteSetText(note.id, md, ctx.force ? null : expected); }
+          catch (e) { if (isNoteConflict(e)) throw new NoteConflictError(); throw new Error(errText(e)); }
+        }),
+        onConflict: async (choice) => {
+          if (choice !== 'reload') return;
+          const fresh = await api.noteGet(note.id);
+          if (!fresh) { flash('Not artık yok.'); return; }
+          expected = fresh.updated_at;
+          note.text = fresh.text;
+          handle?.setMarkdown(fresh.text);
+        }
+      });
+      handle.focus();
+    }).catch((e) => { host.replaceChildren(h('span', { class: 'muted' }, errText(e))); });
+    return wrapper;
   }
 
   function reminderEditor(note: Note): HTMLElement {
@@ -316,7 +471,9 @@ export function notesView(): View {
     }, icon('check', 14));
     doneBtn.addEventListener('click', (e) => { e.stopPropagation(); void act(() => api.noteSetDone(note.id, !done)); });
 
-    const cat = categorySelect(note.category, 'chip chip-select');
+    const cat = categorySelect(categories, note.category, 'chip chip-select');
+    const catInfo = categories.find((c) => c.id === note.category);
+    if (catInfo?.color) cat.dataset.color = catInfo.color;
     cat.title = 'Kategoriyi değiştir';
     cat.addEventListener('click', (e) => e.stopPropagation());
     cat.addEventListener('change', () => void act(() => api.noteSetCategory(note.id, cat.value as NoteCategory)));
@@ -364,6 +521,7 @@ export function notesView(): View {
       if (open) content.append(pagePanel(note));
     }
     if (reminding === note.id) content.append(reminderEditor(note));
+    if (coloring === note.id) content.append(colorPicker(note));
 
     const copyBtn = h('button', { type: 'button', class: 'icon-button', title: 'Metni kopyala', 'aria-label': 'Metni kopyala' }, icon('copy', 16));
     copyBtn.addEventListener('click', async (e) => {
@@ -377,6 +535,13 @@ export function notesView(): View {
       { label: done ? 'Tamamlanmadı yap' : 'Tamamlandı', run: () => act(() => api.noteSetDone(note.id, !done)) },
       { label: note.remind_at ? 'Hatırlatmayı değiştir…' : 'Hatırlat…', run: () => { reminding = note.id; render(); } },
       { label: archived ? 'Arşivden çıkar' : 'Arşivle', run: () => act(() => api.noteSetArchived(note.id, !archived), archived ? 'Arşivden çıkarıldı.' : 'Arşivlendi.') },
+      ...(sort === 'manual' && !archived ? [
+        { label: 'Yukarı taşı', run: () => moveBy(note, -1) },
+        { label: 'Aşağı taşı', run: () => moveBy(note, 1) }
+      ] : []),
+      { label: 'Renk…', run: () => { coloring = coloring === note.id ? null : note.id; render(); } },
+      { label: 'Geçmiş…', run: () => openHistory(note) },
+      { label: 'Çoğalt', run: () => act(() => api.noteDuplicate(note.id), 'Not çoğaltıldı.') },
       { label: 'Sil', danger: true, run: () => scheduleDelete(note.id) }
     ]);
 
@@ -384,11 +549,258 @@ export function notesView(): View {
       if (window.getSelection()?.toString()) return; // metin seçiliyorsa düzenlemeye geçme
       editing = note.id; reminding = null; render();
     };
-    return h('div', { class: 'list-row clickable note-row' + (done ? ' done' : '') + (note.pinned && !archived ? ' pinned' : ''), title: 'Tıkla: düzenle', onClick: editOnClick },
-      h('div', { class: 'list-row-leading' }, doneBtn),
+    const manual = sort === 'manual' && !archived;
+    const grip = manual ? h('span', { class: 'drag-grip', title: 'Sürükleyerek sırala', 'aria-label': 'Sürükleyerek sırala', role: 'button', tabindex: -1 }, '⋮⋮') : null;
+    const row = h('div', { class: 'list-row clickable note-row' + (done ? ' done' : '') + (note.pinned && !archived ? ' pinned' : '') + (note.color ? ' has-color' : ''), title: 'Tıkla: düzenle', 'data-id': String(note.id), onClick: editOnClick },
+      h('div', { class: 'list-row-leading' }, grip, doneBtn),
       content,
       h('div', { class: 'list-row-meta muted' }, fmtMs(note.created_at)),
       h('div', { class: 'list-row-actions' }, copyBtn, menu));
+    if (note.color) row.dataset.color = note.color;
+    if (manual) {
+      row.tabIndex = 0;
+      row.addEventListener('keydown', (e) => {
+        if (e.target !== row || !e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+        e.preventDefault();
+        void moveBy(note, e.key === 'ArrowUp' ? -1 : 1);
+      });
+    }
+    if (grip) bindDrag(grip, row, note);
+    return row;
+  }
+
+  function colorPicker(note: Note): HTMLElement {
+    const box = h('div', { class: 'color-picker toolbar', role: 'group', 'aria-label': 'Not rengi', onClick: (e: Event) => e.stopPropagation() });
+    const pick = (c: NoteColor | null): void => { coloring = null; void act(() => api.noteSetColor(note.id, c), c ? 'Renk değişti.' : 'Renk kaldırıldı.'); };
+    for (const c of NOTE_COLORS) {
+      const b = h('button', { type: 'button', class: 'color-swatch' + (note.color === c ? ' on' : ''), title: COLOR_LABELS[c], 'aria-label': COLOR_LABELS[c], 'data-color': c });
+      b.addEventListener('click', () => pick(c));
+      box.append(b);
+    }
+    const none = h('button', { type: 'button' }, 'Renksiz');
+    none.addEventListener('click', () => pick(null));
+    const cancel = h('button', { type: 'button' }, 'Vazgeç');
+    cancel.addEventListener('click', () => { coloring = null; render(); });
+    box.append(none, cancel);
+    return box;
+  }
+
+  // ---------- Elle sıralama (fare/dokunma ile; HTML5 sürükle-bırak Tauri'de güvenilir değil) ----------
+  function bindDrag(grip: HTMLElement, row: HTMLElement, note: Note): void {
+    grip.addEventListener('click', (e) => e.stopPropagation());
+    grip.addEventListener('pointerdown', (e: PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      grip.setPointerCapture(e.pointerId);
+      row.classList.add('dragging');
+      let target: HTMLElement | null = null;
+      let after = false;
+      const clearMarks = (): void => list.querySelectorAll('.drop-before, .drop-after').forEach((x) => x.classList.remove('drop-before', 'drop-after'));
+      const move = (ev: PointerEvent): void => {
+        clearMarks();
+        const under = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('.note-row[data-id]') ?? null;
+        target = under && under !== row ? under : null;
+        if (!target) return;
+        const r = target.getBoundingClientRect();
+        after = ev.clientY > r.top + r.height / 2;
+        target.classList.add(after ? 'drop-after' : 'drop-before');
+      };
+      const up = (): void => {
+        grip.removeEventListener('pointermove', move);
+        grip.removeEventListener('pointerup', up);
+        grip.removeEventListener('pointercancel', up);
+        row.classList.remove('dragging');
+        clearMarks();
+        if (target) void reorderTo(note, Number(target.dataset.id), after);
+      };
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', up);
+      grip.addEventListener('pointercancel', up);
+    });
+  }
+
+  /** Klavye / menü ile bir satır yukarı ya da aşağı (aynı sabit grubunda komşu satırla). */
+  async function moveBy(note: Note, delta: -1 | 1): Promise<void> {
+    const visible = notes.filter((n) => !pendingDeletes.has(n.id));
+    let i = visible.findIndex((n) => n.id === note.id) + delta;
+    while (i >= 0 && i < visible.length && visible[i].pinned !== note.pinned) i += delta;
+    const neighbor = visible[i];
+    if (!neighbor) return;
+    await reorderTo(note, neighbor.id, delta > 0);
+    list.querySelector<HTMLElement>(`.note-row[data-id="${note.id}"]`)?.focus();
+  }
+
+  async function reorderTo(moved: Note, targetId: number, after: boolean): Promise<void> {
+    const target = notes.find((n) => n.id === targetId);
+    // Sabitlenenler hep üstte kalır: sabit ile sabit olmayan arasında sıra değişmez.
+    if (!target || target.pinned !== moved.pinned) { flash('Sabitlenmiş notlar üstte kalır; yalnız kendi grubunda sıralanır.'); return; }
+    const without = notes.filter((n) => n.id !== moved.id);
+    const pos = without.findIndex((n) => n.id === targetId) + (after ? 1 : 0);
+    without.splice(pos, 0, moved);
+    notes = without;
+    render();
+    try { await api.noteReorder(notes.map((n) => n.id), tab && tab !== 'archive' && tab !== 'trash' ? tab : null); } catch (e) { flash(errText(e)); await refresh(); }
+  }
+
+  // ---------- Çöp kutusu ----------
+  function daysLeft(note: Note): number {
+    return Math.max(0, TRASH_DAYS - Math.floor((Date.now() - (note.deleted_at ?? Date.now())) / DAY_MS));
+  }
+
+  function trashRow(note: Note): HTMLElement {
+    const left = daysLeft(note);
+    const body = renderMarkdown(note.text, {});
+    body.classList.add('note-body', 'collapsed');
+    const restore = h('button', { type: 'button' }, 'Geri yükle');
+    restore.addEventListener('click', () => void act(() => api.noteRestore(note.id), 'Not geri yüklendi.'));
+    const purge = h('button', { type: 'button', class: 'danger' }, 'Kalıcı sil');
+    let timer: number | undefined;
+    purge.addEventListener('click', () => {
+      if (timer === undefined) {
+        purge.textContent = 'Emin misin?';
+        timer = window.setTimeout(() => { timer = undefined; purge.textContent = 'Kalıcı sil'; }, 3000);
+        return;
+      }
+      window.clearTimeout(timer);
+      void act(() => api.notePurge(note.id), 'Not kalıcı olarak silindi.');
+    });
+    const catLabel = categories.find((c) => c.id === note.category)?.label ?? note.category;
+    return h('div', { class: 'list-row note-row trash-row' },
+      h('div', { class: 'list-row-content' },
+        h('div', { class: 'note-head' }, h('span', { class: 'chip' }, catLabel), h('span', { class: 'muted trash-left' }, left > 0 ? `${left} gün sonra kalıcı olarak silinecek` : 'Bugün kalıcı olarak silinecek')),
+        body),
+      h('div', { class: 'list-row-actions trash-actions' }, restore, purge));
+  }
+
+  function trashBar(n: number): HTMLElement {
+    const bar = h('div', { class: 'card trash-bar' });
+    const idle = (): void => {
+      const btn = h('button', { type: 'button', class: 'danger' }, 'Çöpü boşalt');
+      btn.addEventListener('click', ask);
+      bar.replaceChildren(h('span', { class: 'muted' }, `Çöpteki notlar ${TRASH_DAYS} gün sonra kalıcı olarak silinir.`), btn);
+    };
+    const ask = (): void => {
+      const yes = h('button', { type: 'button', class: 'danger' }, 'Evet, boşalt');
+      const no = h('button', { type: 'button' }, 'Vazgeç');
+      yes.addEventListener('click', () => void act(async () => { await api.noteTrashEmpty(); }, 'Çöp boşaltıldı.'));
+      no.addEventListener('click', idle);
+      bar.replaceChildren(h('span', {}, `${n} not kalıcı olarak silinecek. Bu geri alınamaz.`), yes, no);
+      yes.focus();
+    };
+    idle();
+    return bar;
+  }
+
+  // ---------- Geçmiş ----------
+  async function openHistory(note: Note): Promise<void> {
+    let entries: NoteHistoryEntry[];
+    try { entries = await api.noteHistory(note.id); } catch (e) { flash(errText(e)); return; }
+    const body = h('div', { class: 'history' });
+    let close: () => void = () => undefined;
+    if (!entries.length) {
+      body.append(h('p', { class: 'muted' }, 'Bu not için kayıtlı geçmiş yok. Not değiştikçe önceki hâller burada birikir.'));
+    } else {
+      const listBox = h('div', { class: 'history-list', role: 'listbox', 'aria-label': 'Kayıtlı hâller' });
+      const preview = h('div', { class: 'history-preview' });
+      const restore = h('button', { type: 'button', class: 'primary' }, 'Bu hâle dön');
+      let selected = entries[0];
+      const show = (entry: NoteHistoryEntry): void => {
+        selected = entry;
+        listBox.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.id === String(entry.id))));
+        preview.replaceChildren(renderMarkdown(entry.text, {}));
+      };
+      for (const e of entries) {
+        const b = h('button', { type: 'button', role: 'option', class: 'history-item', 'data-id': String(e.id) }, fmtMs(e.saved_at));
+        b.addEventListener('click', () => show(e));
+        listBox.append(b);
+      }
+      restore.addEventListener('click', () => {
+        close();
+        void act(() => api.noteHistoryRestore(selected.id), 'Önceki hâle dönüldü.');
+      });
+      body.append(listBox, h('div', { class: 'history-side' }, preview, h('div', { class: 'toolbar' }, restore, h('span', { class: 'hint' }, 'Dönmeden önceki hâl de geçmişe yazılır.'))));
+      show(entries[0]);
+    }
+    close = openDialog('Geçmiş', body, true);
+  }
+
+  // ---------- Kategori yönetimi ----------
+  function openCategoryManager(): void {
+    const body = h('div', { class: 'cat-mgr' });
+    const msg = h('div', { class: 'hint', role: 'alert' });
+    const listBox = h('div', { class: 'cat-list' });
+    let confirming: string | null = null;
+    let confirmCount = 0;
+
+    /** Kategoriler değişti: listeyi, sekmeleri ve notları yenile. */
+    async function reload(): Promise<void> {
+      categories = await api.noteCategories();
+      fillCategoryOptions(addCategory, categories, categories.some((c) => c.id === addCategory.value) ? addCategory.value : DEFAULT_CATEGORY);
+      renderTabs();
+      draw();
+      void refresh();
+    }
+    const run = async (fn: () => Promise<unknown>): Promise<void> => {
+      msg.textContent = '';
+      try { await fn(); await reload(); } catch (e) { msg.textContent = errText(e); }
+    };
+
+    function draw(): void {
+      listBox.replaceChildren(...categories.map((c, i) => {
+        const dot = colorSelect(c.color);
+        dot.addEventListener('change', () => void run(() => api.noteCategoryRecolor(c.id, dot.value || null)));
+        const name = h('input', { type: 'text', class: 'grow', maxLength: 40, 'aria-label': 'Kategori adı' });
+        name.value = c.label;
+        name.addEventListener('change', () => {
+          if (!name.value.trim()) { name.value = c.label; return; }
+          void run(() => api.noteCategoryRename(c.id, name.value));
+        });
+        const swap = (to: number): void => {
+          const ids = categories.map((x) => x.id);
+          [ids[i], ids[to]] = [ids[to], ids[i]];
+          void run(() => api.noteCategoriesReorder(ids));
+        };
+        const up = h('button', { type: 'button', class: 'icon-button', title: 'Yukarı taşı', 'aria-label': 'Yukarı taşı', disabled: i === 0 }, '↑');
+        const down = h('button', { type: 'button', class: 'icon-button', title: 'Aşağı taşı', 'aria-label': 'Aşağı taşı', disabled: i === categories.length - 1 }, '↓');
+        up.addEventListener('click', () => swap(i - 1));
+        down.addEventListener('click', () => swap(i + 1));
+        const row = h('div', { class: 'cat-row' }, dot, name, up, down);
+        if (c.id === DEFAULT_CATEGORY) {
+          row.append(h('span', { class: 'muted cat-fixed' }, 'Silinemez'));
+        } else if (confirming === c.id) {
+          const n = confirmCount;
+          const yes = h('button', { type: 'button', class: 'danger' }, 'Sil');
+          const no = h('button', { type: 'button' }, 'Vazgeç');
+          yes.addEventListener('click', () => { confirming = null; void run(() => api.noteCategoryDelete(c.id)); });
+          no.addEventListener('click', () => { confirming = null; draw(); });
+          row.append(h('span', { class: 'cat-confirm' }, `${n} not Notlar'a taşınacak.`), yes, no);
+        } else {
+          const del = h('button', { type: 'button', class: 'icon-button', title: 'Kategoriyi sil', 'aria-label': 'Kategoriyi sil' }, icon('trash-2', 16));
+          del.addEventListener('click', () => {
+            // Backend'in taşıyacağı tam sayı (arşivdekiler dahil).
+            void api.noteCategoryCount(c.id).catch(() => counts.by_category[c.id] ?? 0).then((n) => { confirmCount = n; confirming = c.id; draw(); });
+          });
+          row.append(del);
+        }
+        return row;
+      }));
+    }
+
+    const newName = h('input', { type: 'text', class: 'grow', maxLength: 40, placeholder: 'Yeni kategori adı', 'aria-label': 'Yeni kategori adı' });
+    const newColor = colorSelect(null);
+    const add = h('button', { type: 'button', class: 'primary' }, 'Ekle');
+    const doAdd = (): void => {
+      if (!newName.value.trim()) { newName.focus(); return; }
+      const label = newName.value;
+      newName.value = '';
+      void run(() => api.noteCategoryAdd(label, newColor.value || null));
+    };
+    add.addEventListener('click', doAdd);
+    newName.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } });
+    body.append(listBox, h('div', { class: 'cat-row cat-add' }, newColor, newName, add), msg);
+    draw();
+    openDialog('Kategoriler', body);
+    newName.focus();
   }
 
   function renderTags(): void {
@@ -404,10 +816,24 @@ export function notesView(): View {
   }
 
   function render(): void {
+    // Düzenleme başka nota geçtiyse ya da kapandıysa eski düzenleyici kaydedilip yok edilir.
+    if (activeEdit && editing !== activeEdit.id) {
+      const a = activeEdit;
+      activeEdit = null;
+      void disposeEdit(a);
+    }
     renderCounts();
     renderTags();
-    showDoneLabel.hidden = tab === 'archive';
+    showDoneLabel.hidden = tab === 'archive' || tab === 'trash';
     list.replaceChildren();
+    if (tab === 'trash') {
+      const q = search.value.trim().toLocaleLowerCase('tr-TR');
+      const trashed = notes.filter((n) => !q || n.text.toLocaleLowerCase('tr-TR').includes(q));
+      countLabel.textContent = trashed.length ? `${trashed.length} not` : '';
+      if (!trashed.length) { list.append(emptyState('Çöp kutusu boş', `Sildiğin notlar ${TRASH_DAYS} gün burada durur; istersen geri yükleyebilirsin.`)); return; }
+      list.append(trashBar(counts.trash), ...trashed.map(trashRow));
+      return;
+    }
     const visible = notes.filter((n) => !pendingDeletes.has(n.id));
     countLabel.textContent = visible.length ? `${visible.length} not` : '';
     if (!visible.length) {
@@ -425,26 +851,34 @@ export function notesView(): View {
     if (editing !== null || reminding !== null) return; // düzenleme sırasında içerik değiştirilmez
     try {
       const archive = tab === 'archive';
-      const page = await api.noteList(archive ? '' : tab, search.value, { archived: archive, showDone: archive || showDone, sort });
-      addForm.hidden = !page.available;
+      const trash = tab === 'trash';
+      const page = await api.noteList(archive || trash ? '' : tab, trash ? '' : search.value, { archived: archive, showDone: archive || trash || showDone, sort });
+      addForm.hidden = !page.available || trash;
       tabs.hidden = !page.available;
-      sortSelect.hidden = !page.available;
+      catBtn.hidden = !page.available;
+      sortSelect.hidden = !page.available || trash;
       searchBox.hidden = !page.available;
-      newBtn.hidden = !page.available;
-      filterBar.hidden = !page.available;
+      newBtn.hidden = !page.available || trash;
+      filterBar.hidden = !page.available || trash;
       if (!page.available) {
         notes = [];
         list.replaceChildren(emptyState('Notlar henüz tarayıcıda', 'Eklentide Ayarlar → Depolama → "Verileri masaüstüne taşı" de. Sonra notları burada da görüp ekleyebilirsin.'));
         return;
       }
-      notes = page.notes;
-      counts = page.counts;
+      counts = { ...page.counts, trash: page.counts.trash ?? 0, by_category: page.counts.by_category ?? {} };
+      const cats = await api.noteCategories().catch(() => null);
+      if (cats?.length) {
+        const changed = JSON.stringify(cats) !== JSON.stringify(categories);
+        categories = cats;
+        if (changed) { fillCategoryOptions(addCategory, categories, addCategory.value); renderTabs(); }
+      }
+      notes = trash ? await api.noteTrashList() : page.notes;
       render();
     } catch (e) { flash(errText(e)); }
   }
 
+  renderTabs();
   addBtn.addEventListener('click', () => void add());
-  addText.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void add(); } });
   search.addEventListener('input', debounce(() => void refresh(), 150));
   // Tarayıcıdan eklenenleri yakalamak için pencereye dönünce yenile.
   window.addEventListener('focus', () => { if (el.isConnected) void refresh(); });

@@ -11,7 +11,45 @@ export interface Migration {
   version: number;
   /** Sırayla çalıştırılan SQL ifadeleri. */
   statements: string[];
+  /** İfadelerden sonra, aynı işlemde çalışır (düz SQL ile yapılamayan adımlar için). */
+  after?: (ex: Executor) => Promise<void>;
 }
+
+/**
+ * writable_schema ile sqlite_master elle değiştirilince şema çerezi (schema_version) artmaz; aynı dosyayı açık tutan
+ * diğer bağlantılar (masaüstü uygulaması + Chrome yerel ana bilgisayarı) eski şemayı önbellekte tutar. Çerezi artırır
+ * ve veritabanı bütünlüğünü denetler; "ok" değilse hata verir (migrasyon geri alınır).
+ */
+export async function bumpSchemaVersionAndCheck(ex: Executor): Promise<void> {
+  const rows = await ex.query<{ schema_version: number }>('PRAGMA schema_version');
+  const current = Number(rows[0]?.schema_version);
+  if (!Number.isInteger(current)) throw new Error('schema_version okunamadı');
+  await ex.exec(`PRAGMA schema_version = ${current + 1}`);
+  const check = await ex.query<Record<string, unknown>>('PRAGMA quick_check');
+  const first = check[0] ? String(Object.values(check[0])[0]) : '';
+  if (check.length !== 1 || first !== 'ok') throw new Error(`Veritabanı bütünlük denetimi başarısız: ${check.map(r => Object.values(r)[0]).join('; ')}`);
+}
+
+/**
+ * Migrasyon 13 ifadeleri; masaüstündeki NOTE_EXTRA_DDL ile birebir aynı olmalı (tests/note-meta.test.ts denetler).
+ * Son üç ifade `notes.category` üzerindeki sabit CHECK kısıtını gevşetir (kullanıcı kategorileri için); tablo
+ * yeniden oluşturulmaz (DROP, ON DELETE CASCADE ile ek tabloları silerdi). Kısıt zaten gevşetilmişse etkisizdir.
+ */
+export const NOTE_EXTRA_DDL: readonly string[] = [
+  'CREATE TABLE IF NOT EXISTS note_extra (note_id INTEGER PRIMARY KEY REFERENCES notes(id) ON DELETE CASCADE, deleted_at INTEGER, color TEXT, position INTEGER)',
+  'CREATE INDEX IF NOT EXISTS idx_note_extra_deleted ON note_extra(deleted_at)',
+  'CREATE TABLE IF NOT EXISTS note_categories (id TEXT PRIMARY KEY, label TEXT NOT NULL, color TEXT, position INTEGER NOT NULL, builtin INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)',
+  // Yalnız tablo boşken tohumlanır: kullanıcının sildiği kategori sonradan geri gelmez.
+  "INSERT OR IGNORE INTO note_categories (id, label, color, position, builtin, created_at) SELECT id, label, NULL, position, 1, 0 FROM (SELECT 'note' AS id, 'Notlar' AS label, 0 AS position UNION ALL SELECT 'read', 'Okunacaklar', 1 UNION ALL SELECT 'watch', 'İzlenecekler', 2 UNION ALL SELECT 'idea', 'Fikirler', 3) WHERE NOT EXISTS (SELECT 1 FROM note_categories)",
+  'CREATE TABLE IF NOT EXISTS note_history (id INTEGER PRIMARY KEY, note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE, text TEXT NOT NULL, saved_at INTEGER NOT NULL)',
+  'CREATE INDEX IF NOT EXISTS idx_note_history_note ON note_history(note_id, saved_at)',
+  'PRAGMA writable_schema=ON',
+  "UPDATE sqlite_master SET sql = replace(sql, 'CHECK(category IN (''note'',''read'',''watch'',''idea''))', 'CHECK(length(category) > 0)') WHERE type = 'table' AND name = 'notes'",
+  'PRAGMA writable_schema=RESET'
+];
+
+/** `note_categories` boşsa dört yerleşik kategoriyi yeniden ekler (eski yedek geri yüklenince). */
+export const NOTE_CATEGORY_SEED_SQL: string = NOTE_EXTRA_DDL[3];
 
 /** Sıralı migrasyon listesi. Mevcut öğeler değiştirilmez; yenisi sona eklenir. */
 export const MIGRATIONS: readonly Migration[] = [
@@ -104,7 +142,8 @@ export const MIGRATIONS: readonly Migration[] = [
   // Web süre takibindeki sitelerin küçük ikonu (Chrome'un kendi favicon önbelleğinden, data: URL). Masaüstü ana sayfası okur.
   { version: 12, statements: [
     'CREATE TABLE IF NOT EXISTS site_icons (domain TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at INTEGER NOT NULL)'
-  ] }
+  ] },
+  { version: 13, statements: [...NOTE_EXTRA_DDL], after: bumpSchemaVersionAndCheck }
 ];
 
 export const SCHEMA_VERSION_KEY = 'schema_version';
@@ -145,6 +184,7 @@ export async function runMigrations(
     await ex.exec('BEGIN');
     try {
       for (const statement of migration.statements) await ex.exec(statement);
+      if (migration.after) await migration.after(ex);
       await ex.exec(
         'INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
         [SCHEMA_VERSION_KEY, String(migration.version)]

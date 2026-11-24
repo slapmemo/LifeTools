@@ -73,7 +73,7 @@ export function extractDomain(rawUrl: string | null | undefined): string | null 
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** Panelin sağ altında geçici bildirim (toast) gösterir. */
-export function showToast(message: string, kind: 'info' | 'error' = 'info'): void {
+export function showToast(message: string, kind: 'info' | 'error' = 'info', action?: { label: string; onClick: () => void }): void {
   if (typeof document === 'undefined' || !message) return;
   let el = document.getElementById('panel-toast');
   if (!el) {
@@ -84,12 +84,20 @@ export function showToast(message: string, kind: 'info' | 'error' = 'info'): voi
     document.body.append(el);
   }
   el.textContent = message;
+  if (action) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'link';
+    button.textContent = action.label;
+    button.addEventListener('click', () => { if (el) el.hidden = true; action.onClick(); });
+    el.append(' ', button);
+  }
   el.className = `toast panel-toast${kind === 'error' ? ' danger' : ''}`;
   el.hidden = false;
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     if (el) el.hidden = true;
-  }, 2800);
+  }, action ? 7000 : 2800);
 }
 
 /** Yıkıcı eylemler için "ikinci tık" onay deseni. İlk tıkta metin değişir, ikinci tıkta çalıştırılır. */

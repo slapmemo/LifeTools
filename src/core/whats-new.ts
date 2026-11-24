@@ -14,6 +14,15 @@ export interface ChangeEntry { version: string; items: readonly ChangeItem[] }
  */
 export const CHANGELOG: readonly ChangeEntry[] = [
   {
+    version: '0.10.0',
+    items: [
+      { kind: 'new', features: ['slapmemo'], desktop: ['notlar'], text: 'Notlarda Word gibi yazma: kelimeyi seç, üstteki çubuktan kalın, renk, başlık, liste, yapılacak, tablo ekle. Yazarken "# ", "- ", "[] " kendiliğinden biçimlenir; web\'den yapıştırınca biçim temiz gelir.' },
+      { kind: 'new', features: ['slapmemo'], desktop: ['notlar'], text: 'Otomatik kaydetme ve taslak: Kaydet düğmesi yok, yazdığın kaybolmaz. Bul/değiştir (Ctrl+F), biçim boyacısı, kelime sayacı ve odak modu.' },
+      { kind: 'new', features: ['slapmemo'], desktop: ['notlar'], text: 'Çöp kutusu: silinen not 15 gün durur, geri yükleyebilirsin. Kendi kategorilerini ekleyip adlandırabilir, notlara renk verebilir, önceki hâllerine dönebilir, elle sıralayabilirsin.' },
+      { kind: 'fixed', features: ['slapmemo'], desktop: ['notlar'], text: 'Notlardaki boş satırlar yazdığın gibi görünüyor; panelde notlar biçimli.' }
+    ]
+  },
+  {
     version: '0.8.1',
     items: [
       { kind: 'fixed', features: ['tab-manager'], text: 'Sekme Yöneticisi: pencerede birden çok sabit Yönetici sekmesi birikmiyor; liste bir grup adı yazarken yenilenip yazdığını silmiyor.' },

@@ -1,9 +1,19 @@
 # LifeTools — Kaldığımız Yer
 
-> Son güncelleme: 18 Kasım 2026 · sürüm **0.8.1 YAYINLANDI** (18 Kasım, v0.8.1 etiketi; iş akışı başarılı, zip/kurulum/latest.json yüklendi; önceki: 0.8.0, 0.7.0) · dal master
+> Son güncelleme: 24 Kasım 2026 · sürüm **0.10.0** (Notlar yenilemesi; `notlar-0.10` dalında, v0.10.0 etiketi itildi; önceki yayın: 0.8.1) · master henüz 0.8.1'de, dal birleştirilmedi
 > Yeni bir sohbete/oturuma başlarken önce bu dosyayı oku. Tasarım ilerlemesi: `design/YENIDEN-TASARIM.md`. Sürüm notları: `release-notes/`. Eski planlar: `../LifeTools_Plan_v3_2026-11-06.md`, `../LifeTools_Arayuz_Plani_2026-11-06.md`, `../LifeTools_Ozellik_Rehberi_2026-11-08.md`.
 
-## 0. Şu an neredeyiz (18 Kasım)
+## 0. Şu an neredeyiz (24 Kasım) — NOTLAR, 0.11.0'da kaldık
+
+**0.10.0 — Notlar yenilemesi** (`NOTLAR-PLANI.md`'deki 0.8.2 + 0.9.0 + 0.10.0 tek sürümde). Sürüm notu `release-notes/v0.10.0.md`, `CHANGELOG` girişi yazıldı. **Sırada 0.11.0** (kart görünümü, hızlı süzgeçler, etiket yönetimi, aramada vurgulama, toplu işlem, `[[` not bağlantıları, katlanabilir başlıklar); sonra 0.12.0 ve 0.13.0. Plan ve kararlar `NOTLAR-PLANI.md`'de; görsel örnek https://claude.ai/artifact/TiVXkkBWCYrW2L9CnJFYiz.
+- **Düzenleyici:** TipTap 3 + markdown-it, ortak kod `shared/notes/` (editor, ui, render, paste, find, lazy, notes.css). Kayıt biçimi Markdown + LifeTools ekleri (`++alt çizgi++`, `==vurgu==`, `{kırmızı|…}`), tanım `docs/not-bicimi.md`. Değiştirilmeyen not yeniden yazılmaz. Eklentide düzenleyici `dist/chunks/` altında ayrı parça (esbuild `splitting`), yalnız düzenlemeye geçince yüklenir.
+- **Veritabanı:** eklenti migrasyon 13 + masaüstü `ensure_note_extras` aynı DDL (`note_extra` silinme/renk/sıra, `note_categories`, `note_history`); `notes.category` CHECK'i `writable_schema` ile gevşetildi (+ `schema_version` artırma + `quick_check`). Silme = çöp kutusu (15 gün, masaüstü saatlik / eklenti günlük temizlik). Kayıt çakışması `updated_at` ile.
+- **Doğrulama:** 498 vitest + 106 cargo test. Masaüstü gerçek pencerede (tauri dev + WebView2 CDP, `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9334`) gerçek DB ile denendi, bulunan 6 kusur düzeltildi. Eklentide yalnız sayfa baloncuğu denendi (Claude in Chrome `chrome-extension://` sayfalarını açamıyor); **panel gerçek Chrome'da denenmedi**. Toast "Geri al" iki kez notu silmedi; olası nedenler düzeltildi (yakın kayıtlar `chrome.storage.session`'da, düğme satırı sabit) ama kök neden doğrulanmadı.
+- **Yedek:** yükseltme öncesi DB `../yedekler/lifetools-2026-11-24-0.10-oncesi.db`.
+- **Açık küçük işler:** yapılacak kutucuğu ekran okuyucu etiketi metinle güncellenmiyor; panel ile masaüstü kaydedilemeyen-değişiklik anahtarları farklı (`lifetools_panel_note_unsaved_<id>` / `lifetools_note_recovery_<id>`); SQLite rowid yeniden kullanıldığı için bu anahtarlar silinen notun numarasını alan yeni nota denk gelebilir; cargo'da iki gereksiz `mut` uyarısı.
+- Kod ajanlarla yazıldı (Sonnet, orta düzey; dosyalar ajanlara bölünerek, çakışmasız).
+
+### Önceki: 0.8.1 (18 Kasım)
 
 **0.8.1 — düzeltme sürümü.** Kaynak: `BUG-FIXLEME.md` (elle kod incelemesi, 57 madde; 46'sı + Codex incelemelerinden çıkanlar düzeltildi; ayrıntı ve doğrulama §10–§10d). Sürüm notu `release-notes/v0.8.1.md`, `whats-new.ts` `CHANGELOG` girişi yazıldı. Öne çıkanlar:
 - **Sekme Yöneticisi birikmesi** (kullanıcı bir pencerede 3 sabit `tabs.html` gördü): temizlik artık Yönetici sekmesi açılınca/yüklenince/taşınınca da çalışıyor (`onlyDedupe`), açılışta 15 sn sonra ikinci tur; eşleme `manager-tab.ts` (`?`/`#` yok sayılır); panel düğmesi `openTabManager`.

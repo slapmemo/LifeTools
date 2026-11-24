@@ -160,9 +160,27 @@ pub fn watch_delete(state: St, id: i64) -> Result<(), String> {
     db::delete_watch(&state.db(), id).map_err(err)
 }
 
+/// Metni değiştirir. `expected_updated_at` verilirse ve not başka yerde değişmişse `NOT_CONFLICT` hatası döner.
+/// Eski çağrılar (`expected_updated_at` yok) aynen çalışır. Yeni `updated_at` değerini döndürür.
 #[tauri::command]
-pub fn note_set_text(state: St, id: i64, text: String) -> Result<(), String> {
-    db::update_note_text(&state.db(), id, &text)
+pub fn note_set_text(state: St, id: i64, text: String, expected_updated_at: Option<i64>) -> Result<i64, String> {
+    db::update_note_text_checked(&state.db(), id, &text, expected_updated_at)
+}
+
+/// Tek not (düzenleyici güncel `updated_at` değerini ve metni yeniden okumak için).
+#[tauri::command]
+pub fn note_get(state: St, id: i64) -> Result<Option<db::Note>, String> {
+    db::get_note(&state.db(), id).map_err(err)
+}
+
+#[tauri::command]
+pub fn note_set_user_note(state: St, id: i64, user_note: Option<String>) -> Result<(), String> {
+    db::set_note_user_note(&state.db(), id, user_note.as_deref())
+}
+
+#[tauri::command]
+pub fn note_duplicate(state: St, id: i64) -> Result<i64, String> {
+    db::duplicate_note(&state.db(), id)
 }
 
 #[tauri::command]
@@ -228,7 +246,99 @@ pub fn note_update(state: St, id: i64, category: String, text: String, user_note
 
 #[tauri::command]
 pub fn note_delete(state: St, id: i64) -> Result<(), String> {
-    db::delete_note(&mut state.db(), id).map_err(err)
+    db::delete_note(&state.db(), id)
+}
+
+/// Çöp kutusundaki notlar (en son silinen önce).
+#[tauri::command]
+pub fn note_trash_list(state: St) -> Result<Vec<db::Note>, String> {
+    db::list_trash(&state.db()).map_err(err)
+}
+
+#[tauri::command]
+pub fn note_restore(state: St, id: i64) -> Result<(), String> {
+    db::restore_note(&state.db(), id)
+}
+
+/// Kalıcı siler (görsel, sayfa kopyası, geçmiş dahil).
+#[tauri::command]
+pub fn note_purge(state: St, id: i64) -> Result<(), String> {
+    db::purge_note(&state.db(), id).map_err(err)
+}
+
+/// Çöpü boşaltır; silinen not sayısını döndürür.
+#[tauri::command]
+pub fn note_trash_empty(state: St) -> Result<i64, String> {
+    db::empty_trash(&state.db()).map_err(err)
+}
+
+/// 15 günü geçen çöp notlarını kalıcı siler; silinen sayıyı döndürür.
+#[tauri::command]
+pub fn note_purge_expired(state: St) -> Result<i64, String> {
+    db::purge_expired(&state.db(), db::now_millis(), db::TRASH_DAYS).map_err(err)
+}
+
+#[tauri::command]
+pub fn note_set_color(state: St, id: i64, color: Option<String>) -> Result<(), String> {
+    db::set_note_color(&state.db(), id, color.as_deref())
+}
+
+#[tauri::command]
+pub fn note_set_position(state: St, id: i64, position: i64) -> Result<(), String> {
+    db::set_note_position(&state.db(), id, position)
+}
+
+/// Elle sıralama: görünen satırların yeni sırası; `category` listenin kategori filtresi (yok: hepsi).
+#[tauri::command]
+pub fn note_reorder(state: St, ids: Vec<i64>, category: Option<String>) -> Result<(), String> {
+    db::reorder_notes_scoped(&state.db(), &ids, category.as_deref().filter(|c| !c.is_empty()))
+}
+
+/// Kategori silinirse taşınacak not sayısı (arşivdekiler dahil).
+#[tauri::command]
+pub fn note_category_count(state: St, id: String) -> Result<i64, String> {
+    db::category_note_count(&state.db(), &id)
+}
+
+#[tauri::command]
+pub fn note_history(state: St, id: i64) -> Result<Vec<db::HistoryEntry>, String> {
+    db::list_history(&state.db(), id).map_err(err)
+}
+
+#[tauri::command]
+pub fn note_history_restore(state: St, history_id: i64) -> Result<(), String> {
+    db::restore_history(&state.db(), history_id)
+}
+
+#[tauri::command]
+pub fn note_categories(state: St) -> Result<Vec<db::NoteCategory>, String> {
+    db::list_categories(&state.db()).map_err(err)
+}
+
+#[tauri::command]
+pub fn note_category_add(state: St, label: String, color: Option<String>) -> Result<db::NoteCategory, String> {
+    db::add_category(&state.db(), &label, color.as_deref())
+}
+
+#[tauri::command]
+pub fn note_category_rename(state: St, id: String, label: String) -> Result<(), String> {
+    db::rename_category(&state.db(), &id, &label)
+}
+
+#[tauri::command]
+pub fn note_category_recolor(state: St, id: String, color: Option<String>) -> Result<(), String> {
+    db::recolor_category(&state.db(), &id, color.as_deref())
+}
+
+#[tauri::command]
+pub fn note_categories_reorder(state: St, ids: Vec<String>) -> Result<(), String> {
+    db::reorder_categories(&state.db(), &ids)
+}
+
+/// Kategoriyi siler; notları "Notlar"a taşır ve taşınan sayıyı döndürür.
+#[tauri::command]
+pub fn note_category_delete(state: St, id: String) -> Result<i64, String> {
+    db::delete_category(&state.db(), &id)
 }
 
 /// Notun bağlantısını varsayılan tarayıcıda açar; yalnızca http(s) adresleri.
